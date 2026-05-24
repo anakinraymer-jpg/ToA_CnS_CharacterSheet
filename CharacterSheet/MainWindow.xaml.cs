@@ -3,7 +3,6 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
-using CharacterSheet.Controls;
 using CharacterSheet.Models;
 using Microsoft.Win32;
 
@@ -44,9 +43,6 @@ public partial class MainWindow : Window
         BtnZoomOut.Click += (_, _) => ZoomAroundCenter(_zoom - ZoomStep);
         BtnZoomFit.Click += (_, _) => FitToWindow();
 
-        BtnAddEquip.Click += OnAddEquipClicked;
-        BtnAddSkill.Click += OnAddSkillClicked;
-
         PortraitBox.MouseLeftButtonDown += OnPortraitClick;
 
         TbSpell0.TextChanged += OnSpell0Changed;
@@ -59,10 +55,9 @@ public partial class MainWindow : Window
     {
         _loading = true;
 
-        // Unsubscribe from old state
         _state.PropertyChanged -= OnStateChanged;
-        foreach (var e in _state.Equipment) e.PropertyChanged -= OnItemChanged;
-        foreach (var sk in _state.Skills)   sk.PropertyChanged -= OnItemChanged;
+        foreach (var row in _state.Rows)
+            row.PropertyChanged -= OnRowChanged;
 
         _state = state;
         DataContext = _state;
@@ -76,10 +71,9 @@ public partial class MainWindow : Window
         else
             ClearPortrait();
 
-        // Subscribe to new state
         _state.PropertyChanged += OnStateChanged;
-        foreach (var e in _state.Equipment) e.PropertyChanged += OnItemChanged;
-        foreach (var sk in _state.Skills)   sk.PropertyChanged += OnItemChanged;
+        foreach (var row in _state.Rows)
+            row.PropertyChanged += OnRowChanged;
 
         _loading = false;
     }
@@ -198,40 +192,9 @@ public partial class MainWindow : Window
         if (!_loading) Save();
     }
 
-    private void OnItemChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!_loading) Save();
-    }
-
-    // ── Add equipment / skill ─────────────────────────────────────────
-    private void OnAddEquipClicked(object sender, RoutedEventArgs e)
-    {
-        var dlg = new AddEntryDialog(isSkill: false) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
-
-        var item = new EquipmentItem
-        {
-            Name        = dlg.EntryName,
-            Description = dlg.EntryDescription,
-        };
-        item.PropertyChanged += OnItemChanged;
-        _state.Equipment.Add(item);
-        Save();
-    }
-
-    private void OnAddSkillClicked(object sender, RoutedEventArgs e)
-    {
-        var dlg = new AddEntryDialog(isSkill: true) { Owner = this };
-        if (dlg.ShowDialog() != true) return;
-
-        var item = new SkillItem
-        {
-            Name        = dlg.EntryName,
-            Description = dlg.EntryDescription,
-        };
-        item.PropertyChanged += OnItemChanged;
-        _state.Skills.Add(item);
-        Save();
     }
 
     private void OnSpell0Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
