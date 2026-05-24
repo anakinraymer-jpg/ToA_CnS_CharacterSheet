@@ -23,13 +23,35 @@
               Style="{StaticResource CtrlButton}" Margin="4,0"/>
       <Button x:Name="BtnImport" Content="↑ Import"
               Style="{StaticResource CtrlButton}" Margin="4,0"/>
+      <!-- divider -->
+      <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
+      <!-- zoom controls -->
+      <Button x:Name="BtnZoomOut" Content="−" Padding="12,8"
+              Style="{StaticResource CtrlButton}" Margin="4,0"
+              ToolTip="Zoom out  (Ctrl -)"/>
+      <TextBlock x:Name="TbZoom" Text="100%"
+                 Foreground="#D4A96A" FontFamily="Palatino Linotype" FontSize="14"
+                 Width="52" TextAlignment="Center" VerticalAlignment="Center" Margin="2,0"/>
+      <Button x:Name="BtnZoomIn" Content="+" Padding="12,8"
+              Style="{StaticResource CtrlButton}" Margin="4,0"
+              ToolTip="Zoom in  (Ctrl +)"/>
+      <Button x:Name="BtnZoomFit" Content="⊡ Fit" Padding="10,8"
+              Style="{StaticResource CtrlButton}" Margin="4,0"
+              ToolTip="Fit sheet to window  (Ctrl 0)"/>
     </WrapPanel>
 
-    <!-- ══ SHEET: Viewbox scales the 595×842 canvas to fill window ══ -->
-    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Disabled">
-      <Viewbox Stretch="Uniform" StretchDirection="Both" Margin="10,0,10,20">
-        <Canvas Width="595.2" Height="841.9">
+    <!-- ══ SHEET: ScaleTransform on Canvas; ScrollViewer handles overflow ══ -->
+    <ScrollViewer x:Name="SheetScroll"
+                  VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Auto"
+                  PreviewMouseWheel="OnScrollWheel">
+      <Grid>
+        <Canvas Width="595.2" Height="841.9"
+                HorizontalAlignment="Center" VerticalAlignment="Top"
+                Margin="10,0,10,20">
+          <Canvas.LayoutTransform>
+            <ScaleTransform x:Name="SheetScale" ScaleX="1" ScaleY="1"/>
+          </Canvas.LayoutTransform>
 
           <!-- PDF background image -->
           <Image Canvas.Left="0" Canvas.Top="0"
@@ -156,7 +178,7 @@
           <TextBox x:Name="TbSpell2" Canvas.Left="30.4" Canvas.Top="777.1" Width="532.7" Height="25.0" Style="{StaticResource OverlayTextBox}"/>
 
         </Canvas>
-      </Viewbox>
+      </Grid>
     </ScrollViewer>
   </DockPanel>
 </Window>

@@ -13,10 +13,36 @@ public partial class MainWindow : Window
     private CharacterState _state = CharacterState.CreateDefault();
     private bool _loading;
 
+    // ── Zoom ──────────────────────────────────────────────────────────
+    private double _zoom = 1.0;
+    private const double ZoomMin  = 0.25;
+    private const double ZoomMax  = 3.0;
+    private const double ZoomStep = 0.10;
+
     public MainWindow()
     {
         InitializeComponent();
+        WireUiEvents();
         LoadState(Persistence.Load());
+        Loaded += (_, _) => FitToWindow();
+    }
+
+    // ── One-time UI event wiring (not state-dependent) ────────────────
+    private void WireUiEvents()
+    {
+        BtnNew.Click    += OnBtnNew;
+        BtnExport.Click += OnBtnExport;
+        BtnImport.Click += OnBtnImport;
+
+        BtnZoomIn.Click  += (_, _) => SetZoom(_zoom + ZoomStep);
+        BtnZoomOut.Click += (_, _) => SetZoom(_zoom - ZoomStep);
+        BtnZoomFit.Click += (_, _) => FitToWindow();
+
+        PortraitBox.MouseLeftButtonDown += OnPortraitClick;
+
+        TbSpell0.TextChanged += OnSpell0Changed;
+        TbSpell1.TextChanged += OnSpell1Changed;
+        TbSpell2.TextChanged += OnSpell2Changed;
     }
 
     // ── Load / Populate ───────────────────────────────────────────────
@@ -24,20 +50,17 @@ public partial class MainWindow : Window
     {
         _loading = true;
 
-        // Detach listeners from old state / rows
-        if (_state != state)
-        {
-            _state.PropertyChanged -= OnStateChanged;
-            foreach (var row in _state.Rows)
-                row.PropertyChanged -= OnRowChanged;
-        }
+        // Detach listeners from the outgoing state
+        _state.PropertyChanged -= OnStateChanged;
+        foreach (var row in _state.Rows)
+            row.PropertyChanged -= OnRowChanged;
 
         _state = state;
 
-        // All header fields and row fields are resolved through DataContext bindings.
+        // All header / row bindings resolve through DataContext
         DataContext = _state;
 
-        // Spell textboxes are named controls — populate them manually.
+        // Spell textboxes are named controls — populate manually
         TbSpell0.Text = state.Spells.Count > 0 ? state.Spells[0] : "";
         TbSpell1.Text = state.Spells.Count > 1 ? state.Spells[1] : "";
         TbSpell2.Text = state.Spells.Count > 2 ? state.Spells[2] : "";
@@ -48,38 +71,69 @@ public partial class MainWindow : Window
         else
             ClearPortrait();
 
-        // Subscribe to auto-save triggers
+        // Attach listeners to the incoming state
         _state.PropertyChanged += OnStateChanged;
         foreach (var row in _state.Rows)
             row.PropertyChanged += OnRowChanged;
 
-        // Wire spell boxes once (first call); subsequent LoadState calls reuse them.
-        TbSpell0.TextChanged -= OnSpell0Changed;
-        TbSpell1.TextChanged -= OnSpell1Changed;
-        TbSpell2.TextChanged -= OnSpell2Changed;
-        TbSpell0.TextChanged += OnSpell0Changed;
-        TbSpell1.TextChanged += OnSpell1Changed;
-        TbSpell2.TextChanged += OnSpell2Changed;
-
-        // Portrait click — wire once
-        PortraitBox.MouseLeftButtonDown -= OnPortraitClick;
-        PortraitBox.MouseLeftButtonDown += OnPortraitClick;
-
-        // Control buttons — wire once
-        BtnNew.Click    -= OnBtnNew;
-        BtnExport.Click -= OnBtnExport;
-        BtnImport.Click -= OnBtnImport;
-        BtnNew.Click    += OnBtnNew;
-        BtnExport.Click += OnBtnExport;
-        BtnImport.Click += OnBtnImport;
-
         _loading = false;
+    }
+
+    // ── Zoom ──────────────────────────────────────────────────────────
+    private void SetZoom(double z)
+    {
+        _zoom = Math.Clamp(z, ZoomMin, ZoomMax);
+        SheetScale.ScaleX = SheetScale.ScaleY = _zoom;
+        TbZoom.Text = $"{(int)Math.Round(_zoom * 100)}%";
+    }
+
+    private void FitToWindow()
+    {
+        // Give the layout a chance to settle so viewport dimensions are accurate
+        SheetScroll.UpdateLayout();
+        double vw = SheetScroll.ViewportWidth  - 24;   // subtract margins (10+10+scroll-gutter)
+        double vh = SheetScroll.ViewportHeight - 24;
+        if (vw <= 0 || vh <= 0) return;
+        SetZoom(Math.Min(vw / 595.2, vh / 841.9));
+    }
+
+    // Ctrl+Scroll on the ScrollViewer zooms instead of scrolling
+    private void OnScrollWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
+        e.Handled = true;
+        SetZoom(_zoom + (e.Delta > 0 ? ZoomStep : -ZoomStep));
+    }
+
+    // Ctrl+= / Ctrl+- / Ctrl+0 keyboard shortcuts
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
+
+        switch (e.Key)
+        {
+            case Key.OemPlus:
+            case Key.Add:
+                SetZoom(_zoom + ZoomStep);
+                e.Handled = true;
+                break;
+            case Key.OemMinus:
+            case Key.Subtract:
+                SetZoom(_zoom - ZoomStep);
+                e.Handled = true;
+                break;
+            case Key.D0:
+            case Key.NumPad0:
+                FitToWindow();
+                e.Handled = true;
+                break;
+        }
     }
 
     // ── Auto-save callbacks ───────────────────────────────────────────
     private void OnStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // "Portrait" changes are handled separately; everything else auto-saves.
         if (!_loading) Save();
     }
 
@@ -156,8 +210,7 @@ public partial class MainWindow : Window
                             MessageBoxButton.YesNo,
                             MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
-        var fresh = CharacterState.CreateDefault();
-        LoadState(fresh);
+        LoadState(CharacterState.CreateDefault());
         Save();
     }
 
