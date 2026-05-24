@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Text.Json.Serialization;
 
 namespace CharacterSheet.Models;
 
@@ -30,20 +29,30 @@ public class RowData : INotifyPropertyChanged
 
 public class CharacterState : INotifyPropertyChanged
 {
+    // ── Header fields (mapped 1-to-1 to PDF form fields) ─────────
     private string _name     = "";
     private string _lineage  = "";
     private string _hometown = "";
-    private string _flaws    = "";
-    private string _summa    = "";
+    private string _flaw1    = "";
+    private string _flaw2    = "";
+    private string _extra1   = "";
+    private string _extra2   = "";
+    private string _summa1   = "";
+    private string _summa2   = "";
     private string _portrait = "";
 
     public string Name     { get => _name;     set { _name     = value; OnPropertyChanged(); } }
     public string Lineage  { get => _lineage;  set { _lineage  = value; OnPropertyChanged(); } }
     public string Hometown { get => _hometown; set { _hometown = value; OnPropertyChanged(); } }
-    public string Flaws    { get => _flaws;    set { _flaws    = value; OnPropertyChanged(); } }
-    public string Summa    { get => _summa;    set { _summa    = value; OnPropertyChanged(); } }
+    public string Flaw1    { get => _flaw1;    set { _flaw1    = value; OnPropertyChanged(); } }
+    public string Flaw2    { get => _flaw2;    set { _flaw2    = value; OnPropertyChanged(); } }
+    public string Extra1   { get => _extra1;   set { _extra1   = value; OnPropertyChanged(); } }
+    public string Extra2   { get => _extra2;   set { _extra2   = value; OnPropertyChanged(); } }
+    public string Summa1   { get => _summa1;   set { _summa1   = value; OnPropertyChanged(); } }
+    public string Summa2   { get => _summa2;   set { _summa2   = value; OnPropertyChanged(); } }
     public string Portrait { get => _portrait; set { _portrait = value; OnPropertyChanged(); } }
 
+    // ── Rows & spells ─────────────────────────────────────────────
     public ObservableCollection<RowData> Rows   { get; set; } = [];
     public ObservableCollection<string>  Spells { get; set; } = [];
 

@@ -3,42 +3,41 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ctrl="clr-namespace:CharacterSheet.Controls">
 
-  <!-- ── AdvCircle template ────────────────────────────────────────── -->
+  <!-- ── AdvCircle: transparent overlay that fills when checked ──────── -->
+  <!-- The PDF background provides the circle border; we just fill it    -->
   <Style TargetType="{x:Type ctrl:AdvCircle}">
-    <Setter Property="Width"  Value="20"/>
-    <Setter Property="Height" Value="20"/>
     <Setter Property="Cursor" Value="Hand"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="{x:Type ctrl:AdvCircle}">
+          <!-- Ellipse sized to the control; fill toggles in code-behind -->
           <Ellipse x:Name="PART_Ellipse"
-                   Width="20" Height="20"
-                   Stroke="#5A2E0E" StrokeThickness="2"
+                   Width="{TemplateBinding Width}"
+                   Height="{TemplateBinding Height}"
+                   Stroke="Transparent"
+                   StrokeThickness="0"
                    Fill="Transparent"/>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
   </Style>
 
-  <!-- ── DieBubble template ─────────────────────────────────────────── -->
+  <!-- ── DieBubble: text-only overlay on the PDF die circle ─────────── -->
   <Style TargetType="{x:Type ctrl:DieBubble}">
-    <Setter Property="Width"  Value="44"/>
-    <Setter Property="Height" Value="44"/>
-    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Cursor"  Value="Hand"/>
     <Setter Property="ToolTip" Value="Click to advance die"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="{x:Type ctrl:DieBubble}">
-          <Grid Width="44" Height="44">
-            <Ellipse x:Name="PART_Ellipse"
-                     Stroke="#5A2E0E" StrokeThickness="2.5"
-                     Fill="#F2E4C0"/>
+          <Grid Background="Transparent">
+            <!-- No ellipse — the PDF circle is in the background image -->
+            <Ellipse x:Name="PART_Ellipse" Fill="Transparent" Stroke="Transparent"/>
             <TextBlock x:Name="PART_Label"
                        Text="d6"
                        FontFamily="Palatino Linotype"
-                       FontSize="12"
+                       FontSize="8"
                        FontWeight="Bold"
-                       Foreground="#5A2E0E"
+                       Foreground="#CC1A0D02"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"/>
           </Grid>

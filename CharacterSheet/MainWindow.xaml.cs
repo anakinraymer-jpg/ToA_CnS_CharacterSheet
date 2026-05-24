@@ -1,9 +1,7 @@
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CharacterSheet.Models;
 using Microsoft.Win32;
@@ -19,66 +17,88 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         LoadState(Persistence.Load());
-        WireEvents();
     }
 
     // ── Load / Populate ───────────────────────────────────────────────
     private void LoadState(CharacterState state)
     {
         _loading = true;
+
+        // Detach listeners from old state / rows
+        if (_state != state)
+        {
+            _state.PropertyChanged -= OnStateChanged;
+            foreach (var row in _state.Rows)
+                row.PropertyChanged -= OnRowChanged;
+        }
+
         _state = state;
 
-        TbName.Text     = state.Name;
-        TbLineage.Text  = state.Lineage;
-        TbHometown.Text = state.Hometown;
-        TbFlaws.Text    = state.Flaws;
-        TbSumma.Text    = state.Summa;
+        // All header fields and row fields are resolved through DataContext bindings.
+        DataContext = _state;
 
+        // Spell textboxes are named controls — populate them manually.
         TbSpell0.Text = state.Spells.Count > 0 ? state.Spells[0] : "";
         TbSpell1.Text = state.Spells.Count > 1 ? state.Spells[1] : "";
         TbSpell2.Text = state.Spells.Count > 2 ? state.Spells[2] : "";
 
+        // Portrait
         if (!string.IsNullOrEmpty(state.Portrait))
             ShowPortrait(state.Portrait);
         else
             ClearPortrait();
 
-        RowsControl.ItemsSource = state.Rows;
-
-        // Listen for property changes on each row to trigger auto-save
-        foreach (var row in state.Rows)
+        // Subscribe to auto-save triggers
+        _state.PropertyChanged += OnStateChanged;
+        foreach (var row in _state.Rows)
             row.PropertyChanged += OnRowChanged;
+
+        // Wire spell boxes once (first call); subsequent LoadState calls reuse them.
+        TbSpell0.TextChanged -= OnSpell0Changed;
+        TbSpell1.TextChanged -= OnSpell1Changed;
+        TbSpell2.TextChanged -= OnSpell2Changed;
+        TbSpell0.TextChanged += OnSpell0Changed;
+        TbSpell1.TextChanged += OnSpell1Changed;
+        TbSpell2.TextChanged += OnSpell2Changed;
+
+        // Portrait click — wire once
+        PortraitBox.MouseLeftButtonDown -= OnPortraitClick;
+        PortraitBox.MouseLeftButtonDown += OnPortraitClick;
+
+        // Control buttons — wire once
+        BtnNew.Click    -= OnBtnNew;
+        BtnExport.Click -= OnBtnExport;
+        BtnImport.Click -= OnBtnImport;
+        BtnNew.Click    += OnBtnNew;
+        BtnExport.Click += OnBtnExport;
+        BtnImport.Click += OnBtnImport;
 
         _loading = false;
     }
 
-    // ── Event wiring ──────────────────────────────────────────────────
-    private void WireEvents()
+    // ── Auto-save callbacks ───────────────────────────────────────────
+    private void OnStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // Header text inputs
-        TbName.TextChanged     += (_, _) => { if (!_loading) { _state.Name     = TbName.Text;     Save(); } };
-        TbLineage.TextChanged  += (_, _) => { if (!_loading) { _state.Lineage  = TbLineage.Text;  Save(); } };
-        TbHometown.TextChanged += (_, _) => { if (!_loading) { _state.Hometown = TbHometown.Text; Save(); } };
-        TbFlaws.TextChanged    += (_, _) => { if (!_loading) { _state.Flaws    = TbFlaws.Text;    Save(); } };
-        TbSumma.TextChanged    += (_, _) => { if (!_loading) { _state.Summa    = TbSumma.Text;    Save(); } };
-
-        // Spells
-        TbSpell0.TextChanged += (_, _) => { if (!_loading) { _state.Spells[0] = TbSpell0.Text; Save(); } };
-        TbSpell1.TextChanged += (_, _) => { if (!_loading) { _state.Spells[1] = TbSpell1.Text; Save(); } };
-        TbSpell2.TextChanged += (_, _) => { if (!_loading) { _state.Spells[2] = TbSpell2.Text; Save(); } };
-
-        // Portrait click
-        PortraitBox.MouseLeftButtonDown += OnPortraitClick;
-
-        // Control buttons
-        BtnNew.Click    += OnBtnNew;
-        BtnExport.Click += OnBtnExport;
-        BtnImport.Click += OnBtnImport;
+        // "Portrait" changes are handled separately; everything else auto-saves.
+        if (!_loading) Save();
     }
 
     private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!_loading) Save();
+    }
+
+    private void OnSpell0Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (!_loading) { _state.Spells[0] = TbSpell0.Text; Save(); }
+    }
+    private void OnSpell1Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (!_loading) { _state.Spells[1] = TbSpell1.Text; Save(); }
+    }
+    private void OnSpell2Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (!_loading) { _state.Spells[2] = TbSpell2.Text; Save(); }
     }
 
     // ── Portrait ──────────────────────────────────────────────────────
@@ -91,10 +111,10 @@ public partial class MainWindow : Window
         };
         if (dlg.ShowDialog() != true) return;
 
-        var bytes  = File.ReadAllBytes(dlg.FileName);
-        var b64    = Convert.ToBase64String(bytes);
-        var ext    = Path.GetExtension(dlg.FileName).TrimStart('.').ToLower();
-        var mime   = ext == "jpg" ? "jpeg" : ext;
+        var bytes   = File.ReadAllBytes(dlg.FileName);
+        var b64     = Convert.ToBase64String(bytes);
+        var ext     = Path.GetExtension(dlg.FileName).TrimStart('.').ToLower();
+        var mime    = ext == "jpg" ? "jpeg" : ext;
         var dataUrl = $"data:image/{mime};base64,{b64}";
 
         ShowPortrait(dataUrl);
@@ -118,19 +138,17 @@ public partial class MainWindow : Window
 
             PortraitImg.Source     = bmp;
             PortraitImg.Visibility = Visibility.Visible;
-            PortraitHint.Visibility = Visibility.Collapsed;
         }
-        catch { /* bad image data — leave hint visible */ }
+        catch { /* bad image data — leave portrait hidden */ }
     }
 
     private void ClearPortrait()
     {
-        PortraitImg.Source      = null;
-        PortraitImg.Visibility  = Visibility.Collapsed;
-        PortraitHint.Visibility = Visibility.Visible;
+        PortraitImg.Source     = null;
+        PortraitImg.Visibility = Visibility.Collapsed;
     }
 
-    // ── Controls ──────────────────────────────────────────────────────
+    // ── Control buttons ───────────────────────────────────────────────
     private void OnBtnNew(object sender, RoutedEventArgs e)
     {
         if (MessageBox.Show("Clear this character sheet and start fresh?",
@@ -138,11 +156,8 @@ public partial class MainWindow : Window
                             MessageBoxButton.YesNo,
                             MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
-        // Detach old row listeners
-        foreach (var row in _state.Rows)
-            row.PropertyChanged -= OnRowChanged;
-
-        LoadState(CharacterState.CreateDefault());
+        var fresh = CharacterState.CreateDefault();
+        LoadState(fresh);
         Save();
     }
 
@@ -173,10 +188,6 @@ public partial class MainWindow : Window
         {
             var json  = File.ReadAllText(dlg.FileName);
             var state = Persistence.LoadFromJson(json);
-
-            foreach (var row in _state.Rows)
-                row.PropertyChanged -= OnRowChanged;
-
             LoadState(state);
             Save();
         }

@@ -26,8 +26,10 @@ public class AdvCircle : Control
         set => SetValue(IsCheckedProperty, value);
     }
 
-    private static readonly Color BrownColor = (Color)ColorConverter.ConvertFromString("#5A2E0E");
-    private static readonly Color RedColor   = (Color)ColorConverter.ConvertFromString("#7A1A0A");
+    // Overlay mode: no stroke; fill only when checked
+    private static readonly Color RedColor    = (Color)ColorConverter.ConvertFromString("#CC7A1A0A");
+    private static readonly Color HoverColor  = (Color)ColorConverter.ConvertFromString("#887A1A0A");
+    private static readonly Color BrownColor  = (Color)ColorConverter.ConvertFromString("#5A2E0E"); // unused but kept
 
     private Ellipse? _ellipse;
 
@@ -49,14 +51,14 @@ public class AdvCircle : Control
     {
         base.OnMouseEnter(e);
         if (_ellipse != null && !IsChecked)
-            _ellipse.Stroke = new SolidColorBrush(RedColor);
+            _ellipse.Fill = new SolidColorBrush(HoverColor);
     }
 
     protected override void OnMouseLeave(MouseEventArgs e)
     {
         base.OnMouseLeave(e);
         if (_ellipse != null && !IsChecked)
-            _ellipse.Stroke = new SolidColorBrush(BrownColor);
+            _ellipse.Fill = Brushes.Transparent;
     }
 
     private static void OnIsCheckedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -65,15 +67,9 @@ public class AdvCircle : Control
     private void UpdateVisual()
     {
         if (_ellipse == null) return;
-        if (IsChecked)
-        {
-            _ellipse.Fill   = new SolidColorBrush(RedColor);
-            _ellipse.Stroke = new SolidColorBrush(RedColor);
-        }
-        else
-        {
-            _ellipse.Fill   = Brushes.Transparent;
-            _ellipse.Stroke = new SolidColorBrush(BrownColor);
-        }
+        _ellipse.Stroke = Brushes.Transparent;
+        _ellipse.Fill   = IsChecked
+            ? new SolidColorBrush(RedColor)
+            : Brushes.Transparent;
     }
 }

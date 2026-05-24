@@ -1,0 +1,104 @@
+  <!-- ?? Header ???????????????????????????????? -->
+    <TextBox Canvas.Left="118.4" Canvas.Top="38.8" Width="339.3" Height="23.7" Style="{StaticResource OverlayTextBox}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="118.4" Canvas.Top="64.8" Width="340.0" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Lineage, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="117.8" Canvas.Top="93.5" Width="340.7" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Hometown, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="90.4" Canvas.Top="121.5" Width="176.0" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Flaw1, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="281.1" Canvas.Top="121.5" Width="176.7" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Flaw2, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="33.1" Canvas.Top="150.2" Width="232.7" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Extra1, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="281.1" Canvas.Top="150.2" Width="274.7" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Extra2, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="90.4" Canvas.Top="178.2" Width="464.7" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Summa1, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="33.8" Canvas.Top="205.5" Width="521.3" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Summa2, UpdateSourceTrigger=PropertyChanged}"/>
+
+  <!-- ?? Body rows ?????????????????????????????? -->
+  <!-- Row 0 -->
+    <TextBox Canvas.Left="35.8" Canvas.Top="266.3" Width="200.7" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[0].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="35.8" Canvas.Top="286.7" Width="200.7" Height="13.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[0].EquipSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="266.4" Width="168.0" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[0].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="286.6" Width="168.0" Height="11.7" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[0].SkillSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="242.4" Canvas.Top="276.4" Width="16.0" Height="17.6" IsChecked="{Binding Rows[0].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="332.4" Canvas.Top="275.8" Width="16.8" Height="17.6" IsChecked="{Binding Rows[0].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="531.8" Canvas.Top="263.0" Width="23.3" Height="23.7" Die="{Binding Rows[0].Die, Mode=TwoWay}"/>
+
+  <!-- Row 1 -->
+    <TextBox Canvas.Left="35.8" Canvas.Top="331.2" Width="200.7" Height="13.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[1].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="35.8" Canvas.Top="355.2" Width="175.3" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[1].EquipSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="331.9" Width="168.0" Height="12.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[1].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="380.4" Canvas.Top="355.9" Width="150.0" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[1].SkillSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="243.1" Canvas.Top="320.4" Width="16.0" Height="17.6" IsChecked="{Binding Rows[1].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="332.4" Canvas.Top="321.2" Width="16.8" Height="16.8" IsChecked="{Binding Rows[1].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="540.4" Canvas.Top="307.8" Width="23.3" Height="23.7" Die="{Binding Rows[1].Die, Mode=TwoWay}"/>
+
+  <!-- Row 2 -->
+    <TextBox Canvas.Left="36.4" Canvas.Top="375.4" Width="174.7" Height="13.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[2].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="36.4" Canvas.Top="400.6" Width="152.0" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[2].EquipSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="381.1" Canvas.Top="376.0" Width="149.3" Height="13.7" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[2].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="402.4" Canvas.Top="399.9" Width="127.3" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[2].SkillSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="216.4" Canvas.Top="365.8" Width="16.8" Height="17.6" IsChecked="{Binding Rows[2].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="358.4" Canvas.Top="365.2" Width="16.8" Height="16.8" IsChecked="{Binding Rows[2].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="540.4" Canvas.Top="352.4" Width="23.3" Height="23.7" Die="{Binding Rows[2].Die, Mode=TwoWay}"/>
+
+  <!-- Row 3 -->
+    <TextBox Canvas.Left="37.1" Canvas.Top="421.4" Width="151.3" Height="12.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[3].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="35.8" Canvas.Top="445.2" Width="175.3" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[3].EquipSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="402.4" Canvas.Top="420.0" Width="127.3" Height="13.7" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[3].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="380.4" Canvas.Top="445.2" Width="150.0" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[3].SkillSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="193.7" Canvas.Top="409.8" Width="16.8" Height="17.6" IsChecked="{Binding Rows[3].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="381.0" Canvas.Top="410.5" Width="16.8" Height="16.8" IsChecked="{Binding Rows[3].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="540.4" Canvas.Top="396.4" Width="23.3" Height="23.7" Die="{Binding Rows[3].Die, Mode=TwoWay}"/>
+
+  <!-- Row 4 -->
+    <TextBox Canvas.Left="36.4" Canvas.Top="465.4" Width="174.7" Height="13.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[4].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="35.1" Canvas.Top="490.0" Width="200.7" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[4].EquipSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="381.1" Canvas.Top="465.4" Width="149.3" Height="13.7" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[4].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="489.4" Width="168.0" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[4].SkillSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="217.0" Canvas.Top="455.1" Width="16.8" Height="17.6" IsChecked="{Binding Rows[4].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="358.4" Canvas.Top="454.9" Width="16.8" Height="16.8" IsChecked="{Binding Rows[4].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="539.8" Canvas.Top="441.2" Width="23.3" Height="23.7" Die="{Binding Rows[4].Die, Mode=TwoWay}"/>
+
+  <!-- Row 5 -->
+    <TextBox Canvas.Left="35.1" Canvas.Top="510.6" Width="200.7" Height="13.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[5].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="35.1" Canvas.Top="534.0" Width="200.7" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[5].EquipSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="509.5" Width="168.0" Height="12.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[5].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="534.2" Width="168.0" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[5].SkillSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="242.4" Canvas.Top="499.8" Width="16.8" Height="16.8" IsChecked="{Binding Rows[5].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="332.4" Canvas.Top="499.6" Width="16.8" Height="16.8" IsChecked="{Binding Rows[5].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="531.8" Canvas.Top="486.0" Width="23.3" Height="23.7" Die="{Binding Rows[5].Die, Mode=TwoWay}"/>
+
+  <!-- Row 6 -->
+    <TextBox Canvas.Left="35.1" Canvas.Top="554.2" Width="200.7" Height="13.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[6].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="34.4" Canvas.Top="579.4" Width="200.7" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[6].EquipSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="554.8" Width="168.0" Height="12.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[6].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="579.5" Width="168.0" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[6].SkillSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="242.4" Canvas.Top="544.2" Width="16.8" Height="17.6" IsChecked="{Binding Rows[6].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="332.3" Canvas.Top="544.1" Width="17.6" Height="16.8" IsChecked="{Binding Rows[6].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="531.8" Canvas.Top="530.7" Width="23.3" Height="23.7" Die="{Binding Rows[6].Die, Mode=TwoWay}"/>
+
+  <!-- Row 7 -->
+    <TextBox Canvas.Left="34.4" Canvas.Top="600.2" Width="200.7" Height="13.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[7].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="34.4" Canvas.Top="626.3" Width="200.7" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[7].EquipSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="599.8" Width="168.0" Height="12.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[7].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="624.8" Width="168.0" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[7].SkillSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="242.4" Canvas.Top="588.8" Width="16.8" Height="17.6" IsChecked="{Binding Rows[7].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="332.3" Canvas.Top="589.5" Width="17.6" Height="16.8" IsChecked="{Binding Rows[7].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="531.1" Canvas.Top="575.4" Width="23.3" Height="23.7" Die="{Binding Rows[7].Die, Mode=TwoWay}"/>
+
+  <!-- Row 8 -->
+    <TextBox Canvas.Left="34.4" Canvas.Top="646.4" Width="200.7" Height="13.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[8].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="34.4" Canvas.Top="668.3" Width="200.7" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[8].EquipSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="645.1" Width="168.0" Height="12.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[8].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="353.8" Canvas.Top="667.1" Width="168.0" Height="20.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[8].SkillSub, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="242.4" Canvas.Top="633.5" Width="16.8" Height="17.6" IsChecked="{Binding Rows[8].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="331.6" Canvas.Top="633.6" Width="17.6" Height="16.8" IsChecked="{Binding Rows[8].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="531.8" Canvas.Top="620.8" Width="23.3" Height="23.7" Die="{Binding Rows[8].Die, Mode=TwoWay}"/>
+
+  <!-- Row 9 -->
+    <TextBox Canvas.Left="34.4" Canvas.Top="689.1" Width="200.7" Height="13.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[9].EquipName, UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="354.4" Canvas.Top="687.1" Width="168.0" Height="12.3" Style="{StaticResource OverlayTextBox}" Text="{Binding Rows[9].SkillName, UpdateSourceTrigger=PropertyChanged}"/>
+    <ctrl:AdvCircle Canvas.Left="242.4" Canvas.Top="677.5" Width="16.8" Height="17.6" IsChecked="{Binding Rows[9].EquipUsed, Mode=TwoWay}"/>
+    <ctrl:AdvCircle Canvas.Left="332.3" Canvas.Top="677.7" Width="17.6" Height="16.8" IsChecked="{Binding Rows[9].SkillAdv, Mode=TwoWay}"/>
+    <ctrl:DieBubble Canvas.Left="531.8" Canvas.Top="664.2" Width="23.3" Height="23.7" Die="{Binding Rows[9].Die, Mode=TwoWay}"/>
+
+  <!-- ?? Spells ????????????????????????????????? -->
+    <TextBox Canvas.Left="29.1" Canvas.Top="720.4" Width="532.7" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Spells[0], UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="29.8" Canvas.Top="749.8" Width="532.7" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Spells[1], UpdateSourceTrigger=PropertyChanged}"/>
+    <TextBox Canvas.Left="30.4" Canvas.Top="777.1" Width="532.7" Height="25.0" Style="{StaticResource OverlayTextBox}" Text="{Binding Spells[2], UpdateSourceTrigger=PropertyChanged}"/>
