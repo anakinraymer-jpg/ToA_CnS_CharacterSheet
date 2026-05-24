@@ -1,0 +1,253 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ctrl="clr-namespace:CharacterSheet.Controls">
+
+  <!-- ── Colour palette ─────────────────────────────────────────────── -->
+  <Color x:Key="Parchment">#F2E4C0</Color>
+  <Color x:Key="ParchmentDk">#E0CC98</Color>
+  <Color x:Key="Ink">#1A0D02</Color>
+  <Color x:Key="Brown">#5A2E0E</Color>
+  <Color x:Key="BrownLt">#8B5A2B</Color>
+  <Color x:Key="Red">#7A1A0A</Color>
+  <Color x:Key="Gold">#B8860B</Color>
+  <Color x:Key="PageBg">#110A02</Color>
+
+  <SolidColorBrush x:Key="ParchmentBrush"   Color="{StaticResource Parchment}"/>
+  <SolidColorBrush x:Key="ParchmentDkBrush" Color="{StaticResource ParchmentDk}"/>
+  <SolidColorBrush x:Key="InkBrush"         Color="{StaticResource Ink}"/>
+  <SolidColorBrush x:Key="BrownBrush"       Color="{StaticResource Brown}"/>
+  <SolidColorBrush x:Key="BrownLtBrush"     Color="{StaticResource BrownLt}"/>
+  <SolidColorBrush x:Key="RedBrush"         Color="{StaticResource Red}"/>
+  <SolidColorBrush x:Key="GoldBrush"        Color="{StaticResource Gold}"/>
+  <SolidColorBrush x:Key="PageBgBrush"      Color="{StaticResource PageBg}"/>
+
+  <!-- Die colours -->
+  <SolidColorBrush x:Key="DieBrush_d4"  Color="#7A6A3A"/>
+  <SolidColorBrush x:Key="DieBrush_d6"  Color="#5A5A2A"/>
+  <SolidColorBrush x:Key="DieBrush_d8"  Color="#2A5A3A"/>
+  <SolidColorBrush x:Key="DieBrush_d10" Color="#2A3A6A"/>
+  <SolidColorBrush x:Key="DieBrush_d12" Color="#6A1A2A"/>
+
+  <!-- ── Fonts ──────────────────────────────────────────────────────── -->
+  <FontFamily x:Key="TitleFont">Palatino Linotype</FontFamily>
+  <FontFamily x:Key="LabelFont">Palatino Linotype</FontFamily>
+  <FontFamily x:Key="InputFont">Segoe UI</FontFamily>
+
+  <!-- ── Sheet background gradient ─────────────────────────────────── -->
+  <LinearGradientBrush x:Key="SheetGradient" StartPoint="0.2,0.1" EndPoint="0.8,0.9">
+    <GradientStop Color="#F2E4C0" Offset="0"/>
+    <GradientStop Color="#ECCAA0" Offset="0.5"/>
+    <GradientStop Color="#E0CC98" Offset="1"/>
+  </LinearGradientBrush>
+
+  <!-- ── Shared placeholder template helper ────────────────────────── -->
+  <!-- Each text box style embeds a watermark TextBlock bound to ctrl:TextBoxHelper.Placeholder -->
+
+  <!-- ── Header input — underline, with placeholder ────────────────── -->
+  <Style x:Key="HdrTextBox" TargetType="TextBox">
+    <Setter Property="Background"   Value="Transparent"/>
+    <Setter Property="Foreground"   Value="{StaticResource InkBrush}"/>
+    <Setter Property="FontFamily"   Value="{StaticResource InputFont}"/>
+    <Setter Property="FontSize"     Value="14"/>
+    <Setter Property="Padding"      Value="2,1"/>
+    <Setter Property="CaretBrush"   Value="{StaticResource BrownBrush}"/>
+    <Setter Property="SelectionBrush" Value="#885A2E0E"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="border" BorderThickness="0,0,0,1"
+                  BorderBrush="{StaticResource BrownLtBrush}"
+                  Background="Transparent">
+            <Grid>
+              <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Margin="2,0"/>
+              <TextBlock x:Name="ph" IsHitTestVisible="False"
+                         Text="{Binding Path=(ctrl:TextBoxHelper.Placeholder),
+                                        RelativeSource={RelativeSource TemplatedParent}}"
+                         FontFamily="{StaticResource InputFont}" FontStyle="Italic"
+                         FontSize="13" Foreground="#805A2E0E"
+                         VerticalAlignment="Center" Margin="4,0"
+                         Visibility="Collapsed"/>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsFocused" Value="True">
+              <Setter TargetName="border" Property="Background" Value="#0A5A2E0E"/>
+              <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BrownBrush}"/>
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="Text" Value=""/>
+                <Condition Property="IsFocused" Value="False"/>
+              </MultiTrigger.Conditions>
+              <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ── Row name input — faint underline ──────────────────────────── -->
+  <Style x:Key="RowNameTextBox" TargetType="TextBox">
+    <Setter Property="Background"   Value="Transparent"/>
+    <Setter Property="Foreground"   Value="{StaticResource InkBrush}"/>
+    <Setter Property="FontFamily"   Value="{StaticResource InputFont}"/>
+    <Setter Property="FontSize"     Value="14"/>
+    <Setter Property="Padding"      Value="2,1"/>
+    <Setter Property="CaretBrush"   Value="{StaticResource BrownBrush}"/>
+    <Setter Property="SelectionBrush" Value="#885A2E0E"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="border" BorderThickness="0,0,0,1"
+                  BorderBrush="#665A2E0E" Background="Transparent">
+            <Grid>
+              <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Margin="2,0"/>
+              <TextBlock x:Name="ph" IsHitTestVisible="False"
+                         Text="{Binding Path=(ctrl:TextBoxHelper.Placeholder),
+                                        RelativeSource={RelativeSource TemplatedParent}}"
+                         FontFamily="{StaticResource InputFont}" FontStyle="Italic"
+                         FontSize="12" Foreground="#665A2E0E"
+                         VerticalAlignment="Center" Margin="2,0"
+                         Visibility="Collapsed"/>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsFocused" Value="True">
+              <Setter TargetName="border" Property="Background" Value="#0A5A2E0E"/>
+              <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource BrownBrush}"/>
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="Text" Value=""/>
+                <Condition Property="IsFocused" Value="False"/>
+              </MultiTrigger.Conditions>
+              <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ── Row sub input — smaller, lighter ──────────────────────────── -->
+  <Style x:Key="RowSubTextBox" TargetType="TextBox">
+    <Setter Property="Background"   Value="Transparent"/>
+    <Setter Property="Foreground"   Value="{StaticResource BrownLtBrush}"/>
+    <Setter Property="FontFamily"   Value="{StaticResource InputFont}"/>
+    <Setter Property="FontSize"     Value="11"/>
+    <Setter Property="FontWeight"   Value="Light"/>
+    <Setter Property="Padding"      Value="2,0"/>
+    <Setter Property="CaretBrush"   Value="{StaticResource BrownBrush}"/>
+    <Setter Property="SelectionBrush" Value="#885A2E0E"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="border" Background="Transparent">
+            <Grid>
+              <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Margin="2,0"/>
+              <TextBlock x:Name="ph" IsHitTestVisible="False"
+                         Text="{Binding Path=(ctrl:TextBoxHelper.Placeholder),
+                                        RelativeSource={RelativeSource TemplatedParent}}"
+                         FontFamily="{StaticResource InputFont}" FontStyle="Italic"
+                         FontSize="11" Foreground="#4A8B5A2B"
+                         VerticalAlignment="Center" Margin="2,0"
+                         Visibility="Collapsed"/>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsFocused" Value="True">
+              <Setter TargetName="border" Property="Background" Value="#0A5A2E0E"/>
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="Text" Value=""/>
+                <Condition Property="IsFocused" Value="False"/>
+              </MultiTrigger.Conditions>
+              <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ── Spell line input ───────────────────────────────────────────── -->
+  <Style x:Key="SpellTextBox" TargetType="TextBox">
+    <Setter Property="Background"   Value="Transparent"/>
+    <Setter Property="Foreground"   Value="{StaticResource InkBrush}"/>
+    <Setter Property="FontFamily"   Value="{StaticResource InputFont}"/>
+    <Setter Property="FontSize"     Value="14"/>
+    <Setter Property="Padding"      Value="4,3"/>
+    <Setter Property="CaretBrush"   Value="{StaticResource BrownBrush}"/>
+    <Setter Property="SelectionBrush" Value="#885A2E0E"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="border" BorderThickness="0,0,0,1"
+                  BorderBrush="{StaticResource ParchmentDkBrush}"
+                  Background="Transparent">
+            <Grid>
+              <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Margin="2,0"/>
+              <TextBlock x:Name="ph" IsHitTestVisible="False"
+                         Text="{Binding Path=(ctrl:TextBoxHelper.Placeholder),
+                                        RelativeSource={RelativeSource TemplatedParent}}"
+                         FontFamily="{StaticResource InputFont}" FontStyle="Italic"
+                         FontSize="13" Foreground="#665A2E0E"
+                         VerticalAlignment="Center" Margin="4,0"
+                         Visibility="Collapsed"/>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsFocused" Value="True">
+              <Setter TargetName="border" Property="Background" Value="#0A5A2E0E"/>
+            </Trigger>
+            <MultiTrigger>
+              <MultiTrigger.Conditions>
+                <Condition Property="Text" Value=""/>
+                <Condition Property="IsFocused" Value="False"/>
+              </MultiTrigger.Conditions>
+              <Setter TargetName="ph" Property="Visibility" Value="Visible"/>
+            </MultiTrigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- ── Control bar button ─────────────────────────────────────────── -->
+  <Style x:Key="CtrlButton" TargetType="Button">
+    <Setter Property="FontFamily"      Value="{StaticResource TitleFont}"/>
+    <Setter Property="FontSize"        Value="12"/>
+    <Setter Property="Foreground"      Value="#D4A96A"/>
+    <Setter Property="Background"      Value="#2A1205"/>
+    <Setter Property="BorderBrush"     Value="#6B3A12"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding"         Value="14,6"/>
+    <Setter Property="Cursor"          Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="bd"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="2">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="#3E1A08"/>
+              <Setter Property="Foreground" Value="#F0C87A"/>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="#1A0A03"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+</ResourceDictionary>

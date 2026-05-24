@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "character-sheet",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "3700"],
+      "port": 3700
+    }
+  ]
+}

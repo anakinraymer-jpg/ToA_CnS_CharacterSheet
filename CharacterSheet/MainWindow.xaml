@@ -1,0 +1,176 @@
+<Window x:Class="CharacterSheet.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:CharacterSheet.Controls"
+        Title="Crown &amp; Skull — Character Sheet"
+        Width="880" Height="780"
+        MinWidth="700" MinHeight="600"
+        Background="#110A02"
+        WindowStartupLocation="CenterScreen">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/Resources/Themes.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <DockPanel>
+
+    <!-- ══ CONTROLS BAR ══ -->
+    <WrapPanel DockPanel.Dock="Top"
+               HorizontalAlignment="Center"
+               Margin="0,14,0,14"
+               Orientation="Horizontal">
+      <Button x:Name="BtnNew"    Content="☠ New Character"
+              Style="{StaticResource CtrlButton}" Margin="4,0"/>
+      <Button x:Name="BtnExport" Content="↓ Export"
+              Style="{StaticResource CtrlButton}" Margin="4,0"/>
+      <Button x:Name="BtnImport" Content="↑ Import"
+              Style="{StaticResource CtrlButton}" Margin="4,0"/>
+    </WrapPanel>
+
+    <!-- ══ SCROLL + SHEET ══ -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="10,0,10,20">
+      <Border MaxWidth="820"
+              HorizontalAlignment="Center"
+              Background="{StaticResource SheetGradient}"
+              BorderBrush="{StaticResource BrownBrush}"
+              BorderThickness="2"
+              Padding="18,18,18,14">
+        <Border.Effect>
+          <DropShadowEffect Color="#000000" Opacity="0.8" BlurRadius="40" ShadowDepth="0"/>
+        </Border.Effect>
+
+        <StackPanel>
+
+          <!-- ══ HEADER ══ -->
+          <Border BorderBrush="{StaticResource BrownBrush}"
+                  BorderThickness="0,0,0,2"
+                  Margin="0,0,0,6" Padding="0,0,0,10">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="104"/>
+              </Grid.ColumnDefinitions>
+
+              <!-- Fields -->
+              <StackPanel Grid.Column="0">
+                <Grid Margin="0,0,0,3">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Character" Grid.Column="0" VerticalAlignment="Center"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             Foreground="{StaticResource BrownBrush}"/>
+                  <TextBox x:Name="TbName" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
+                </Grid>
+                <Grid Margin="0,0,0,3">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Lineage" Grid.Column="0" VerticalAlignment="Center"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             Foreground="{StaticResource BrownBrush}"/>
+                  <TextBox x:Name="TbLineage" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
+                </Grid>
+                <Grid Margin="0,0,0,3">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Hometown" Grid.Column="0" VerticalAlignment="Center"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             Foreground="{StaticResource BrownBrush}"/>
+                  <TextBox x:Name="TbHometown" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
+                </Grid>
+                <Grid Margin="0,0,0,3">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Flaws" Grid.Column="0" VerticalAlignment="Center"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             Foreground="{StaticResource BrownBrush}"/>
+                  <TextBox x:Name="TbFlaws" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
+                </Grid>
+                <Grid Margin="0,0,0,3">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock Text="Summa" Grid.Column="0" VerticalAlignment="Center"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             Foreground="{StaticResource BrownBrush}"/>
+                  <TextBox x:Name="TbSumma" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
+                </Grid>
+              </StackPanel>
+
+              <!-- Portrait -->
+              <Border Grid.Column="1" Margin="14,0,0,0"
+                      BorderBrush="{StaticResource BrownBrush}" BorderThickness="2"
+                      Background="#145A2E0E" Cursor="Hand"
+                      x:Name="PortraitBox" ToolTip="Click to upload portrait">
+                <Grid>
+                  <StackPanel x:Name="PortraitHint"
+                              HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="☽" FontSize="20"
+                               Foreground="{StaticResource BrownLtBrush}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Text="portrait" FontSize="11"
+                               FontFamily="{StaticResource LabelFont}"
+                               Foreground="{StaticResource BrownLtBrush}"
+                               HorizontalAlignment="Center"/>
+                  </StackPanel>
+                  <Image x:Name="PortraitImg" Stretch="UniformToFill" Visibility="Collapsed"/>
+                </Grid>
+              </Border>
+            </Grid>
+          </Border>
+
+          <!-- ══ SECTION BAR ══ -->
+          <Border BorderBrush="{StaticResource BrownBrush}"
+                  BorderThickness="0,0,0,2" Padding="0,4,0,3">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="70"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="46"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock Grid.Column="0" Text="⟵ Equipment ⟶"
+                         FontFamily="{StaticResource TitleFont}" FontSize="11"
+                         Foreground="{StaticResource BrownBrush}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="1" Text="♛" FontSize="20"
+                         Foreground="{StaticResource BrownBrush}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              <TextBlock Grid.Column="2" Text="⟵ Skills ⟶"
+                         FontFamily="{StaticResource TitleFont}" FontSize="11"
+                         Foreground="{StaticResource BrownBrush}"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Grid>
+          </Border>
+
+          <!-- ══ BODY ROWS ══ -->
+          <ItemsControl x:Name="RowsControl">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Border BorderBrush="{StaticResource ParchmentDkBrush}"
+                        BorderThickness="0,0,0,1">
+                  <ctrl:RowControl DataContext="{Binding}"/>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- ══ SPELLS ══ -->
+          <Border BorderBrush="{StaticResource BrownBrush}"
+                  BorderThickness="0,2,0,0"
+                  Margin="0,4,0,0" Padding="0,4,0,0">
+            <StackPanel>
+              <TextBlock Text="⟵ Spells ⟶"
+                         FontFamily="{StaticResource TitleFont}" FontSize="11"
+                         Foreground="{StaticResource BrownBrush}"
+                         HorizontalAlignment="Center" Margin="0,0,0,4"/>
+              <TextBox x:Name="TbSpell0" Style="{StaticResource SpellTextBox}"/>
+              <TextBox x:Name="TbSpell1" Style="{StaticResource SpellTextBox}"/>
+              <TextBox x:Name="TbSpell2" Style="{StaticResource SpellTextBox}"/>
+            </StackPanel>
+          </Border>
+
+        </StackPanel>
+      </Border>
+    </ScrollViewer>
+  </DockPanel>
+</Window>
