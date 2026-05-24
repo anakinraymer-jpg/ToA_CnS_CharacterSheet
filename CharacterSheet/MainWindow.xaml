@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:CharacterSheet.Controls"
         Title="Crown &amp; Skull — Character Sheet"
-        Width="880" Height="780"
-        MinWidth="700" MinHeight="600"
+        Width="1150" Height="940"
+        MinWidth="820" MinHeight="680"
         Background="#110A02"
         WindowStartupLocation="CenterScreen">
 
@@ -35,12 +35,12 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled"
                   Padding="10,0,10,20">
-      <Border MaxWidth="820"
+      <Border MaxWidth="1080"
               HorizontalAlignment="Center"
               Background="{StaticResource SheetGradient}"
               BorderBrush="{StaticResource BrownBrush}"
               BorderThickness="2"
-              Padding="18,18,18,14">
+              Padding="24,22,24,18">
         <Border.Effect>
           <DropShadowEffect Color="#000000" Opacity="0.8" BlurRadius="40" ShadowDepth="0"/>
         </Border.Effect>
@@ -54,43 +54,43 @@
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="104"/>
+                <ColumnDefinition Width="140"/>
               </Grid.ColumnDefinitions>
 
               <!-- Fields -->
               <StackPanel Grid.Column="0">
-                <Grid Margin="0,0,0,3">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid Margin="0,0,0,5">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock Text="Character" Grid.Column="0" VerticalAlignment="Center"
-                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="15"
                              Foreground="{StaticResource BrownBrush}"/>
                   <TextBox x:Name="TbName" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
                 </Grid>
-                <Grid Margin="0,0,0,3">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid Margin="0,0,0,5">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock Text="Lineage" Grid.Column="0" VerticalAlignment="Center"
-                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="15"
                              Foreground="{StaticResource BrownBrush}"/>
                   <TextBox x:Name="TbLineage" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
                 </Grid>
-                <Grid Margin="0,0,0,3">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid Margin="0,0,0,5">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock Text="Hometown" Grid.Column="0" VerticalAlignment="Center"
-                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="15"
                              Foreground="{StaticResource BrownBrush}"/>
                   <TextBox x:Name="TbHometown" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
                 </Grid>
-                <Grid Margin="0,0,0,3">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid Margin="0,0,0,5">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock Text="Flaws" Grid.Column="0" VerticalAlignment="Center"
-                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="15"
                              Foreground="{StaticResource BrownBrush}"/>
                   <TextBox x:Name="TbFlaws" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
                 </Grid>
-                <Grid Margin="0,0,0,3">
-                  <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid Margin="0,0,0,5">
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                   <TextBlock Text="Summa" Grid.Column="0" VerticalAlignment="Center"
-                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="13"
+                             FontFamily="{StaticResource LabelFont}" FontStyle="Italic" FontSize="15"
                              Foreground="{StaticResource BrownBrush}"/>
                   <TextBox x:Name="TbSumma" Grid.Column="1" Style="{StaticResource HdrTextBox}"/>
                 </Grid>
@@ -104,10 +104,10 @@
                 <Grid>
                   <StackPanel x:Name="PortraitHint"
                               HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="☽" FontSize="20"
+                    <TextBlock Text="☽" FontSize="26"
                                Foreground="{StaticResource BrownLtBrush}"
                                HorizontalAlignment="Center"/>
-                    <TextBlock Text="portrait" FontSize="11"
+                    <TextBlock Text="portrait" FontSize="13"
                                FontFamily="{StaticResource LabelFont}"
                                Foreground="{StaticResource BrownLtBrush}"
                                HorizontalAlignment="Center"/>
@@ -120,23 +120,23 @@
 
           <!-- ══ SECTION BAR ══ -->
           <Border BorderBrush="{StaticResource BrownBrush}"
-                  BorderThickness="0,0,0,2" Padding="0,4,0,3">
+                  BorderThickness="0,0,0,2" Padding="0,6,0,5">
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="70"/>
+                <ColumnDefinition Width="90"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="46"/>
+                <ColumnDefinition Width="60"/>
               </Grid.ColumnDefinitions>
               <TextBlock Grid.Column="0" Text="⟵ Equipment ⟶"
-                         FontFamily="{StaticResource TitleFont}" FontSize="11"
+                         FontFamily="{StaticResource TitleFont}" FontSize="13"
                          Foreground="{StaticResource BrownBrush}"
                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="1" Text="♛" FontSize="20"
+              <TextBlock Grid.Column="1" Text="♛" FontSize="26"
                          Foreground="{StaticResource BrownBrush}"
                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
               <TextBlock Grid.Column="2" Text="⟵ Skills ⟶"
-                         FontFamily="{StaticResource TitleFont}" FontSize="11"
+                         FontFamily="{StaticResource TitleFont}" FontSize="13"
                          Foreground="{StaticResource BrownBrush}"
                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Grid>
@@ -160,9 +160,9 @@
                   Margin="0,4,0,0" Padding="0,4,0,0">
             <StackPanel>
               <TextBlock Text="⟵ Spells ⟶"
-                         FontFamily="{StaticResource TitleFont}" FontSize="11"
+                         FontFamily="{StaticResource TitleFont}" FontSize="13"
                          Foreground="{StaticResource BrownBrush}"
-                         HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                         HorizontalAlignment="Center" Margin="0,0,0,6"/>
               <TextBox x:Name="TbSpell0" Style="{StaticResource SpellTextBox}"/>
               <TextBox x:Name="TbSpell1" Style="{StaticResource SpellTextBox}"/>
               <TextBox x:Name="TbSpell2" Style="{StaticResource SpellTextBox}"/>

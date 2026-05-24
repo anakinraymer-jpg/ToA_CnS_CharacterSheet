@@ -8,16 +8,16 @@
   </UserControl.Resources>
 
   <!-- Row: equip | center | skill | die -->
-  <Grid MinHeight="52">
+  <Grid MinHeight="66">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="70"/>
+      <ColumnDefinition Width="90"/>
       <ColumnDefinition Width="*"/>
-      <ColumnDefinition Width="46"/>
+      <ColumnDefinition Width="60"/>
     </Grid.ColumnDefinitions>
 
     <!-- ── Equipment side ─────────────────────────── -->
-    <Border Grid.Column="0" Padding="2,5,6,4">
+    <Border Grid.Column="0" Padding="4,7,8,5">
       <StackPanel VerticalAlignment="Center">
         <TextBox Style="{StaticResource RowNameTextBox}"
                  local:TextBoxHelper.Placeholder="item…"
@@ -42,14 +42,14 @@
 
       <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4">
         <local:AdvCircle IsChecked="{Binding EquipUsed, Mode=TwoWay}"
-                         ToolTip="Mark used" Margin="0,0,0,4"/>
+                         ToolTip="Mark used" Margin="0,0,0,6"/>
         <local:AdvCircle IsChecked="{Binding SkillAdv, Mode=TwoWay}"
                          ToolTip="Mark advancement"/>
       </StackPanel>
     </Grid>
 
     <!-- ── Skill side ─────────────────────────────── -->
-    <Border Grid.Column="2" Padding="6,5,6,4">
+    <Border Grid.Column="2" Padding="8,7,6,5">
       <StackPanel VerticalAlignment="Center">
         <TextBox Style="{StaticResource RowNameTextBox}"
                  local:TextBoxHelper.Placeholder="skill…"

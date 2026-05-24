@@ -49,8 +49,8 @@
     <Setter Property="Background"   Value="Transparent"/>
     <Setter Property="Foreground"   Value="{StaticResource InkBrush}"/>
     <Setter Property="FontFamily"   Value="{StaticResource InputFont}"/>
-    <Setter Property="FontSize"     Value="14"/>
-    <Setter Property="Padding"      Value="2,1"/>
+    <Setter Property="FontSize"     Value="16"/>
+    <Setter Property="Padding"      Value="2,2"/>
     <Setter Property="CaretBrush"   Value="{StaticResource BrownBrush}"/>
     <Setter Property="SelectionBrush" Value="#885A2E0E"/>
     <Setter Property="Template">
@@ -93,8 +93,8 @@
     <Setter Property="Background"   Value="Transparent"/>
     <Setter Property="Foreground"   Value="{StaticResource InkBrush}"/>
     <Setter Property="FontFamily"   Value="{StaticResource InputFont}"/>
-    <Setter Property="FontSize"     Value="14"/>
-    <Setter Property="Padding"      Value="2,1"/>
+    <Setter Property="FontSize"     Value="16"/>
+    <Setter Property="Padding"      Value="2,2"/>
     <Setter Property="CaretBrush"   Value="{StaticResource BrownBrush}"/>
     <Setter Property="SelectionBrush" Value="#885A2E0E"/>
     <Setter Property="Template">
@@ -136,9 +136,9 @@
     <Setter Property="Background"   Value="Transparent"/>
     <Setter Property="Foreground"   Value="{StaticResource BrownLtBrush}"/>
     <Setter Property="FontFamily"   Value="{StaticResource InputFont}"/>
-    <Setter Property="FontSize"     Value="11"/>
+    <Setter Property="FontSize"     Value="13"/>
     <Setter Property="FontWeight"   Value="Light"/>
-    <Setter Property="Padding"      Value="2,0"/>
+    <Setter Property="Padding"      Value="2,1"/>
     <Setter Property="CaretBrush"   Value="{StaticResource BrownBrush}"/>
     <Setter Property="SelectionBrush" Value="#885A2E0E"/>
     <Setter Property="Template">
@@ -178,8 +178,8 @@
     <Setter Property="Background"   Value="Transparent"/>
     <Setter Property="Foreground"   Value="{StaticResource InkBrush}"/>
     <Setter Property="FontFamily"   Value="{StaticResource InputFont}"/>
-    <Setter Property="FontSize"     Value="14"/>
-    <Setter Property="Padding"      Value="4,3"/>
+    <Setter Property="FontSize"     Value="16"/>
+    <Setter Property="Padding"      Value="4,5"/>
     <Setter Property="CaretBrush"   Value="{StaticResource BrownBrush}"/>
     <Setter Property="SelectionBrush" Value="#885A2E0E"/>
     <Setter Property="Template">
@@ -219,12 +219,12 @@
   <!-- ── Control bar button ─────────────────────────────────────────── -->
   <Style x:Key="CtrlButton" TargetType="Button">
     <Setter Property="FontFamily"      Value="{StaticResource TitleFont}"/>
-    <Setter Property="FontSize"        Value="12"/>
+    <Setter Property="FontSize"        Value="14"/>
     <Setter Property="Foreground"      Value="#D4A96A"/>
     <Setter Property="Background"      Value="#2A1205"/>
     <Setter Property="BorderBrush"     Value="#6B3A12"/>
     <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="Padding"         Value="14,6"/>
+    <Setter Property="Padding"         Value="18,8"/>
     <Setter Property="Cursor"          Value="Hand"/>
     <Setter Property="Template">
       <Setter.Value>
