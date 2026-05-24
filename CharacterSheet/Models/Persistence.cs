@@ -15,6 +15,7 @@ public record CharacterDto(
     string Flaw1, string Flaw2,
     string Extra1, string Extra2,
     string Summa1, string Summa2,
+    string CoreAbility,
     string Portrait,
     List<RowDto> Rows,
     List<string> Spells);
@@ -55,6 +56,7 @@ public static class Persistence
         s.Flaw1, s.Flaw2,
         s.Extra1, s.Extra2,
         s.Summa1, s.Summa2,
+        s.CoreAbility,
         s.Portrait,
         s.Rows.Select(r => new RowDto(
             r.EquipName, r.EquipSub, r.EquipUsed,
@@ -70,6 +72,7 @@ public static class Persistence
             Flaw1 = d.Flaw1 ?? "", Flaw2 = d.Flaw2 ?? "",
             Extra1 = d.Extra1 ?? "", Extra2 = d.Extra2 ?? "",
             Summa1 = d.Summa1 ?? "", Summa2 = d.Summa2 ?? "",
+            CoreAbility = d.CoreAbility ?? "",
             Portrait = d.Portrait ?? "",
         };
         var rows = d.Rows ?? [];
