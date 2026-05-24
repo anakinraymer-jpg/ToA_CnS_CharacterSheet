@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ctrl="clr-namespace:CharacterSheet.Controls"
         Title="Add Entry"
-        Width="340"
+        Width="360"
         SizeToContent="Height"
         ResizeMode="NoResize"
         WindowStyle="ToolWindow"
@@ -12,7 +12,72 @@
         ShowInTaskbar="False">
 
   <Window.Resources>
-    <ResourceDictionary Source="/Resources/Themes.xaml"/>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/Resources/Themes.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+
+      <!-- Mode toggle RadioButton — tab-chip style -->
+      <Style x:Key="ModeRadioButton" TargetType="RadioButton">
+        <Setter Property="Foreground"      Value="#D4A96A"/>
+        <Setter Property="FontFamily"      Value="Palatino Linotype"/>
+        <Setter Property="FontSize"        Value="11"/>
+        <Setter Property="Cursor"          Value="Hand"/>
+        <Setter Property="Focusable"       Value="False"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="RadioButton">
+              <Border x:Name="bd" Background="Transparent" CornerRadius="2"
+                      Padding="10,4" BorderThickness="1" BorderBrush="Transparent">
+                <TextBlock Text="{TemplateBinding Content}"
+                           Foreground="{TemplateBinding Foreground}"
+                           FontFamily="{TemplateBinding FontFamily}"
+                           FontSize="{TemplateBinding FontSize}"/>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsChecked" Value="True">
+                  <Setter TargetName="bd" Property="Background"   Value="#335A2E0E"/>
+                  <Setter TargetName="bd" Property="BorderBrush"  Value="#6B3A12"/>
+                  <Setter Property="Foreground" Value="#F2E4C0"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="bd" Property="Background" Value="#225A2E0E"/>
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+
+      <!-- ListBox item style for dark dialog background -->
+      <Style x:Key="PickListItem" TargetType="ListBoxItem">
+        <Setter Property="Foreground"               Value="#F2E4C0"/>
+        <Setter Property="FontFamily"               Value="Palatino Linotype"/>
+        <Setter Property="FontSize"                 Value="12"/>
+        <Setter Property="Padding"                  Value="6,4"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Background"               Value="Transparent"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="ListBoxItem">
+              <Border x:Name="bd" Background="{TemplateBinding Background}"
+                      Padding="{TemplateBinding Padding}">
+                <ContentPresenter/>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                  <Setter TargetName="bd" Property="Background" Value="#445A2E0E"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="bd" Property="Background" Value="#225A2E0E"/>
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+
+    </ResourceDictionary>
   </Window.Resources>
 
   <Border Padding="20,16,20,18">
@@ -21,20 +86,54 @@
       <!-- Title -->
       <TextBlock x:Name="TbTitle" Text="Add Equipment"
                  FontFamily="Palatino Linotype" FontSize="13" FontWeight="Bold"
-                 Foreground="#D4A96A" Margin="0,0,0,14"/>
+                 Foreground="#D4A96A" Margin="0,0,0,12"/>
 
-      <!-- Name -->
-      <TextBlock Text="NAME"
-                 FontFamily="Palatino Linotype" FontSize="9"
-                 Foreground="#8B5A2B" Margin="0,0,0,4"/>
-      <TextBox x:Name="TbName" Style="{StaticResource DialogTextBox}" Margin="0,0,0,2"/>
-      <ctrl:SkillPickerBox x:Name="SpName" Visibility="Collapsed" Margin="0,0,0,2"/>
+      <!-- Mode toggle -->
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+        <RadioButton x:Name="RbPick"   Content="Pick Existing" IsChecked="True"
+                     Style="{StaticResource ModeRadioButton}" Margin="0,0,4,0"
+                     Checked="OnModeChanged"/>
+        <RadioButton x:Name="RbCreate" Content="Create Custom"
+                     Style="{StaticResource ModeRadioButton}"
+                     Checked="OnModeChanged"/>
+      </StackPanel>
 
-      <!-- Description -->
-      <TextBlock Text="DESCRIPTION"
-                 FontFamily="Palatino Linotype" FontSize="9"
-                 Foreground="#8B5A2B" Margin="0,12,0,4"/>
-      <TextBox x:Name="TbDescription" Style="{StaticResource DialogTextBox}" Margin="0,0,0,2"/>
+      <!-- ── PICK PANEL ─────────────────────────────────────────────── -->
+      <StackPanel x:Name="PanelPick">
+
+        <TextBlock Text="SEARCH"
+                   FontFamily="Palatino Linotype" FontSize="9"
+                   Foreground="#D4A96A" Margin="0,0,0,4"/>
+        <TextBox x:Name="TbFilter" Style="{StaticResource DialogTextBox}" Margin="0,0,0,6"/>
+
+        <ListBox x:Name="LbEntries" Height="180"
+                 Background="#221208" BorderBrush="#5A2E0E" BorderThickness="1"
+                 ItemContainerStyle="{StaticResource PickListItem}"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"
+                         ToolTip="{Binding Description}"/>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+
+      </StackPanel>
+
+      <!-- ── CREATE PANEL ───────────────────────────────────────────── -->
+      <StackPanel x:Name="PanelCreate" Visibility="Collapsed">
+
+        <TextBlock Text="NAME"
+                   FontFamily="Palatino Linotype" FontSize="9"
+                   Foreground="#D4A96A" Margin="0,0,0,4"/>
+        <TextBox x:Name="TbName" Style="{StaticResource DialogTextBox}" Margin="0,0,0,14"/>
+
+        <TextBlock Text="DESCRIPTION"
+                   FontFamily="Palatino Linotype" FontSize="9"
+                   Foreground="#D4A96A" Margin="0,0,0,4"/>
+        <TextBox x:Name="TbDescription" Style="{StaticResource DialogTextBox}"/>
+
+      </StackPanel>
 
       <!-- Buttons -->
       <DockPanel Margin="0,18,0,0">

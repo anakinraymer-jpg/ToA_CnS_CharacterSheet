@@ -104,7 +104,7 @@ public partial class SkillPickerBox : UserControl
     private void UpdateTooltip()
     {
         if (_input == null) return;
-        var desc = SkillList.GetDescription(SelectedSkill);
+        var desc = CustomEntryStore.GetSkillDescription(SelectedSkill);
         if (string.IsNullOrWhiteSpace(desc))
         {
             _input.ToolTip = null;
@@ -157,7 +157,7 @@ public partial class SkillPickerBox : UserControl
     {
         if (_list == null) return;
         _list.Items.Clear();
-        foreach (var skill in SkillList.All)
+        foreach (var skill in CustomEntryStore.AllSkills)
         {
             if (string.IsNullOrWhiteSpace(filter) ||
                 skill.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
@@ -189,7 +189,7 @@ public partial class SkillPickerBox : UserControl
         var typed = _input.Text;
 
         // If text matches a skill exactly → commit it
-        var exact = SkillList.All.FirstOrDefault(s =>
+        var exact = CustomEntryStore.AllSkills.FirstOrDefault(s =>
             s.Name.Equals(typed, StringComparison.OrdinalIgnoreCase));
 
         if (exact != null)

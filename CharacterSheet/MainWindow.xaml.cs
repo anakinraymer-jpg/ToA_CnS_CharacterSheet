@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using CharacterSheet.Controls;
@@ -60,6 +61,7 @@ public partial class MainWindow : Window
         _loading = true;
 
         _state.PropertyChanged -= OnStateChanged;
+        _state.Rows.CollectionChanged -= OnRowsCollectionChanged;
         foreach (var row in _state.Rows)
             row.PropertyChanged -= OnRowChanged;
 
@@ -76,10 +78,23 @@ public partial class MainWindow : Window
             ClearPortrait();
 
         _state.PropertyChanged += OnStateChanged;
+        _state.Rows.CollectionChanged += OnRowsCollectionChanged;
         foreach (var row in _state.Rows)
             row.PropertyChanged += OnRowChanged;
 
         _loading = false;
+        UpdateAddButtonStates();
+    }
+
+    private void OnRowsCollectionChanged(object? sender,
+        System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        => UpdateAddButtonStates();
+
+    private void UpdateAddButtonStates()
+    {
+        bool canAdd = _state.Rows.Count < 10;
+        BtnAddEquip.IsEnabled = canAdd;
+        BtnAddSkill.IsEnabled = canAdd;
     }
 
     // ── Zoom core ─────────────────────────────────────────────────────
@@ -229,6 +244,14 @@ public partial class MainWindow : Window
         };
         row.PropertyChanged += OnRowChanged;
         _state.Rows.Add(row);
+        Save();
+    }
+
+    private void OnRemoveRowClicked(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not RowData row) return;
+        row.PropertyChanged -= OnRowChanged;
+        _state.Rows.Remove(row);   // CollectionChanged fires → UpdateAddButtonStates
         Save();
     }
 

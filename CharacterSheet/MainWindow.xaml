@@ -161,6 +161,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="28"/>
                 <ColumnDefinition Width="44"/>
+                <ColumnDefinition Width="22"/>
               </Grid.ColumnDefinitions>
 
               <!-- [+] EQUIPMENT -->
@@ -184,7 +185,7 @@
                          TextAlignment="Center"/>
             </Grid>
 
-            <!-- 10 equipment / skill rows -->
+            <!-- equipment / skill rows (max 10) -->
             <ItemsControl ItemsSource="{Binding Rows}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -196,6 +197,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="28"/>
                         <ColumnDefinition Width="44"/>
+                        <ColumnDefinition Width="22"/>
                       </Grid.ColumnDefinitions>
 
                       <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0">
@@ -224,6 +226,12 @@
                                       VerticalAlignment="Center"
                                       Value="{Binding SkillRating, Mode=TwoWay}"
                                       HasSkill="{Binding HasSkill}"/>
+
+                      <Button Grid.Column="5" Content="×"
+                              Style="{StaticResource RemoveButton}"
+                              VerticalAlignment="Center" HorizontalAlignment="Center"
+                              Click="OnRemoveRowClicked"
+                              ToolTip="Remove this row"/>
                     </Grid>
                   </Border>
                 </DataTemplate>
