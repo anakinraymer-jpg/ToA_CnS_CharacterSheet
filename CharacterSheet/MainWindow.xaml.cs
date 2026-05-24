@@ -19,6 +19,10 @@ public partial class MainWindow : Window
     private const double ZoomMax  = 3.0;
     private const double ZoomStep = 0.10;
 
+    // Canvas natural size (must match XAML)
+    private const double CanvasW = 595.2;
+    private const double CanvasH = 841.9;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -27,15 +31,16 @@ public partial class MainWindow : Window
         Loaded += (_, _) => FitToWindow();
     }
 
-    // ── One-time UI event wiring (not state-dependent) ────────────────
+    // ── One-time UI event wiring ──────────────────────────────────────
     private void WireUiEvents()
     {
         BtnNew.Click    += OnBtnNew;
         BtnExport.Click += OnBtnExport;
         BtnImport.Click += OnBtnImport;
 
-        BtnZoomIn.Click  += (_, _) => SetZoom(_zoom + ZoomStep);
-        BtnZoomOut.Click += (_, _) => SetZoom(_zoom - ZoomStep);
+        // Zoom buttons anchor to the viewport centre
+        BtnZoomIn.Click  += (_, _) => ZoomAroundCenter(_zoom + ZoomStep);
+        BtnZoomOut.Click += (_, _) => ZoomAroundCenter(_zoom - ZoomStep);
         BtnZoomFit.Click += (_, _) => FitToWindow();
 
         PortraitBox.MouseLeftButtonDown += OnPortraitClick;
@@ -50,28 +55,22 @@ public partial class MainWindow : Window
     {
         _loading = true;
 
-        // Detach listeners from the outgoing state
         _state.PropertyChanged -= OnStateChanged;
         foreach (var row in _state.Rows)
             row.PropertyChanged -= OnRowChanged;
 
         _state = state;
-
-        // All header / row bindings resolve through DataContext
         DataContext = _state;
 
-        // Spell textboxes are named controls — populate manually
         TbSpell0.Text = state.Spells.Count > 0 ? state.Spells[0] : "";
         TbSpell1.Text = state.Spells.Count > 1 ? state.Spells[1] : "";
         TbSpell2.Text = state.Spells.Count > 2 ? state.Spells[2] : "";
 
-        // Portrait
         if (!string.IsNullOrEmpty(state.Portrait))
             ShowPortrait(state.Portrait);
         else
             ClearPortrait();
 
-        // Attach listeners to the incoming state
         _state.PropertyChanged += OnStateChanged;
         foreach (var row in _state.Rows)
             row.PropertyChanged += OnRowChanged;
@@ -79,33 +78,93 @@ public partial class MainWindow : Window
         _loading = false;
     }
 
-    // ── Zoom ──────────────────────────────────────────────────────────
-    private void SetZoom(double z)
+    // ── Zoom core ─────────────────────────────────────────────────────
+
+    // Apply zoom scale + update label. Does NOT adjust scroll.
+    private void ApplyZoom(double z)
     {
         _zoom = Math.Clamp(z, ZoomMin, ZoomMax);
         SheetScale.ScaleX = SheetScale.ScaleY = _zoom;
         TbZoom.Text = $"{(int)Math.Round(_zoom * 100)}%";
     }
 
-    private void FitToWindow()
+    // Returns the horizontal canvas-left in ScrollViewer content coordinates.
+    // When the scaled canvas is narrower than the viewport, the Grid centres it.
+    private double CanvasContentLeft()
     {
-        // Give the layout a chance to settle so viewport dimensions are accurate
-        SheetScroll.UpdateLayout();
-        double vw = SheetScroll.ViewportWidth  - 24;   // subtract margins (10+10+scroll-gutter)
-        double vh = SheetScroll.ViewportHeight - 24;
-        if (vw <= 0 || vh <= 0) return;
-        SetZoom(Math.Min(vw / 595.2, vh / 841.9));
+        // Margin is "10,0,10,20" so total horizontal margin = 20
+        double scaledW = CanvasW * _zoom + 20;
+        double vw = SheetScroll.ViewportWidth;
+        return vw > scaledW
+            ? (vw - scaledW) / 2.0 + 10.0   // centred: half the leftover + left margin
+            : 10.0;                            // overflows: just the left margin
     }
 
-    // Ctrl+Scroll on the ScrollViewer zooms instead of scrolling
+    // Zoom to a specific level while keeping ptCanvas (in canvas coords)
+    // pinned to ptViewport (in ScrollViewer viewport coords).
+    private void ZoomToPoint(double newZoom, Point ptViewport, Point ptCanvas)
+    {
+        double clamped = Math.Clamp(newZoom, ZoomMin, ZoomMax);
+        if (Math.Abs(clamped - _zoom) < 0.001) return;
+
+        ApplyZoom(clamped);
+        SheetScroll.UpdateLayout();
+
+        // Canvas top in content = 0 (VerticalAlignment="Top", top margin = 0).
+        // Canvas left in content depends on centering (computed after layout update).
+        double newH = CanvasContentLeft() + ptCanvas.X * _zoom - ptViewport.X;
+        double newV =                       ptCanvas.Y * _zoom - ptViewport.Y;
+
+        SheetScroll.ScrollToHorizontalOffset(newH);
+        SheetScroll.ScrollToVerticalOffset(newV);
+    }
+
+    // Zoom while keeping the current viewport centre fixed.
+    private void ZoomAroundCenter(double newZoom)
+    {
+        double clamped = Math.Clamp(newZoom, ZoomMin, ZoomMax);
+        if (Math.Abs(clamped - _zoom) < 0.001) return;
+
+        // Viewport centre
+        var ptViewport = new Point(SheetScroll.ViewportWidth  / 2.0,
+                                   SheetScroll.ViewportHeight / 2.0);
+
+        // What canvas point is currently under the viewport centre?
+        double left    = CanvasContentLeft();
+        var ptCanvas   = new Point(
+            (SheetScroll.HorizontalOffset + ptViewport.X - left) / _zoom,
+            (SheetScroll.VerticalOffset   + ptViewport.Y)        / _zoom);
+
+        ZoomToPoint(clamped, ptViewport, ptCanvas);
+    }
+
+    // Fit the whole sheet to the window and reset scroll to origin.
+    private void FitToWindow()
+    {
+        SheetScroll.UpdateLayout();
+        double vw = SheetScroll.ViewportWidth  - 24;
+        double vh = SheetScroll.ViewportHeight - 24;
+        if (vw <= 0 || vh <= 0) return;
+
+        ApplyZoom(Math.Min(vw / CanvasW, vh / CanvasH));
+        SheetScroll.ScrollToHorizontalOffset(0);
+        SheetScroll.ScrollToVerticalOffset(0);
+    }
+
+    // ── Input handlers ────────────────────────────────────────────────
+
+    // Ctrl+Scroll: zoom centred on the mouse cursor
     private void OnScrollWheel(object sender, MouseWheelEventArgs e)
     {
         if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
         e.Handled = true;
-        SetZoom(_zoom + (e.Delta > 0 ? ZoomStep : -ZoomStep));
+
+        var ptViewport = e.GetPosition(SheetScroll);
+        var ptCanvas   = e.GetPosition(SheetCanvas);   // canvas-local coords (0…595, 0…842)
+        ZoomToPoint(_zoom + (e.Delta > 0 ? ZoomStep : -ZoomStep), ptViewport, ptCanvas);
     }
 
-    // Ctrl+= / Ctrl+- / Ctrl+0 keyboard shortcuts
+    // Ctrl+= / Ctrl+- / Ctrl+0
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
@@ -115,12 +174,12 @@ public partial class MainWindow : Window
         {
             case Key.OemPlus:
             case Key.Add:
-                SetZoom(_zoom + ZoomStep);
+                ZoomAroundCenter(_zoom + ZoomStep);
                 e.Handled = true;
                 break;
             case Key.OemMinus:
             case Key.Subtract:
-                SetZoom(_zoom - ZoomStep);
+                ZoomAroundCenter(_zoom - ZoomStep);
                 e.Handled = true;
                 break;
             case Key.D0:

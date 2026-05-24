@@ -46,7 +46,8 @@
                   HorizontalScrollBarVisibility="Auto"
                   PreviewMouseWheel="OnScrollWheel">
       <Grid>
-        <Canvas Width="595.2" Height="841.9"
+        <Canvas x:Name="SheetCanvas"
+                Width="595.2" Height="841.9"
                 HorizontalAlignment="Center" VerticalAlignment="Top"
                 Margin="10,0,10,20">
           <Canvas.LayoutTransform>
