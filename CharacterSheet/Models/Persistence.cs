@@ -81,21 +81,16 @@ public static class Persistence
             Summary     = d.Summary     ?? "",
             Portrait    = d.Portrait    ?? "",
         };
-        var rows = d.Rows ?? [];
-        for (int i = 0; i < 10; i++)
+        // Load all rows from the save; no artificial cap.
+        foreach (var r in d.Rows ?? [])
         {
-            if (i < rows.Count)
-            {
-                var r = rows[i];
-                // SkillName MUST be assigned before SkillRating so HasSkill is correct
-                // when the SkillRating setter clamps the value.
-                s.Rows.Add(new RowData {
-                    EquipName   = r.EquipName,   EquipSub  = r.EquipSub,
-                    EquipUsed   = r.EquipUsed,   SkillAdv  = r.SkillAdv,
-                    SkillName   = r.SkillName,   SkillSub  = r.SkillSub,
-                    SkillRating = r.SkillRating });
-            }
-            else s.Rows.Add(new RowData());
+            // SkillName MUST be assigned before SkillRating so HasSkill is correct
+            // when the SkillRating setter clamps the value.
+            s.Rows.Add(new RowData {
+                EquipName   = r.EquipName,   EquipSub  = r.EquipSub,
+                EquipUsed   = r.EquipUsed,   SkillAdv  = r.SkillAdv,
+                SkillName   = r.SkillName,   SkillSub  = r.SkillSub,
+                SkillRating = r.SkillRating });
         }
         var sp = d.Spells ?? [];
         for (int i = 0; i < 3; i++) s.Spells.Add(i < sp.Count ? sp[i] : "");

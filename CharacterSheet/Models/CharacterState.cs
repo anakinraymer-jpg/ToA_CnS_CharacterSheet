@@ -97,7 +97,7 @@ public class CharacterState : INotifyPropertyChanged
     public static CharacterState CreateDefault()
     {
         var s = new CharacterState();
-        for (int i = 0; i < 10; i++) s.Rows.Add(new RowData());
+        // Rows start empty; the user adds equipment/skills via the [+] buttons.
         s.Spells.Add(""); s.Spells.Add(""); s.Spells.Add("");
         return s;
     }

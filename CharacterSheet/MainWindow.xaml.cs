@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using CharacterSheet.Controls;
 using CharacterSheet.Models;
 using Microsoft.Win32;
 
@@ -42,6 +43,9 @@ public partial class MainWindow : Window
         BtnZoomIn.Click  += (_, _) => ZoomAroundCenter(_zoom + ZoomStep);
         BtnZoomOut.Click += (_, _) => ZoomAroundCenter(_zoom - ZoomStep);
         BtnZoomFit.Click += (_, _) => FitToWindow();
+
+        BtnAddEquip.Click += OnAddEquipClicked;
+        BtnAddSkill.Click += OnAddSkillClicked;
 
         PortraitBox.MouseLeftButtonDown += OnPortraitClick;
 
@@ -195,6 +199,37 @@ public partial class MainWindow : Window
     private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!_loading) Save();
+    }
+
+    // ── Add equipment / skill rows ────────────────────────────────────
+    private void OnAddEquipClicked(object sender, RoutedEventArgs e)
+    {
+        var dlg = new AddEntryDialog(isSkill: false) { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+
+        var row = new RowData
+        {
+            EquipName = dlg.EntryName,
+            EquipSub  = dlg.EntryDescription,
+        };
+        row.PropertyChanged += OnRowChanged;
+        _state.Rows.Add(row);
+        Save();
+    }
+
+    private void OnAddSkillClicked(object sender, RoutedEventArgs e)
+    {
+        var dlg = new AddEntryDialog(isSkill: true) { Owner = this };
+        if (dlg.ShowDialog() != true) return;
+
+        var row = new RowData
+        {
+            SkillName = dlg.EntryName,
+            SkillSub  = dlg.EntryDescription,
+        };
+        row.PropertyChanged += OnRowChanged;
+        _state.Rows.Add(row);
+        Save();
     }
 
     private void OnSpell0Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
