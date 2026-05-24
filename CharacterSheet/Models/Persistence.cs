@@ -7,7 +7,7 @@ public record RowDto(
     string EquipName, string EquipSub, bool EquipUsed,
     bool SkillAdv,
     string SkillName, string SkillSub,
-    string Die);
+    int SkillRating);   // was string Die — old saves will read 0 (clamped to 3 if skill exists)
 
 public record CharacterDto(
     string Name, string Lineage, string Hometown,
@@ -63,7 +63,7 @@ public static class Persistence
         s.Rows.Select(r => new RowDto(
             r.EquipName, r.EquipSub, r.EquipUsed,
             r.SkillAdv,
-            r.SkillName, r.SkillSub, r.Die)).ToList(),
+            r.SkillName, r.SkillSub, r.SkillRating)).ToList(),
         [.. s.Spells]);
 
     private static CharacterState FromDto(CharacterDto d)
@@ -87,10 +87,13 @@ public static class Persistence
             if (i < rows.Count)
             {
                 var r = rows[i];
+                // SkillName MUST be assigned before SkillRating so HasSkill is correct
+                // when the SkillRating setter clamps the value.
                 s.Rows.Add(new RowData {
-                    EquipName = r.EquipName, EquipSub = r.EquipSub,
-                    EquipUsed = r.EquipUsed, SkillAdv = r.SkillAdv,
-                    SkillName = r.SkillName, SkillSub = r.SkillSub, Die = r.Die });
+                    EquipName   = r.EquipName,   EquipSub  = r.EquipSub,
+                    EquipUsed   = r.EquipUsed,   SkillAdv  = r.SkillAdv,
+                    SkillName   = r.SkillName,   SkillSub  = r.SkillSub,
+                    SkillRating = r.SkillRating });
             }
             else s.Rows.Add(new RowData());
         }

@@ -6,21 +6,57 @@ namespace CharacterSheet.Models;
 
 public class RowData : INotifyPropertyChanged
 {
-    private string _equipName = "";
-    private string _equipSub  = "";
+    private string _equipName   = "";
+    private string _equipSub    = "";
     private bool   _equipUsed;
     private bool   _skillAdv;
-    private string _skillName = "";
-    private string _skillSub  = "";
-    private string _die       = "d6";
+    private string _skillName   = "";
+    private string _skillSub    = "";
+    private int    _skillRating = 0;   // 0 = no skill assigned; 3–18 = active
 
     public string EquipName { get => _equipName; set { _equipName = value; OnPropertyChanged(); } }
     public string EquipSub  { get => _equipSub;  set { _equipSub  = value; OnPropertyChanged(); } }
     public bool   EquipUsed { get => _equipUsed; set { _equipUsed = value; OnPropertyChanged(); } }
     public bool   SkillAdv  { get => _skillAdv;  set { _skillAdv  = value; OnPropertyChanged(); } }
-    public string SkillName { get => _skillName; set { _skillName = value; OnPropertyChanged(); } }
-    public string SkillSub  { get => _skillSub;  set { _skillSub  = value; OnPropertyChanged(); } }
-    public string Die       { get => _die;       set { _die       = value; OnPropertyChanged(); } }
+
+    public string SkillName
+    {
+        get => _skillName;
+        set
+        {
+            bool hadSkill = HasSkill;
+            _skillName = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasSkill));   // derived property changed too
+
+            // Auto-promote: blank → first character → set rating to 3
+            if (!hadSkill && HasSkill && _skillRating == 0)
+                SkillRating = 3;
+            // Auto-reset: skill cleared → rating goes back to 0
+            else if (hadSkill && !HasSkill)
+                SkillRating = 0;
+        }
+    }
+
+    public string SkillSub { get => _skillSub; set { _skillSub = value; OnPropertyChanged(); } }
+
+    /// <summary>True whenever the SkillName field contains non-whitespace text.</summary>
+    public bool HasSkill => !string.IsNullOrWhiteSpace(_skillName);
+
+    /// <summary>
+    /// Skill rating shown in the bubble.
+    /// • 0        when no skill is assigned (HasSkill == false)
+    /// • 3 – 18   when a skill is assigned (clamped automatically)
+    /// </summary>
+    public int SkillRating
+    {
+        get => _skillRating;
+        set
+        {
+            _skillRating = HasSkill ? Math.Clamp(value, 3, 18) : 0;
+            OnPropertyChanged();
+        }
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null)

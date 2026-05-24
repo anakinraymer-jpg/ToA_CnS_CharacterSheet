@@ -209,7 +209,8 @@
 
                       <ctrl:DieBubble Grid.Column="4" Width="36" Height="36"
                                       VerticalAlignment="Center"
-                                      Die="{Binding Die, Mode=TwoWay}"/>
+                                      Value="{Binding SkillRating, Mode=TwoWay}"
+                                      HasSkill="{Binding HasSkill}"/>
                     </Grid>
                   </Border>
                 </DataTemplate>
