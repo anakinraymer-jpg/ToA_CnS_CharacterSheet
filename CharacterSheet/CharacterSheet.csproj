@@ -8,8 +8,5 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Resource Include="Assets\sheet_bg.png"/>
-  </ItemGroup>
 
 </Project>

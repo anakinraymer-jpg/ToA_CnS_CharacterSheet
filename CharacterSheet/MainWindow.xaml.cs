@@ -19,9 +19,10 @@ public partial class MainWindow : Window
     private const double ZoomMax  = 3.0;
     private const double ZoomStep = 0.10;
 
-    // Canvas natural size (must match XAML)
-    private const double CanvasW = 595.2;
-    private const double CanvasH = 841.9;
+    // Must match SheetContent Width and Margin in XAML
+    private const double SheetWidth   = 680;
+    private const double SheetMarginH = 20;   // horizontal margin each side
+    private const double SheetMarginT = 20;   // top margin (for vertical zoom anchor)
 
     public MainWindow()
     {
@@ -38,7 +39,6 @@ public partial class MainWindow : Window
         BtnExport.Click += OnBtnExport;
         BtnImport.Click += OnBtnImport;
 
-        // Zoom buttons anchor to the viewport centre
         BtnZoomIn.Click  += (_, _) => ZoomAroundCenter(_zoom + ZoomStep);
         BtnZoomOut.Click += (_, _) => ZoomAroundCenter(_zoom - ZoomStep);
         BtnZoomFit.Click += (_, _) => FitToWindow();
@@ -80,7 +80,6 @@ public partial class MainWindow : Window
 
     // ── Zoom core ─────────────────────────────────────────────────────
 
-    // Apply zoom scale + update label. Does NOT adjust scroll.
     private void ApplyZoom(double z)
     {
         _zoom = Math.Clamp(z, ZoomMin, ZoomMax);
@@ -88,21 +87,20 @@ public partial class MainWindow : Window
         TbZoom.Text = $"{(int)Math.Round(_zoom * 100)}%";
     }
 
-    // Returns the horizontal canvas-left in ScrollViewer content coordinates.
-    // When the scaled canvas is narrower than the viewport, the Grid centres it.
-    private double CanvasContentLeft()
+    // Returns the horizontal content-coordinate of SheetContent's left edge.
+    // When the scaled sheet is narrower than the viewport the Grid centres it.
+    private double ContentLeft()
     {
-        // Margin is "10,0,10,20" so total horizontal margin = 20
-        double scaledW = CanvasW * _zoom + 20;
+        double scaledW = SheetWidth * _zoom + SheetMarginH * 2;
         double vw = SheetScroll.ViewportWidth;
         return vw > scaledW
-            ? (vw - scaledW) / 2.0 + 10.0   // centred: half the leftover + left margin
-            : 10.0;                            // overflows: just the left margin
+            ? (vw - scaledW) / 2.0 + SheetMarginH
+            : SheetMarginH;
     }
 
-    // Zoom to a specific level while keeping ptCanvas (in canvas coords)
-    // pinned to ptViewport (in ScrollViewer viewport coords).
-    private void ZoomToPoint(double newZoom, Point ptViewport, Point ptCanvas)
+    // Zoom to newZoom keeping ptContent (in SheetContent local coords)
+    // pinned under ptViewport (in ScrollViewer viewport coords).
+    private void ZoomToPoint(double newZoom, Point ptViewport, Point ptContent)
     {
         double clamped = Math.Clamp(newZoom, ZoomMin, ZoomMax);
         if (Math.Abs(clamped - _zoom) < 0.001) return;
@@ -110,61 +108,59 @@ public partial class MainWindow : Window
         ApplyZoom(clamped);
         SheetScroll.UpdateLayout();
 
-        // Canvas top in content = 0 (VerticalAlignment="Top", top margin = 0).
-        // Canvas left in content depends on centering (computed after layout update).
-        double newH = CanvasContentLeft() + ptCanvas.X * _zoom - ptViewport.X;
-        double newV =                       ptCanvas.Y * _zoom - ptViewport.Y;
+        // SheetContent has Margin.Top = SheetMarginT, VerticalAlignment="Top"
+        double newH = ContentLeft()  + ptContent.X * _zoom - ptViewport.X;
+        double newV = SheetMarginT   + ptContent.Y * _zoom - ptViewport.Y;
 
         SheetScroll.ScrollToHorizontalOffset(newH);
         SheetScroll.ScrollToVerticalOffset(newV);
     }
 
-    // Zoom while keeping the current viewport centre fixed.
+    // Zoom keeping the viewport centre fixed.
     private void ZoomAroundCenter(double newZoom)
     {
         double clamped = Math.Clamp(newZoom, ZoomMin, ZoomMax);
         if (Math.Abs(clamped - _zoom) < 0.001) return;
 
-        // Viewport centre
         var ptViewport = new Point(SheetScroll.ViewportWidth  / 2.0,
                                    SheetScroll.ViewportHeight / 2.0);
+        double left = ContentLeft();
+        var ptContent = new Point(
+            (SheetScroll.HorizontalOffset + ptViewport.X - left)        / _zoom,
+            (SheetScroll.VerticalOffset   + ptViewport.Y - SheetMarginT) / _zoom);
 
-        // What canvas point is currently under the viewport centre?
-        double left    = CanvasContentLeft();
-        var ptCanvas   = new Point(
-            (SheetScroll.HorizontalOffset + ptViewport.X - left) / _zoom,
-            (SheetScroll.VerticalOffset   + ptViewport.Y)        / _zoom);
-
-        ZoomToPoint(clamped, ptViewport, ptCanvas);
+        ZoomToPoint(clamped, ptViewport, ptContent);
     }
 
-    // Fit the whole sheet to the window and reset scroll to origin.
+    // Fit the full sheet into the window.
     private void FitToWindow()
     {
         SheetScroll.UpdateLayout();
-        double vw = SheetScroll.ViewportWidth  - 24;
-        double vh = SheetScroll.ViewportHeight - 24;
+        double vw = SheetScroll.ViewportWidth  - SheetMarginH * 2;
+        double vh = SheetScroll.ViewportHeight - SheetMarginH * 2;
         if (vw <= 0 || vh <= 0) return;
 
-        ApplyZoom(Math.Min(vw / CanvasW, vh / CanvasH));
+        double contentH = SheetContent.ActualHeight > 0
+            ? SheetContent.ActualHeight + SheetMarginT + 40   // +top margin + bottom margin
+            : 1400;
+
+        ApplyZoom(Math.Min(vw / SheetWidth, vh / contentH));
         SheetScroll.ScrollToHorizontalOffset(0);
         SheetScroll.ScrollToVerticalOffset(0);
     }
 
-    // ── Input handlers ────────────────────────────────────────────────
+    // ── Input: scroll wheel & keyboard ───────────────────────────────
 
-    // Ctrl+Scroll: zoom centred on the mouse cursor
     private void OnScrollWheel(object sender, MouseWheelEventArgs e)
     {
         if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
         e.Handled = true;
 
         var ptViewport = e.GetPosition(SheetScroll);
-        var ptCanvas   = e.GetPosition(SheetCanvas);   // canvas-local coords (0…595, 0…842)
-        ZoomToPoint(_zoom + (e.Delta > 0 ? ZoomStep : -ZoomStep), ptViewport, ptCanvas);
+        var ptContent  = e.GetPosition(SheetContent);   // SheetContent local coords
+        ZoomToPoint(_zoom + (e.Delta > 0 ? ZoomStep : -ZoomStep), ptViewport, ptContent);
     }
 
-    // Ctrl+= / Ctrl+- / Ctrl+0
     protected override void OnKeyDown(KeyEventArgs e)
     {
         base.OnKeyDown(e);
@@ -190,7 +186,7 @@ public partial class MainWindow : Window
         }
     }
 
-    // ── Auto-save callbacks ───────────────────────────────────────────
+    // ── Auto-save ─────────────────────────────────────────────────────
     private void OnStateChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!_loading) Save();
@@ -202,17 +198,13 @@ public partial class MainWindow : Window
     }
 
     private void OnSpell0Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
-    {
-        if (!_loading) { _state.Spells[0] = TbSpell0.Text; Save(); }
-    }
+    { if (!_loading) { _state.Spells[0] = TbSpell0.Text; Save(); } }
+
     private void OnSpell1Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
-    {
-        if (!_loading) { _state.Spells[1] = TbSpell1.Text; Save(); }
-    }
+    { if (!_loading) { _state.Spells[1] = TbSpell1.Text; Save(); } }
+
     private void OnSpell2Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
-    {
-        if (!_loading) { _state.Spells[2] = TbSpell2.Text; Save(); }
-    }
+    { if (!_loading) { _state.Spells[2] = TbSpell2.Text; Save(); } }
 
     // ── Portrait ──────────────────────────────────────────────────────
     private void OnPortraitClick(object sender, MouseButtonEventArgs e)
@@ -252,7 +244,7 @@ public partial class MainWindow : Window
             PortraitImg.Source     = bmp;
             PortraitImg.Visibility = Visibility.Visible;
         }
-        catch { /* bad image data — leave portrait hidden */ }
+        catch { /* bad image data */ }
     }
 
     private void ClearPortrait()
@@ -310,6 +302,5 @@ public partial class MainWindow : Window
         }
     }
 
-    // ── Auto-save ─────────────────────────────────────────────────────
     private void Save() => Persistence.Save(_state);
 }

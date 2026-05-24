@@ -244,6 +244,59 @@
     </Setter>
   </Style>
 
+  <!-- ── Section header label ─────────────────────────────────────── -->
+  <Style x:Key="SectionHeader" TargetType="TextBlock">
+    <Setter Property="FontFamily"  Value="{StaticResource TitleFont}"/>
+    <Setter Property="FontSize"    Value="10.5"/>
+    <Setter Property="FontWeight"  Value="Bold"/>
+    <Setter Property="Foreground"  Value="{StaticResource BrownBrush}"/>
+    <Setter Property="Margin"      Value="0,0,0,4"/>
+  </Style>
+
+  <!-- ── Inline field label (left-docked) ──────────────────────────── -->
+  <Style x:Key="FieldLabel" TargetType="TextBlock">
+    <Setter Property="FontFamily"        Value="{StaticResource LabelFont}"/>
+    <Setter Property="FontSize"          Value="10"/>
+    <Setter Property="Foreground"        Value="{StaticResource BrownLtBrush}"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Margin"            Value="0,0,8,0"/>
+  </Style>
+
+  <!-- ── Multi-line summary text area ──────────────────────────────── -->
+  <Style x:Key="SummaryTextBox" TargetType="TextBox">
+    <Setter Property="Background"                Value="#0A000000"/>
+    <Setter Property="Foreground"                Value="{StaticResource InkBrush}"/>
+    <Setter Property="FontFamily"                Value="{StaticResource InputFont}"/>
+    <Setter Property="FontSize"                  Value="14"/>
+    <Setter Property="AcceptsReturn"             Value="True"/>
+    <Setter Property="TextWrapping"              Value="Wrap"/>
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+    <Setter Property="MinHeight"                 Value="100"/>
+    <Setter Property="Padding"                   Value="8,6"/>
+    <Setter Property="CaretBrush"                Value="{StaticResource BrownBrush}"/>
+    <Setter Property="SelectionBrush"            Value="#445A2E0E"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TextBox">
+          <Border x:Name="bd"
+                  Background="{TemplateBinding Background}"
+                  BorderBrush="{StaticResource BrownLtBrush}"
+                  BorderThickness="1"
+                  CornerRadius="2"
+                  Padding="{TemplateBinding Padding}">
+            <ScrollViewer x:Name="PART_ContentHost" Focusable="False"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsFocused" Value="True">
+              <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource BrownBrush}"/>
+              <Setter TargetName="bd" Property="Background"  Value="#0A5A2E0E"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <!-- ── Control bar button ─────────────────────────────────────────── -->
   <Style x:Key="CtrlButton" TargetType="Button">
     <Setter Property="FontFamily"      Value="{StaticResource TitleFont}"/>

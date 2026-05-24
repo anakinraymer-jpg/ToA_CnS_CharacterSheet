@@ -3,41 +3,42 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:ctrl="clr-namespace:CharacterSheet.Controls">
 
-  <!-- ── AdvCircle: transparent overlay that fills when checked ──────── -->
-  <!-- The PDF background provides the circle border; we just fill it    -->
+  <!-- ── AdvCircle: self-contained circle; code-behind sets fill/stroke ── -->
   <Style TargetType="{x:Type ctrl:AdvCircle}">
-    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Cursor"  Value="Hand"/>
+    <Setter Property="ToolTip" Value="Click to mark used"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="{x:Type ctrl:AdvCircle}">
-          <!-- Ellipse sized to the control; fill toggles in code-behind -->
           <Ellipse x:Name="PART_Ellipse"
                    Width="{TemplateBinding Width}"
                    Height="{TemplateBinding Height}"
-                   Stroke="Transparent"
-                   StrokeThickness="0"
+                   Stroke="#5A2E0E"
+                   StrokeThickness="1.5"
                    Fill="Transparent"/>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
   </Style>
 
-  <!-- ── DieBubble: text-only overlay on the PDF die circle ─────────── -->
+  <!-- ── DieBubble: coloured ring + die label; code-behind drives colours ─ -->
   <Style TargetType="{x:Type ctrl:DieBubble}">
     <Setter Property="Cursor"  Value="Hand"/>
     <Setter Property="ToolTip" Value="Click to advance die"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="{x:Type ctrl:DieBubble}">
-          <Grid Background="Transparent">
-            <!-- No ellipse — the PDF circle is in the background image -->
-            <Ellipse x:Name="PART_Ellipse" Fill="Transparent" Stroke="Transparent"/>
+          <Grid>
+            <Ellipse x:Name="PART_Ellipse"
+                     Fill="#F2E4C0"
+                     Stroke="#5A2E0E"
+                     StrokeThickness="1.5"/>
             <TextBlock x:Name="PART_Label"
                        Text="d6"
                        FontFamily="Palatino Linotype"
-                       FontSize="8"
+                       FontSize="10"
                        FontWeight="Bold"
-                       Foreground="#CC1A0D02"
+                       Foreground="#5A5A2A"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"/>
           </Grid>
