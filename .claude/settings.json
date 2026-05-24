@@ -1,0 +1,37 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$j = [Console]::In.ReadToEnd() | ConvertFrom-Json; $f = if ($j.tool_input.file_path) { $j.tool_input.file_path } else { $j.tool_response.filePath }; if ($f) { git -C 'C:\\Users\\anaki\\Dev\\ToA_CnS_CharacterSheet' add $f }",
+            "shell": "powershell",
+            "timeout": 15,
+            "statusMessage": "Staging...",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "Set-Location 'C:\\Users\\anaki\\Dev\\ToA_CnS_CharacterSheet'; git add -A; if (git status --porcelain) { $files = @(git diff --cached --name-only); $summary = ($files -join ', '); if ($summary.Length -gt 60) { $summary = $summary.Substring(0,57)+'...' }; $stat = (git diff --cached --stat --no-color | Select-Object -Last 1).Trim(); git commit -m \"auto: $stat [$summary]\"; git push origin HEAD --quiet }",
+            "shell": "powershell",
+            "timeout": 30,
+            "statusMessage": "Syncing to GitHub..."
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git *)"
+    ]
+  }
+}
