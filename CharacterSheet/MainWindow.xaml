@@ -197,8 +197,8 @@
                                       IsChecked="{Binding EquipUsed, Mode=TwoWay}"/>
 
                       <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="4,0">
-                        <TextBox Style="{StaticResource RowNameTextBox}"
-                                 Text="{Binding SkillName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <ctrl:SkillPickerBox
+                                 SelectedSkill="{Binding SkillName, Mode=TwoWay}"/>
                         <TextBox Style="{StaticResource RowSubTextBox}"
                                  Text="{Binding SkillSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                       </StackPanel>

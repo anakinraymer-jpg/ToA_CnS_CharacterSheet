@@ -1,0 +1,67 @@
+<UserControl x:Class="CharacterSheet.Controls.SkillPickerBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <UserControl.Resources>
+    <ResourceDictionary Source="/Resources/Themes.xaml"/>
+  </UserControl.Resources>
+
+  <Grid>
+    <!-- Input text box -->
+    <TextBox x:Name="PART_Input"
+             Style="{StaticResource RowNameTextBox}"
+             ToolTipService.ShowDuration="30000"/>
+
+    <!-- Dropdown popup -->
+    <Popup x:Name="PART_Popup"
+           PlacementTarget="{Binding ElementName=PART_Input}"
+           Placement="Bottom"
+           StaysOpen="True"
+           AllowsTransparency="True"
+           PopupAnimation="Fade">
+      <Border Background="#2B1A08"
+              BorderBrush="#5A2E0E"
+              BorderThickness="1"
+              CornerRadius="2"
+              MinWidth="220"
+              MaxWidth="320"
+              MaxHeight="220">
+        <ListBox x:Name="PART_List"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 VirtualizingPanel.IsVirtualizing="True">
+          <ListBox.ItemContainerStyle>
+            <Style TargetType="ListBoxItem">
+              <Setter Property="Foreground"   Value="#D4A96A"/>
+              <Setter Property="FontFamily"   Value="Palatino Linotype"/>
+              <Setter Property="FontSize"     Value="12"/>
+              <Setter Property="Padding"      Value="8,4"/>
+              <Setter Property="Cursor"       Value="Hand"/>
+              <Setter Property="Template">
+                <Setter.Value>
+                  <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Bd"
+                            Background="Transparent"
+                            Padding="{TemplateBinding Padding}">
+                      <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Bd" Property="Background" Value="#3A2010"/>
+                      </Trigger>
+                      <Trigger Property="IsSelected" Value="True">
+                        <Setter TargetName="Bd" Property="Background" Value="#4A2E10"/>
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Setter.Value>
+              </Setter>
+            </Style>
+          </ListBox.ItemContainerStyle>
+        </ListBox>
+      </Border>
+    </Popup>
+  </Grid>
+</UserControl>
