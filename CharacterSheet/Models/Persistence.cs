@@ -1,22 +1,54 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CharacterSheet.Models;
 
-public record RowDto(
+// ── Current DTOs ──────────────────────────────────────────────────────────────
+
+public record EquipmentItemDto(string Name, string Description, bool Used);
+
+public record SkillItemDto(string Name, string Description, bool Adv, int Rating);
+
+// ── Legacy DTO (kept for migration of saves made before the split) ────────────
+
+public record LegacyRowDto(
     string EquipName, string EquipSub, bool EquipUsed,
     bool SkillAdv,
     string SkillName, string SkillSub,
-    int SkillRating);   // was string Die — old saves will read 0 (clamped to 3 if skill exists)
+    int SkillRating);
 
-public record CharacterDto(
-    string Name, string Lineage, string Hometown,
-    string Flaw1, string Flaw2, string Flaw3, string Flaw4,
-    string CoreAbility,
-    string Summary,
-    string Portrait,
-    List<RowDto> Rows,
-    List<string> Spells);
+// ── Top-level save DTO ────────────────────────────────────────────────────────
+
+/// <summary>
+/// Flexible DTO that handles both the current (Equipment/Skills) and the
+/// legacy (Rows) save formats.  Unknown fields are silently ignored.
+/// </summary>
+public class CharacterDto
+{
+    public string Name        { get; init; } = "";
+    public string Lineage     { get; init; } = "";
+    public string Hometown    { get; init; } = "";
+    public string Flaw1       { get; init; } = "";
+    public string Flaw2       { get; init; } = "";
+    public string Flaw3       { get; init; } = "";
+    public string Flaw4       { get; init; } = "";
+    public string CoreAbility { get; init; } = "";
+    public string Summary     { get; init; } = "";
+    public string Portrait    { get; init; } = "";
+
+    // Current format
+    public List<EquipmentItemDto>? Equipment { get; init; }
+    public List<SkillItemDto>?     Skills    { get; init; }
+
+    // Legacy format (Rows) — present in saves made before the equipment/skill split
+    [JsonPropertyName("Rows")]
+    public List<LegacyRowDto>? LegacyRows { get; init; }
+
+    public List<string>? Spells { get; init; }
+}
+
+// ── Persistence service ───────────────────────────────────────────────────────
 
 public static class Persistence
 {
@@ -27,10 +59,11 @@ public static class Persistence
 
     private static readonly JsonSerializerOptions Opts = new()
     {
-        WriteIndented = true,
-        // Unknown fields in old saves are silently ignored
-        UnknownTypeHandling = System.Text.Json.Serialization.JsonUnknownTypeHandling.JsonElement,
+        WriteIndented        = true,
+        PropertyNamingPolicy = null,   // PascalCase matches DTO property names
     };
+
+    // ── Public API ────────────────────────────────────────────────────────────
 
     public static void Save(CharacterState state)
     {
@@ -54,17 +87,24 @@ public static class Persistence
     public static string ExportJson(CharacterState state) =>
         JsonSerializer.Serialize(ToDto(state), Opts);
 
-    private static CharacterDto ToDto(CharacterState s) => new(
-        s.Name, s.Lineage, s.Hometown,
-        s.Flaw1, s.Flaw2, s.Flaw3, s.Flaw4,
-        s.CoreAbility,
-        s.Summary,
-        s.Portrait,
-        s.Rows.Select(r => new RowDto(
-            r.EquipName, r.EquipSub, r.EquipUsed,
-            r.SkillAdv,
-            r.SkillName, r.SkillSub, r.SkillRating)).ToList(),
-        [.. s.Spells]);
+    // ── Serialisation helpers ─────────────────────────────────────────────────
+
+    private static CharacterDto ToDto(CharacterState s) => new()
+    {
+        Name        = s.Name,
+        Lineage     = s.Lineage,
+        Hometown    = s.Hometown,
+        Flaw1       = s.Flaw1,
+        Flaw2       = s.Flaw2,
+        Flaw3       = s.Flaw3,
+        Flaw4       = s.Flaw4,
+        CoreAbility = s.CoreAbility,
+        Summary     = s.Summary,
+        Portrait    = s.Portrait,
+        Equipment   = s.Equipment.Select(e => new EquipmentItemDto(e.Name, e.Description, e.Used)).ToList(),
+        Skills      = s.Skills.Select(sk => new SkillItemDto(sk.Name, sk.Description, sk.Adv, sk.Rating)).ToList(),
+        Spells      = [.. s.Spells],
+    };
 
     private static CharacterState FromDto(CharacterDto d)
     {
@@ -81,24 +121,58 @@ public static class Persistence
             Summary     = d.Summary     ?? "",
             Portrait    = d.Portrait    ?? "",
         };
-        var rows = d.Rows ?? [];
-        for (int i = 0; i < 10; i++)
+
+        // ── Equipment / Skills ──────────────────────────────────────────────
+        if (d.Equipment != null)
         {
-            if (i < rows.Count)
-            {
-                var r = rows[i];
-                // SkillName MUST be assigned before SkillRating so HasSkill is correct
-                // when the SkillRating setter clamps the value.
-                s.Rows.Add(new RowData {
-                    EquipName   = r.EquipName,   EquipSub  = r.EquipSub,
-                    EquipUsed   = r.EquipUsed,   SkillAdv  = r.SkillAdv,
-                    SkillName   = r.SkillName,   SkillSub  = r.SkillSub,
-                    SkillRating = r.SkillRating });
-            }
-            else s.Rows.Add(new RowData());
+            // Current format
+            foreach (var e in d.Equipment)
+                s.Equipment.Add(new EquipmentItem { Name = e.Name, Description = e.Description, Used = e.Used });
         }
+
+        if (d.Skills != null)
+        {
+            foreach (var sk in d.Skills)
+            {
+                // SkillName MUST be assigned before Rating so HasSkill is true when the
+                // Rating setter runs and clamps to [3, 18].
+                var item = new SkillItem { Name = sk.Name, Description = sk.Description, Adv = sk.Adv };
+                item.Rating = sk.Rating;
+                s.Skills.Add(item);
+            }
+        }
+
+        // ── Legacy migration: old saves used paired "Rows" ──────────────────
+        if (d.Equipment == null && d.LegacyRows != null)
+        {
+            foreach (var r in d.LegacyRows)
+            {
+                if (!string.IsNullOrWhiteSpace(r.EquipName))
+                    s.Equipment.Add(new EquipmentItem
+                    {
+                        Name        = r.EquipName,
+                        Description = r.EquipSub ?? "",
+                        Used        = r.EquipUsed,
+                    });
+
+                if (!string.IsNullOrWhiteSpace(r.SkillName))
+                {
+                    var item = new SkillItem
+                    {
+                        Name        = r.SkillName,
+                        Description = r.SkillSub ?? "",
+                        Adv         = r.SkillAdv,
+                    };
+                    item.Rating = r.SkillRating;
+                    s.Skills.Add(item);
+                }
+            }
+        }
+
+        // ── Spells ──────────────────────────────────────────────────────────
         var sp = d.Spells ?? [];
         for (int i = 0; i < 3; i++) s.Spells.Add(i < sp.Count ? sp[i] : "");
+
         return s;
     }
 }

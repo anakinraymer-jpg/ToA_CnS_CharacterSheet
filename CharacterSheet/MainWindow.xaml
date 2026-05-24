@@ -153,69 +153,119 @@
             <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,20,0,10"/>
             <TextBlock Text="EQUIPMENT &amp; SKILLS" Style="{StaticResource SectionHeader}"/>
 
-            <!-- Column labels -->
-            <Grid Margin="0,0,0,2">
+            <!-- Column headers with + buttons -->
+            <Grid Margin="0,0,0,4">
               <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="28"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="28"/>
-                <ColumnDefinition Width="44"/>
+                <ColumnDefinition Width="*"/>   <!-- equipment side -->
+                <ColumnDefinition Width="1"/>   <!-- divider -->
+                <ColumnDefinition Width="20"/>  <!-- adv-circle gutter (skill side) -->
+                <ColumnDefinition Width="*"/>   <!-- skill name -->
+                <ColumnDefinition Width="44"/>  <!-- die -->
               </Grid.ColumnDefinitions>
-              <TextBlock Grid.Column="0" Text="EQUIPMENT"
-                         Style="{StaticResource FieldLabel}" Margin="0"/>
-              <TextBlock Grid.Column="2" Text="SKILL"
-                         Style="{StaticResource FieldLabel}" Margin="0"/>
+
+              <DockPanel Grid.Column="0" Margin="0,0,6,0">
+                <Button x:Name="BtnAddEquip" DockPanel.Dock="Left"
+                        Content="+" Style="{StaticResource AddButton}"
+                        ToolTip="Add equipment" Margin="0,0,5,0"/>
+                <TextBlock Text="EQUIPMENT" Style="{StaticResource FieldLabel}" Margin="0"/>
+              </DockPanel>
+
+              <DockPanel Grid.Column="3" Margin="6,0,0,0">
+                <TextBlock Text="SKILL" Style="{StaticResource FieldLabel}" Margin="0"/>
+                <Button x:Name="BtnAddSkill" DockPanel.Dock="Left"
+                        Content="+" Style="{StaticResource AddButton}"
+                        ToolTip="Add skill" Margin="5,0,0,0"/>
+              </DockPanel>
+
               <TextBlock Grid.Column="4" Text="DIE"
                          Style="{StaticResource FieldLabel}" Margin="0"
                          TextAlignment="Center"/>
             </Grid>
 
-            <!-- 10 equipment / skill rows -->
-            <ItemsControl ItemsSource="{Binding Rows}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Border BorderBrush="#28000000" BorderThickness="0,0,0,1" Padding="0,5">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="28"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="28"/>
-                        <ColumnDefinition Width="44"/>
-                      </Grid.ColumnDefinitions>
+            <!-- Two independent lists: equipment (left) | adv · skill · die (right) -->
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>   <!-- equipment -->
+                <ColumnDefinition Width="1"/>   <!-- spine -->
+                <ColumnDefinition Width="20"/>  <!-- adv circle -->
+                <ColumnDefinition Width="*"/>   <!-- skill name -->
+                <ColumnDefinition Width="44"/>  <!-- die bubble -->
+              </Grid.ColumnDefinitions>
 
-                      <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0">
+              <!-- Equipment list -->
+              <ItemsControl Grid.Column="0" ItemsSource="{Binding Equipment}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border BorderBrush="#28000000" BorderThickness="0,0,0,1"
+                            Padding="0,5,6,5" MinHeight="34">
+                      <DockPanel VerticalAlignment="Center">
+                        <ctrl:AdvCircle DockPanel.Dock="Right"
+                                        Width="20" Height="20" VerticalAlignment="Center"
+                                        IsChecked="{Binding Used, Mode=TwoWay}"
+                                        ToolTip="Mark used"/>
                         <TextBox Style="{StaticResource RowNameTextBox}"
-                                 Text="{Binding EquipName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        <TextBox Style="{StaticResource RowSubTextBox}"
-                                 Text="{Binding EquipSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                      </StackPanel>
+                                 Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="{Binding Tooltip}"
+                                 ToolTipService.ShowDuration="30000"
+                                 VerticalAlignment="Center"/>
+                      </DockPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
 
-                      <ctrl:AdvCircle Grid.Column="1" Width="20" Height="20"
+              <!-- Vertical spine -->
+              <Rectangle Grid.Column="1"
+                         Fill="{StaticResource ParchmentDkBrush}" Opacity="0.5"/>
+
+              <!-- Adv-circle column (aligned with skill rows) -->
+              <ItemsControl Grid.Column="2" ItemsSource="{Binding Skills}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border BorderBrush="#28000000" BorderThickness="0,0,0,1"
+                            Padding="4,5,2,5" MinHeight="34">
+                      <ctrl:AdvCircle Width="20" Height="20"
                                       VerticalAlignment="Center"
-                                      IsChecked="{Binding EquipUsed, Mode=TwoWay}"/>
+                                      IsChecked="{Binding Adv, Mode=TwoWay}"
+                                      ToolTip="Mark advancement"/>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
 
-                      <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="4,0">
-                        <ctrl:SkillPickerBox
-                                 SelectedSkill="{Binding SkillName, Mode=TwoWay}"/>
-                        <TextBox Style="{StaticResource RowSubTextBox}"
-                                 Text="{Binding SkillSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                      </StackPanel>
+              <!-- Skill-name column (SkillPickerBox with custom description override) -->
+              <ItemsControl Grid.Column="3" ItemsSource="{Binding Skills}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border BorderBrush="#28000000" BorderThickness="0,0,0,1"
+                            Padding="2,5,2,5" MinHeight="34">
+                      <ctrl:SkillPickerBox
+                              VerticalAlignment="Center"
+                              SelectedSkill="{Binding Name, Mode=TwoWay}"
+                              CustomDescription="{Binding Description}"
+                              ToolTipService.ShowDuration="30000"/>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
 
-                      <ctrl:AdvCircle Grid.Column="3" Width="20" Height="20"
+              <!-- Die-bubble column -->
+              <ItemsControl Grid.Column="4" ItemsSource="{Binding Skills}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border BorderBrush="#28000000" BorderThickness="0,0,0,1"
+                            Padding="2,5,0,5" MinHeight="34">
+                      <ctrl:DieBubble Width="36" Height="36"
+                                      HorizontalAlignment="Center"
                                       VerticalAlignment="Center"
-                                      IsChecked="{Binding SkillAdv, Mode=TwoWay}"/>
-
-                      <ctrl:DieBubble Grid.Column="4" Width="36" Height="36"
-                                      VerticalAlignment="Center"
-                                      Value="{Binding SkillRating, Mode=TwoWay}"
+                                      Value="{Binding Rating, Mode=TwoWay}"
                                       HasSkill="{Binding HasSkill}"/>
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+            </Grid>
 
             <!-- ─── SPELLS ─────────────────────────────────────────── -->
             <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,20,0,10"/>

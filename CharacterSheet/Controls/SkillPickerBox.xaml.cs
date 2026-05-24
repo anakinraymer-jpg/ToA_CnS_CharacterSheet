@@ -14,7 +14,7 @@ namespace CharacterSheet.Controls;
 /// </summary>
 public partial class SkillPickerBox : UserControl
 {
-    // ── Dependency property ──────────────────────────────────────────────
+    // ── Dependency properties ────────────────────────────────────────────
 
     public static readonly DependencyProperty SelectedSkillProperty =
         DependencyProperty.Register(
@@ -29,6 +29,24 @@ public partial class SkillPickerBox : UserControl
         get => (string)GetValue(SelectedSkillProperty);
         set => SetValue(SelectedSkillProperty, value);
     }
+
+    /// <summary>
+    /// Optional custom description that overrides the built-in SkillList description
+    /// in the hover tooltip.  Bind to the item's Description property in DataTemplates.
+    /// </summary>
+    public static readonly DependencyProperty CustomDescriptionProperty =
+        DependencyProperty.Register(
+            nameof(CustomDescription), typeof(string), typeof(SkillPickerBox),
+            new FrameworkPropertyMetadata(string.Empty, OnCustomDescriptionChanged));
+
+    public string CustomDescription
+    {
+        get => (string)GetValue(CustomDescriptionProperty);
+        set => SetValue(CustomDescriptionProperty, value);
+    }
+
+    private static void OnCustomDescriptionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((SkillPickerBox)d).UpdateTooltip();
 
     // ── Fields ───────────────────────────────────────────────────────────
 
@@ -104,34 +122,15 @@ public partial class SkillPickerBox : UserControl
     private void UpdateTooltip()
     {
         if (_input == null) return;
-        var desc = SkillList.GetDescription(SelectedSkill);
-        if (string.IsNullOrWhiteSpace(desc))
-        {
-            _input.ToolTip = null;
-            return;
-        }
 
-        _input.ToolTip = new ToolTip
-        {
-            Content = new TextBlock
-            {
-                Text            = desc,
-                TextWrapping    = TextWrapping.Wrap,
-                MaxWidth        = 300,
-                FontFamily      = new System.Windows.Media.FontFamily("Palatino Linotype"),
-                FontSize        = 11,
-                Foreground      = System.Windows.Media.Brushes.WhiteSmoke,
-            },
-            Background          = new System.Windows.Media.SolidColorBrush(
-                                      (System.Windows.Media.Color)
-                                      System.Windows.Media.ColorConverter.ConvertFromString("#CC1A0D02")),
-            BorderBrush         = new System.Windows.Media.SolidColorBrush(
-                                      (System.Windows.Media.Color)
-                                      System.Windows.Media.ColorConverter.ConvertFromString("#5A2E0E")),
-            BorderThickness     = new Thickness(1),
-            Padding             = new Thickness(8, 6, 8, 6),
-            HasDropShadow       = true,
-        };
+        // CustomDescription (per-item override) wins; fall back to SkillList built-in.
+        var desc = !string.IsNullOrWhiteSpace(CustomDescription)
+            ? CustomDescription
+            : SkillList.GetDescription(SelectedSkill);
+
+        // Setting a plain string lets the global ToolTip style handle visuals.
+        _input.ToolTip = string.IsNullOrWhiteSpace(desc) ? null : (object?)desc;
+        ToolTipService.SetShowDuration(_input, 30_000);
     }
 
     // ── Popup open / close ───────────────────────────────────────────────
