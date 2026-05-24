@@ -3,11 +3,21 @@ using System.Text.Json;
 
 namespace CharacterSheet.Models;
 
+// ── New-format DTOs ───────────────────────────────────────────────────────────
+
+public record EquipDto(string EquipName, string EquipSub, bool EquipUsed);
+
+public record SkillDto(string SkillName, string SkillSub, bool SkillAdv, int SkillRating);
+
+// ── Legacy DTO (kept for migrating saves written before the split) ────────────
+
 public record RowDto(
     string EquipName, string EquipSub, bool EquipUsed,
     bool SkillAdv,
     string SkillName, string SkillSub,
-    int SkillRating);   // was string Die — old saves will read 0 (clamped to 3 if skill exists)
+    int SkillRating);
+
+// ── Character DTO ─────────────────────────────────────────────────────────────
 
 public record CharacterDto(
     string Name, string Lineage, string Hometown,
@@ -15,8 +25,12 @@ public record CharacterDto(
     string CoreAbility,
     string Summary,
     string Portrait,
-    List<RowDto> Rows,
-    List<string> Spells);
+    List<EquipDto>?  Equipment,   // new format
+    List<SkillDto>?  Skills,      // new format
+    List<RowDto>?    Rows,        // legacy — null in new saves, populated in old saves
+    List<string>     Spells);
+
+// ── Persistence ───────────────────────────────────────────────────────────────
 
 public static class Persistence
 {
@@ -28,7 +42,6 @@ public static class Persistence
     private static readonly JsonSerializerOptions Opts = new()
     {
         WriteIndented = true,
-        // Unknown fields in old saves are silently ignored
         UnknownTypeHandling = System.Text.Json.Serialization.JsonUnknownTypeHandling.JsonElement,
     };
 
@@ -54,17 +67,20 @@ public static class Persistence
     public static string ExportJson(CharacterState state) =>
         JsonSerializer.Serialize(ToDto(state), Opts);
 
+    // ── Serialise ─────────────────────────────────────────────────────────────
+
     private static CharacterDto ToDto(CharacterState s) => new(
         s.Name, s.Lineage, s.Hometown,
         s.Flaw1, s.Flaw2, s.Flaw3, s.Flaw4,
         s.CoreAbility,
         s.Summary,
         s.Portrait,
-        s.Rows.Select(r => new RowDto(
-            r.EquipName, r.EquipSub, r.EquipUsed,
-            r.SkillAdv,
-            r.SkillName, r.SkillSub, r.SkillRating)).ToList(),
-        [.. s.Spells]);
+        Equipment: s.Equipment.Select(e  => new EquipDto(e.EquipName, e.EquipSub, e.EquipUsed)).ToList(),
+        Skills:    s.Skills.Select(sk => new SkillDto(sk.SkillName, sk.SkillSub, sk.SkillAdv, sk.SkillRating)).ToList(),
+        Rows:      null,   // legacy field — intentionally null in new saves
+        Spells:    [.. s.Spells]);
+
+    // ── Deserialise ───────────────────────────────────────────────────────────
 
     private static CharacterState FromDto(CharacterDto d)
     {
@@ -81,17 +97,55 @@ public static class Persistence
             Summary     = d.Summary     ?? "",
             Portrait    = d.Portrait    ?? "",
         };
-        // Load all rows from the save; no artificial cap.
-        foreach (var r in d.Rows ?? [])
+
+        if (d.Equipment != null)
         {
-            // SkillName MUST be assigned before SkillRating so HasSkill is correct
-            // when the SkillRating setter clamps the value.
-            s.Rows.Add(new RowData {
-                EquipName   = r.EquipName,   EquipSub  = r.EquipSub,
-                EquipUsed   = r.EquipUsed,   SkillAdv  = r.SkillAdv,
-                SkillName   = r.SkillName,   SkillSub  = r.SkillSub,
-                SkillRating = r.SkillRating });
+            // ── New format ────────────────────────────────────────────────────
+            foreach (var e in d.Equipment)
+                s.Equipment.Add(new EquipData
+                {
+                    EquipName = e.EquipName ?? "",
+                    EquipSub  = e.EquipSub  ?? "",
+                    EquipUsed = e.EquipUsed,
+                });
+
+            foreach (var sk in d.Skills ?? [])
+            {
+                // SkillName must be set before SkillRating so HasSkill is correct
+                // when the SkillRating setter clamps the value.
+                s.Skills.Add(new SkillData
+                {
+                    SkillName   = sk.SkillName ?? "",
+                    SkillSub    = sk.SkillSub  ?? "",
+                    SkillAdv    = sk.SkillAdv,
+                    SkillRating = sk.SkillRating,
+                });
+            }
         }
+        else
+        {
+            // ── Legacy format: split combined Rows into separate Equipment/Skills ──
+            foreach (var r in d.Rows ?? [])
+            {
+                if (!string.IsNullOrWhiteSpace(r.EquipName))
+                    s.Equipment.Add(new EquipData
+                    {
+                        EquipName = r.EquipName ?? "",
+                        EquipSub  = r.EquipSub  ?? "",
+                        EquipUsed = r.EquipUsed,
+                    });
+
+                if (!string.IsNullOrWhiteSpace(r.SkillName))
+                    s.Skills.Add(new SkillData
+                    {
+                        SkillName   = r.SkillName ?? "",
+                        SkillSub    = r.SkillSub  ?? "",
+                        SkillAdv    = r.SkillAdv,
+                        SkillRating = r.SkillRating,
+                    });
+            }
+        }
+
         var sp = d.Spells ?? [];
         for (int i = 0; i < 3; i++) s.Spells.Add(i < sp.Count ? sp[i] : "");
         return s;

@@ -4,20 +4,31 @@ using System.Runtime.CompilerServices;
 
 namespace CharacterSheet.Models;
 
-public class RowData : INotifyPropertyChanged
+// ── Equipment row ─────────────────────────────────────────────────────────────
+
+public class EquipData : INotifyPropertyChanged
 {
-    private string _equipName   = "";
-    private string _equipSub    = "";
+    private string _equipName = "";
+    private string _equipSub  = "";
     private bool   _equipUsed;
-    private bool   _skillAdv;
-    private string _skillName   = "";
-    private string _skillSub    = "";
-    private int    _skillRating = 0;   // 0 = no skill assigned; 3–18 = active
 
     public string EquipName { get => _equipName; set { _equipName = value; OnPropertyChanged(); } }
     public string EquipSub  { get => _equipSub;  set { _equipSub  = value; OnPropertyChanged(); } }
     public bool   EquipUsed { get => _equipUsed; set { _equipUsed = value; OnPropertyChanged(); } }
-    public bool   SkillAdv  { get => _skillAdv;  set { _skillAdv  = value; OnPropertyChanged(); } }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
+// ── Skill row ─────────────────────────────────────────────────────────────────
+
+public class SkillData : INotifyPropertyChanged
+{
+    private string _skillName   = "";
+    private string _skillSub    = "";
+    private bool   _skillAdv;
+    private int    _skillRating = 0;   // 0 = no skill; 3–18 = active
 
     public string SkillName
     {
@@ -27,26 +38,25 @@ public class RowData : INotifyPropertyChanged
             bool hadSkill = HasSkill;
             _skillName = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(HasSkill));   // derived property changed too
+            OnPropertyChanged(nameof(HasSkill));
 
-            // Auto-promote: blank → first character → set rating to 3
+            // Auto-promote: empty → typed → set rating to 3
             if (!hadSkill && HasSkill && _skillRating == 0)
                 SkillRating = 3;
-            // Auto-reset: skill cleared → rating goes back to 0
+            // Auto-reset: skill cleared → rating back to 0
             else if (hadSkill && !HasSkill)
                 SkillRating = 0;
         }
     }
 
     public string SkillSub { get => _skillSub; set { _skillSub = value; OnPropertyChanged(); } }
+    public bool   SkillAdv { get => _skillAdv; set { _skillAdv = value; OnPropertyChanged(); } }
 
-    /// <summary>True whenever the SkillName field contains non-whitespace text.</summary>
+    /// <summary>True when SkillName contains non-whitespace text.</summary>
     public bool HasSkill => !string.IsNullOrWhiteSpace(_skillName);
 
     /// <summary>
-    /// Skill rating shown in the bubble.
-    /// • 0        when no skill is assigned (HasSkill == false)
-    /// • 3 – 18   when a skill is assigned (clamped automatically)
+    /// 0 when no skill is assigned; 3–18 when a skill is assigned (clamped).
     /// </summary>
     public int SkillRating
     {
@@ -62,6 +72,8 @@ public class RowData : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
+
+// ── Character ─────────────────────────────────────────────────────────────────
 
 public class CharacterState : INotifyPropertyChanged
 {
@@ -87,8 +99,9 @@ public class CharacterState : INotifyPropertyChanged
     public string Summary     { get => _summary;     set { _summary     = value; OnPropertyChanged(); } }
     public string Portrait    { get => _portrait;    set { _portrait    = value; OnPropertyChanged(); } }
 
-    public ObservableCollection<RowData> Rows   { get; set; } = [];
-    public ObservableCollection<string>  Spells { get; set; } = [];
+    public ObservableCollection<EquipData> Equipment { get; set; } = [];
+    public ObservableCollection<SkillData> Skills    { get; set; } = [];
+    public ObservableCollection<string>    Spells    { get; set; } = [];
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
@@ -97,7 +110,6 @@ public class CharacterState : INotifyPropertyChanged
     public static CharacterState CreateDefault()
     {
         var s = new CharacterState();
-        // Rows start empty; the user adds equipment/skills via the [+] buttons.
         s.Spells.Add(""); s.Spells.Add(""); s.Spells.Add("");
         return s;
     }

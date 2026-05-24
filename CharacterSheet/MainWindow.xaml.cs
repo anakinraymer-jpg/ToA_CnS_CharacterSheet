@@ -60,10 +60,12 @@ public partial class MainWindow : Window
     {
         _loading = true;
 
+        // Unsubscribe from old state
         _state.PropertyChanged -= OnStateChanged;
-        _state.Rows.CollectionChanged -= OnRowsCollectionChanged;
-        foreach (var row in _state.Rows)
-            row.PropertyChanged -= OnRowChanged;
+        _state.Equipment.CollectionChanged -= OnEquipmentCollectionChanged;
+        _state.Skills.CollectionChanged    -= OnSkillsCollectionChanged;
+        foreach (var e  in _state.Equipment) e.PropertyChanged  -= OnItemChanged;
+        foreach (var sk in _state.Skills)    sk.PropertyChanged -= OnItemChanged;
 
         _state = state;
         DataContext = _state;
@@ -77,24 +79,30 @@ public partial class MainWindow : Window
         else
             ClearPortrait();
 
+        // Subscribe to new state
         _state.PropertyChanged += OnStateChanged;
-        _state.Rows.CollectionChanged += OnRowsCollectionChanged;
-        foreach (var row in _state.Rows)
-            row.PropertyChanged += OnRowChanged;
+        _state.Equipment.CollectionChanged += OnEquipmentCollectionChanged;
+        _state.Skills.CollectionChanged    += OnSkillsCollectionChanged;
+        foreach (var e  in _state.Equipment) e.PropertyChanged  += OnItemChanged;
+        foreach (var sk in _state.Skills)    sk.PropertyChanged += OnItemChanged;
 
         _loading = false;
         UpdateAddButtonStates();
     }
 
-    private void OnRowsCollectionChanged(object? sender,
+    // ── Collection change tracking ────────────────────────────────────
+    private void OnEquipmentCollectionChanged(object? sender,
+        System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        => UpdateAddButtonStates();
+
+    private void OnSkillsCollectionChanged(object? sender,
         System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         => UpdateAddButtonStates();
 
     private void UpdateAddButtonStates()
     {
-        bool canAdd = _state.Rows.Count < 10;
-        BtnAddEquip.IsEnabled = canAdd;
-        BtnAddSkill.IsEnabled = canAdd;
+        BtnAddEquip.IsEnabled = _state.Equipment.Count < 10;
+        BtnAddSkill.IsEnabled = _state.Skills.Count    < 10;
     }
 
     // ── Zoom core ─────────────────────────────────────────────────────
@@ -211,7 +219,7 @@ public partial class MainWindow : Window
         if (!_loading) Save();
     }
 
-    private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnItemChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (!_loading) Save();
     }
@@ -222,13 +230,13 @@ public partial class MainWindow : Window
         var dlg = new AddEntryDialog(isSkill: false) { Owner = this };
         if (dlg.ShowDialog() != true) return;
 
-        var row = new RowData
+        var item = new EquipData
         {
             EquipName = dlg.EntryName,
             EquipSub  = dlg.EntryDescription,
         };
-        row.PropertyChanged += OnRowChanged;
-        _state.Rows.Add(row);
+        item.PropertyChanged += OnItemChanged;
+        _state.Equipment.Add(item);
         Save();
     }
 
@@ -237,24 +245,34 @@ public partial class MainWindow : Window
         var dlg = new AddEntryDialog(isSkill: true) { Owner = this };
         if (dlg.ShowDialog() != true) return;
 
-        var row = new RowData
+        var item = new SkillData
         {
             SkillName = dlg.EntryName,
             SkillSub  = dlg.EntryDescription,
         };
-        row.PropertyChanged += OnRowChanged;
-        _state.Rows.Add(row);
+        item.PropertyChanged += OnItemChanged;
+        _state.Skills.Add(item);
         Save();
     }
 
-    private void OnRemoveRowClicked(object sender, RoutedEventArgs e)
+    // ── Remove equipment / skill rows ─────────────────────────────────
+    private void OnRemoveEquipClicked(object sender, RoutedEventArgs e)
     {
-        if (((Button)sender).DataContext is not RowData row) return;
-        row.PropertyChanged -= OnRowChanged;
-        _state.Rows.Remove(row);   // CollectionChanged fires → UpdateAddButtonStates
+        if (((Button)sender).DataContext is not EquipData item) return;
+        item.PropertyChanged -= OnItemChanged;
+        _state.Equipment.Remove(item);   // CollectionChanged → UpdateAddButtonStates
         Save();
     }
 
+    private void OnRemoveSkillClicked(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not SkillData item) return;
+        item.PropertyChanged -= OnItemChanged;
+        _state.Skills.Remove(item);      // CollectionChanged → UpdateAddButtonStates
+        Save();
+    }
+
+    // ── Spells ────────────────────────────────────────────────────────
     private void OnSpell0Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
     { if (!_loading) { _state.Spells[0] = TbSpell0.Text; Save(); } }
 
