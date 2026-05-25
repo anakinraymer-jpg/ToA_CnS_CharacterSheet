@@ -21,6 +21,29 @@ namespace CharacterSheet.Controls;
 /// </summary>
 public partial class SkillPickerBox : UserControl
 {
+    // ── Multi-allowed / paren sets ────────────────────────────────────────
+
+    /// <summary>Skills that may be selected more than once (each with a unique specifier in parens).</summary>
+    private static readonly HashSet<string> s_multiAllowedSkills =
+        new(StringComparer.OrdinalIgnoreCase)
+        { "Knowledge", "Languages", "Profession", "Resist (Type)", "Scholar" };
+
+    /// <summary>Flaws that may be selected more than once.</summary>
+    private static readonly HashSet<string> s_multiAllowedFlaws =
+        new(StringComparer.OrdinalIgnoreCase)
+        { "Injured" };
+
+    private static readonly HashSet<string> s_emptySet =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Skills that automatically get "()" appended when selected, placing
+    /// the cursor inside so the user can type a specifier.
+    /// </summary>
+    private static readonly HashSet<string> s_parenSkills =
+        new(StringComparer.OrdinalIgnoreCase)
+        { "Knowledge", "Languages", "Profession", "Resist (Type)", "Scholar" };
+
     // ── Dependency properties ────────────────────────────────────────────
 
     public static readonly DependencyProperty SelectedSkillProperty =
@@ -65,6 +88,23 @@ public partial class SkillPickerBox : UserControl
     {
         get => (IReadOnlyList<SkillEntry>?)GetValue(EntrySourceProperty);
         set => SetValue(EntrySourceProperty, value);
+    }
+
+    /// <summary>
+    /// Names already selected on sibling pickers.  Entries whose name appears
+    /// here are hidden from the list, unless they are in the multi-allowed set
+    /// for this picker's entry type.  The picker's own current value is always
+    /// visible (self-exclusion guard).
+    /// </summary>
+    public static readonly DependencyProperty ExcludedValuesProperty =
+        DependencyProperty.Register(
+            nameof(ExcludedValues), typeof(IEnumerable<string>), typeof(SkillPickerBox),
+            new FrameworkPropertyMetadata(null, OnExcludedValuesChanged));
+
+    public IEnumerable<string>? ExcludedValues
+    {
+        get => (IEnumerable<string>?)GetValue(ExcludedValuesProperty);
+        set => SetValue(ExcludedValuesProperty, value);
     }
 
     // ── Fields ───────────────────────────────────────────────────────────
@@ -134,6 +174,14 @@ public partial class SkillPickerBox : UserControl
     private static void OnEntryKeyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((SkillPickerBox)d).UpdateCreateButtonVisibility();
 
+    private static void OnExcludedValuesChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var box = (SkillPickerBox)d;
+        // Refresh visible list immediately when sibling selections change
+        if (box._popupOpen)
+            box.RefreshList(box._input?.Text ?? string.Empty);
+    }
+
     // ── Entry source resolution ───────────────────────────────────────────
 
     /// <summary>
@@ -146,6 +194,33 @@ public partial class SkillPickerBox : UserControl
         "Flaw"        => CustomEntryStore.AllFlaws,
         _             => EntrySource ?? CustomEntryStore.AllSkills,
     };
+
+    // ── Multi-allowed / paren helpers ─────────────────────────────────────
+
+    /// <summary>Returns the set of names that may appear on multiple lines for this picker's type.</summary>
+    private HashSet<string> GetMultiAllowed() => EntryKey switch
+    {
+        "CoreAbility" => s_emptySet,
+        "Flaw"        => s_multiAllowedFlaws,
+        _             => s_multiAllowedSkills,
+    };
+
+    /// <summary>True when selecting <paramref name="name"/> should append "()" for a type specifier.</summary>
+    private bool ShouldAddParens(string name)
+        => string.IsNullOrEmpty(EntryKey) && s_parenSkills.Contains(name);
+
+    /// <summary>
+    /// True when <paramref name="text"/> is a parenthesized form of a paren-skill,
+    /// e.g. "Knowledge(History)" or "Knowledge(" (mid-typing).
+    /// </summary>
+    private static bool IsParenForm(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        var pi = text.IndexOf('(');
+        if (pi <= 0) return false;
+        var baseName = text[..pi].TrimEnd();
+        return s_parenSkills.Contains(baseName);
+    }
 
     // ── Create-button visibility ──────────────────────────────────────────
 
@@ -172,9 +247,25 @@ public partial class SkillPickerBox : UserControl
     private void UpdateTooltip()
     {
         if (_input == null) return;
-        var desc = ResolveSource()
+        var source = ResolveSource();
+
+        // Exact match first
+        var desc = source
             .FirstOrDefault(e => e.Name.Equals(SelectedSkill, StringComparison.OrdinalIgnoreCase))
             ?.Description;
+
+        // Fallback: strip specifier to find base skill (e.g., "Knowledge(History)" → "Knowledge")
+        if (desc == null && !string.IsNullOrEmpty(SelectedSkill))
+        {
+            var pi = SelectedSkill.IndexOf('(');
+            if (pi > 0)
+            {
+                var baseName = SelectedSkill[..pi].TrimEnd();
+                desc = source
+                    .FirstOrDefault(e => e.Name.Equals(baseName, StringComparison.OrdinalIgnoreCase))
+                    ?.Description;
+            }
+        }
 
         if (string.IsNullOrWhiteSpace(desc))
         {
@@ -210,7 +301,11 @@ public partial class SkillPickerBox : UserControl
     private void OpenPopup()
     {
         if (_popup == null || _list == null || _popupOpen) return;
-        RefreshList(_input?.Text ?? string.Empty);
+        var filter = _input?.Text ?? string.Empty;
+        // A parenthesized value (e.g. "Knowledge(History)") won't match list entries;
+        // show the full list instead so the user can pick a different specialisation.
+        if (IsParenForm(filter)) filter = string.Empty;
+        RefreshList(filter);
         _popup.IsOpen = true;
         _popupOpen    = true;
     }
@@ -228,8 +323,33 @@ public partial class SkillPickerBox : UserControl
     {
         if (_list == null) return;
         _list.Items.Clear();
+
+        // Build exclusion set from sibling selections, then remove self so the
+        // picker can still show and re-select its own current value.
+        HashSet<string>? excluded = null;
+        if (ExcludedValues != null)
+        {
+            excluded = new HashSet<string>(ExcludedValues, StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(SelectedSkill))
+            {
+                excluded.Remove(SelectedSkill!);
+                // Also remove the base name in case self is a paren form like "Knowledge(History)"
+                var pi = SelectedSkill!.IndexOf('(');
+                if (pi > 0) excluded.Remove(SelectedSkill![..pi].TrimEnd());
+            }
+        }
+
+        var multiAllowed = GetMultiAllowed();
+
         foreach (var entry in ResolveSource())
         {
+            // Skip entries that are already in use on another line
+            // (unless the entry type is explicitly multi-allowed)
+            if (excluded != null &&
+                excluded.Contains(entry.Name) &&
+                !multiAllowed.Contains(entry.Name))
+                continue;
+
             if (string.IsNullOrWhiteSpace(filter) ||
                 entry.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {
@@ -256,6 +376,16 @@ public partial class SkillPickerBox : UserControl
         if (_suppressTextChange || _input == null) return;
 
         var typed  = _input.Text;
+
+        // If the user is editing inside a parenthesized specifier (e.g. "Knowledge(H"),
+        // accept it directly as the selected value without searching the list.
+        if (IsParenForm(typed))
+        {
+            SelectedSkill = typed;          // SyncInputFromProperty handles suppress internally
+            if (_popupOpen) RefreshList(string.Empty);
+            return;
+        }
+
         var source = ResolveSource();
         var exact  = source.FirstOrDefault(s =>
             s.Name.Equals(typed, StringComparison.OrdinalIgnoreCase));
@@ -402,7 +532,19 @@ public partial class SkillPickerBox : UserControl
     private void CommitSkill(string name)
     {
         ClosePopup();
-        SelectedSkill = name;
-        _input?.Focus();
+
+        if (ShouldAddParens(name))
+        {
+            // Set "Name()" and park cursor between the parens
+            SelectedSkill = name + "()";   // SyncInputFromProperty sets _input.Text
+            _input?.Focus();
+            if (_input != null)
+                _input.CaretIndex = _input.Text.Length - 1;   // before ')'
+        }
+        else
+        {
+            SelectedSkill = name;
+            _input?.Focus();
+        }
     }
 }

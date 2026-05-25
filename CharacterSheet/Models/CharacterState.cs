@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Linq;
 
 namespace CharacterSheet.Models;
 
@@ -91,10 +92,10 @@ public class CharacterState : INotifyPropertyChanged
     public string Name        { get => _name;        set { _name        = value; OnPropertyChanged(); } }
     public string Lineage     { get => _lineage;     set { _lineage     = value; OnPropertyChanged(); } }
     public string Hometown    { get => _hometown;    set { _hometown    = value; OnPropertyChanged(); } }
-    public string Flaw1       { get => _flaw1;       set { _flaw1       = value; OnPropertyChanged(); } }
-    public string Flaw2       { get => _flaw2;       set { _flaw2       = value; OnPropertyChanged(); } }
-    public string Flaw3       { get => _flaw3;       set { _flaw3       = value; OnPropertyChanged(); } }
-    public string Flaw4       { get => _flaw4;       set { _flaw4       = value; OnPropertyChanged(); } }
+    public string Flaw1       { get => _flaw1;       set { _flaw1       = value; OnPropertyChanged(); OnPropertyChanged(nameof(SelectedFlaws)); } }
+    public string Flaw2       { get => _flaw2;       set { _flaw2       = value; OnPropertyChanged(); OnPropertyChanged(nameof(SelectedFlaws)); } }
+    public string Flaw3       { get => _flaw3;       set { _flaw3       = value; OnPropertyChanged(); OnPropertyChanged(nameof(SelectedFlaws)); } }
+    public string Flaw4       { get => _flaw4;       set { _flaw4       = value; OnPropertyChanged(); OnPropertyChanged(nameof(SelectedFlaws)); } }
     public string CoreAbility { get => _coreAbility; set { _coreAbility = value; OnPropertyChanged(); } }
     public string Summary     { get => _summary;     set { _summary     = value; OnPropertyChanged(); } }
     public string Portrait    { get => _portrait;    set { _portrait    = value; OnPropertyChanged(); } }
@@ -102,6 +103,27 @@ public class CharacterState : INotifyPropertyChanged
     public ObservableCollection<EquipData> Equipment { get; set; } = [];
     public ObservableCollection<SkillData> Skills    { get; set; } = [];
     public ObservableCollection<string>    Spells    { get; set; } = [];
+
+    // ── Computed exclusion lists (used by SkillPickerBox.ExcludedValues) ─────
+
+    /// <summary>All non-empty flaw values across all four slots. Refreshed whenever any Flaw setter fires.</summary>
+    public IReadOnlyList<string> SelectedFlaws =>
+        new[] { _flaw1, _flaw2, _flaw3, _flaw4 }
+            .Where(f => !string.IsNullOrWhiteSpace(f))
+            .ToList().AsReadOnly();
+
+    /// <summary>All non-empty SkillName values from the Skills collection. Call <see cref="RefreshSelectedSkillNames"/> to update.</summary>
+    public IReadOnlyList<string> SelectedSkillNames { get; private set; } = Array.Empty<string>();
+
+    /// <summary>Recomputes <see cref="SelectedSkillNames"/> and raises PropertyChanged. Call when any SkillName changes.</summary>
+    internal void RefreshSelectedSkillNames()
+    {
+        SelectedSkillNames = Skills
+            .Select(s => s.SkillName)
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .ToList().AsReadOnly();
+        OnPropertyChanged(nameof(SelectedSkillNames));
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null)

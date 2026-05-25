@@ -65,7 +65,11 @@ public partial class MainWindow : Window
         _state.Equipment.CollectionChanged -= OnEquipmentCollectionChanged;
         _state.Skills.CollectionChanged    -= OnSkillsCollectionChanged;
         foreach (var e  in _state.Equipment) e.PropertyChanged  -= OnItemChanged;
-        foreach (var sk in _state.Skills)    sk.PropertyChanged -= OnItemChanged;
+        foreach (var sk in _state.Skills)
+        {
+            sk.PropertyChanged -= OnItemChanged;
+            sk.PropertyChanged -= OnSkillNameChanged;
+        }
 
         _state = state;
         DataContext = _state;
@@ -84,7 +88,12 @@ public partial class MainWindow : Window
         _state.Equipment.CollectionChanged += OnEquipmentCollectionChanged;
         _state.Skills.CollectionChanged    += OnSkillsCollectionChanged;
         foreach (var e  in _state.Equipment) e.PropertyChanged  += OnItemChanged;
-        foreach (var sk in _state.Skills)    sk.PropertyChanged += OnItemChanged;
+        foreach (var sk in _state.Skills)
+        {
+            sk.PropertyChanged += OnItemChanged;
+            sk.PropertyChanged += OnSkillNameChanged;
+        }
+        _state.RefreshSelectedSkillNames();
 
         _loading = false;
         UpdateAddButtonStates();
@@ -97,7 +106,22 @@ public partial class MainWindow : Window
 
     private void OnSkillsCollectionChanged(object? sender,
         System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-        => UpdateAddButtonStates();
+    {
+        // Wire / unwire OnSkillNameChanged for added / removed items
+        if (e.NewItems != null)
+            foreach (SkillData sk in e.NewItems) sk.PropertyChanged += OnSkillNameChanged;
+        if (e.OldItems != null)
+            foreach (SkillData sk in e.OldItems) sk.PropertyChanged -= OnSkillNameChanged;
+
+        _state.RefreshSelectedSkillNames();
+        UpdateAddButtonStates();
+    }
+
+    private void OnSkillNameChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SkillData.SkillName))
+            _state.RefreshSelectedSkillNames();
+    }
 
     private void UpdateAddButtonStates()
     {

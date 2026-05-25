@@ -121,25 +121,29 @@
               <TextBlock DockPanel.Dock="Left" Text="①" Width="20" Style="{StaticResource FieldLabel}"/>
               <ctrl:SkillPickerBox
                        SelectedSkill="{Binding Flaw1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntryKey="Flaw"/>
+                       EntryKey="Flaw"
+                       ExcludedValues="{Binding SelectedFlaws}"/>
             </DockPanel>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="②" Width="20" Style="{StaticResource FieldLabel}"/>
               <ctrl:SkillPickerBox
                        SelectedSkill="{Binding Flaw2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntryKey="Flaw"/>
+                       EntryKey="Flaw"
+                       ExcludedValues="{Binding SelectedFlaws}"/>
             </DockPanel>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="③" Width="20" Style="{StaticResource FieldLabel}"/>
               <ctrl:SkillPickerBox
                        SelectedSkill="{Binding Flaw3, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntryKey="Flaw"/>
+                       EntryKey="Flaw"
+                       ExcludedValues="{Binding SelectedFlaws}"/>
             </DockPanel>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="④" Width="20" Style="{StaticResource FieldLabel}"/>
               <ctrl:SkillPickerBox
                        SelectedSkill="{Binding Flaw4, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntryKey="Flaw"/>
+                       EntryKey="Flaw"
+                       ExcludedValues="{Binding SelectedFlaws}"/>
             </DockPanel>
 
             <!-- ─── CORE ABILITY ──────────────────────────────────── -->
@@ -256,7 +260,9 @@
 
                           <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0">
                             <ctrl:SkillPickerBox
-                                     SelectedSkill="{Binding SkillName, Mode=TwoWay}"/>
+                                     SelectedSkill="{Binding SkillName, Mode=TwoWay}"
+                                     ExcludedValues="{Binding DataContext.SelectedSkillNames,
+                                                      RelativeSource={RelativeSource AncestorType=Window}}"/>
                             <TextBox Style="{StaticResource RowSubTextBox}"
                                      Text="{Binding SkillSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                           </StackPanel>
