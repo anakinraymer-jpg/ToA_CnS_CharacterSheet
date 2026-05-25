@@ -14,7 +14,7 @@ namespace CharacterSheet.Controls;
 /// </summary>
 public partial class SkillPickerBox : UserControl
 {
-    // ── Dependency property ──────────────────────────────────────────────
+    // ── Dependency properties ────────────────────────────────────────────
 
     public static readonly DependencyProperty SelectedSkillProperty =
         DependencyProperty.Register(
@@ -28,6 +28,23 @@ public partial class SkillPickerBox : UserControl
     {
         get => (string)GetValue(SelectedSkillProperty);
         set => SetValue(SelectedSkillProperty, value);
+    }
+
+    /// <summary>
+    /// Optional override for the list shown in the picker.
+    /// When null the control falls back to <see cref="CustomEntryStore.AllSkills"/>.
+    /// Set this to <c>CoreAbilityList.All</c> (or any other list) to reuse
+    /// the control for non-skill pickers.
+    /// </summary>
+    public static readonly DependencyProperty EntrySourceProperty =
+        DependencyProperty.Register(
+            nameof(EntrySource), typeof(IReadOnlyList<SkillEntry>), typeof(SkillPickerBox),
+            new FrameworkPropertyMetadata(null));
+
+    public IReadOnlyList<SkillEntry>? EntrySource
+    {
+        get => (IReadOnlyList<SkillEntry>?)GetValue(EntrySourceProperty);
+        set => SetValue(EntrySourceProperty, value);
     }
 
     // ── Fields ───────────────────────────────────────────────────────────
@@ -104,7 +121,10 @@ public partial class SkillPickerBox : UserControl
     private void UpdateTooltip()
     {
         if (_input == null) return;
-        var desc = CustomEntryStore.GetSkillDescription(SelectedSkill);
+        var source = EntrySource;
+        var desc = source != null
+            ? source.FirstOrDefault(e => e.Name.Equals(SelectedSkill, StringComparison.OrdinalIgnoreCase))?.Description
+            : CustomEntryStore.GetSkillDescription(SelectedSkill);
         if (string.IsNullOrWhiteSpace(desc))
         {
             _input.ToolTip = null;
@@ -156,8 +176,9 @@ public partial class SkillPickerBox : UserControl
     private void RefreshList(string filter)
     {
         if (_list == null) return;
+        var source = EntrySource ?? CustomEntryStore.AllSkills;
         _list.Items.Clear();
-        foreach (var skill in CustomEntryStore.AllSkills)
+        foreach (var skill in source)
         {
             if (string.IsNullOrWhiteSpace(filter) ||
                 skill.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
@@ -188,8 +209,9 @@ public partial class SkillPickerBox : UserControl
 
         var typed = _input.Text;
 
-        // If text matches a skill exactly → commit it
-        var exact = CustomEntryStore.AllSkills.FirstOrDefault(s =>
+        // If text matches an entry exactly → commit it
+        var source = EntrySource ?? CustomEntryStore.AllSkills;
+        var exact = source.FirstOrDefault(s =>
             s.Name.Equals(typed, StringComparison.OrdinalIgnoreCase));
 
         if (exact != null)
