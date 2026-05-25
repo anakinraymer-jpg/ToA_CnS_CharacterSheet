@@ -7,10 +7,17 @@ using CharacterSheet.Data;
 namespace CharacterSheet.Controls;
 
 /// <summary>
-/// A TextBox that, when focused and empty (or on explicit click), opens a
-/// searchable popup list of Crown &amp; Skull skills.  Selecting a skill sets
-/// <see cref="SelectedSkill"/> and closes the popup.  The TextBox shows the
-/// skill name; a ToolTip on the TextBox shows the description while hovered.
+/// A TextBox that, when focused / clicked, opens a searchable popup list.
+/// <para>
+/// <b>EntryKey</b> (preferred for dynamic lists): set to <c>"CoreAbility"</c> or
+/// <c>"Flaw"</c> to resolve the list from <see cref="CustomEntryStore"/> at
+/// open-time.  Also shows a "＋ Add custom…" button in the popup.
+/// </para>
+/// <para>
+/// <b>EntrySource</b> (static lists): set to any <c>IReadOnlyList&lt;SkillEntry&gt;</c>
+/// for a fixed list without custom-creation support.
+/// </para>
+/// <para>When neither is set the control falls back to <see cref="CustomEntryStore.AllSkills"/>.</para>
 /// </summary>
 public partial class SkillPickerBox : UserControl
 {
@@ -31,10 +38,23 @@ public partial class SkillPickerBox : UserControl
     }
 
     /// <summary>
-    /// Optional override for the list shown in the picker.
-    /// When null the control falls back to <see cref="CustomEntryStore.AllSkills"/>.
-    /// Set this to <c>CoreAbilityList.All</c> (or any other list) to reuse
-    /// the control for non-skill pickers.
+    /// Dynamic key that resolves the entry list at open-time from
+    /// <see cref="CustomEntryStore"/>.  Valid values: "CoreAbility", "Flaw".
+    /// When set, also shows "＋ Add custom…" in the popup.
+    /// </summary>
+    public static readonly DependencyProperty EntryKeyProperty =
+        DependencyProperty.Register(
+            nameof(EntryKey), typeof(string), typeof(SkillPickerBox),
+            new FrameworkPropertyMetadata(null, OnEntryKeyChanged));
+
+    public string? EntryKey
+    {
+        get => (string?)GetValue(EntryKeyProperty);
+        set => SetValue(EntryKeyProperty, value);
+    }
+
+    /// <summary>
+    /// Optional static source list.  Ignored when <see cref="EntryKey"/> is set.
     /// </summary>
     public static readonly DependencyProperty EntrySourceProperty =
         DependencyProperty.Register(
@@ -49,9 +69,11 @@ public partial class SkillPickerBox : UserControl
 
     // ── Fields ───────────────────────────────────────────────────────────
 
-    private TextBox?  _input;
-    private Popup?    _popup;
-    private ListBox?  _list;
+    private TextBox?   _input;
+    private Popup?     _popup;
+    private ListBox?   _list;
+    private Button?    _createBtn;
+    private Separator? _createSep;
 
     private bool _suppressTextChange;
     private bool _popupOpen;
@@ -69,29 +91,31 @@ public partial class SkillPickerBox : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        _input = (TextBox)FindName("PART_Input");
-        _popup = (Popup)FindName("PART_Popup");
-        _list  = (ListBox)FindName("PART_List");
+        _input     = (TextBox)FindName("PART_Input");
+        _popup     = (Popup)FindName("PART_Popup");
+        _list      = (ListBox)FindName("PART_List");
+        _createBtn = FindName("PART_CreateBtn") as Button;
+        _createSep = FindName("PART_Separator") as Separator;
 
-        // Seed list with all skills
         RefreshList(string.Empty);
 
-        // Wire TextBox events
         _input.GotFocus         += OnInputGotFocus;
         _input.TextChanged      += OnInputTextChanged;
         _input.PreviewKeyDown   += OnInputKeyDown;
         _input.MouseDown        += OnInputMouseDown;
 
-        // Wire ListBox events
         _list.MouseLeftButtonUp += OnListItemClicked;
         _list.PreviewKeyDown    += OnListKeyDown;
+
+        if (_createBtn != null)
+            _createBtn.Click += OnCreateBtnClicked;
 
         // Attach window-level click-outside handler
         var window = Window.GetWindow(this);
         if (window != null)
             window.PreviewMouseDown += OnWindowMouseDown;
 
-        // Apply current value
+        UpdateCreateButtonVisibility();
         SyncInputFromProperty();
     }
 
@@ -102,10 +126,37 @@ public partial class SkillPickerBox : UserControl
             window.PreviewMouseDown -= OnWindowMouseDown;
     }
 
-    // ── DP callback ──────────────────────────────────────────────────────
+    // ── DP callbacks ─────────────────────────────────────────────────────
 
     private static void OnSelectedSkillChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((SkillPickerBox)d).SyncInputFromProperty();
+
+    private static void OnEntryKeyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((SkillPickerBox)d).UpdateCreateButtonVisibility();
+
+    // ── Entry source resolution ───────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the live list to display, resolving EntryKey first (dynamic,
+    /// always fresh), then EntrySource (static), then AllSkills (default).
+    /// </summary>
+    private IReadOnlyList<SkillEntry> ResolveSource() => EntryKey switch
+    {
+        "CoreAbility" => CustomEntryStore.AllCoreAbilities,
+        "Flaw"        => CustomEntryStore.AllFlaws,
+        _             => EntrySource ?? CustomEntryStore.AllSkills,
+    };
+
+    // ── Create-button visibility ──────────────────────────────────────────
+
+    private void UpdateCreateButtonVisibility()
+    {
+        bool show = EntryKey is "CoreAbility" or "Flaw";
+        if (_createBtn != null) _createBtn.Visibility = show ? Visibility.Visible  : Visibility.Collapsed;
+        if (_createSep != null) _createSep.Visibility = show ? Visibility.Visible  : Visibility.Collapsed;
+    }
+
+    // ── Sync input from DP ───────────────────────────────────────────────
 
     private void SyncInputFromProperty()
     {
@@ -121,10 +172,10 @@ public partial class SkillPickerBox : UserControl
     private void UpdateTooltip()
     {
         if (_input == null) return;
-        var source = EntrySource;
-        var desc = source != null
-            ? source.FirstOrDefault(e => e.Name.Equals(SelectedSkill, StringComparison.OrdinalIgnoreCase))?.Description
-            : CustomEntryStore.GetSkillDescription(SelectedSkill);
+        var desc = ResolveSource()
+            .FirstOrDefault(e => e.Name.Equals(SelectedSkill, StringComparison.OrdinalIgnoreCase))
+            ?.Description;
+
         if (string.IsNullOrWhiteSpace(desc))
         {
             _input.ToolTip = null;
@@ -142,15 +193,15 @@ public partial class SkillPickerBox : UserControl
                 FontSize        = 11,
                 Foreground      = System.Windows.Media.Brushes.WhiteSmoke,
             },
-            Background          = new System.Windows.Media.SolidColorBrush(
-                                      (System.Windows.Media.Color)
-                                      System.Windows.Media.ColorConverter.ConvertFromString("#CC1A0D02")),
-            BorderBrush         = new System.Windows.Media.SolidColorBrush(
-                                      (System.Windows.Media.Color)
-                                      System.Windows.Media.ColorConverter.ConvertFromString("#5A2E0E")),
-            BorderThickness     = new Thickness(1),
-            Padding             = new Thickness(8, 6, 8, 6),
-            HasDropShadow       = true,
+            Background      = new System.Windows.Media.SolidColorBrush(
+                                  (System.Windows.Media.Color)
+                                  System.Windows.Media.ColorConverter.ConvertFromString("#CC1A0D02")),
+            BorderBrush     = new System.Windows.Media.SolidColorBrush(
+                                  (System.Windows.Media.Color)
+                                  System.Windows.Media.ColorConverter.ConvertFromString("#5A2E0E")),
+            BorderThickness = new Thickness(1),
+            Padding         = new Thickness(8, 6, 8, 6),
+            HasDropShadow   = true,
         };
     }
 
@@ -176,14 +227,13 @@ public partial class SkillPickerBox : UserControl
     private void RefreshList(string filter)
     {
         if (_list == null) return;
-        var source = EntrySource ?? CustomEntryStore.AllSkills;
         _list.Items.Clear();
-        foreach (var skill in source)
+        foreach (var entry in ResolveSource())
         {
             if (string.IsNullOrWhiteSpace(filter) ||
-                skill.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                entry.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {
-                _list.Items.Add(skill.Name);
+                _list.Items.Add(entry.Name);
             }
         }
     }
@@ -192,14 +242,12 @@ public partial class SkillPickerBox : UserControl
 
     private void OnInputGotFocus(object sender, RoutedEventArgs e)
     {
-        // Open picker if field is empty or matches nothing typed
         if (string.IsNullOrWhiteSpace(_input?.Text))
             OpenPopup();
     }
 
     private void OnInputMouseDown(object sender, MouseButtonEventArgs e)
     {
-        // Clicking into the box always re-opens (even if already focused)
         OpenPopup();
     }
 
@@ -207,11 +255,9 @@ public partial class SkillPickerBox : UserControl
     {
         if (_suppressTextChange || _input == null) return;
 
-        var typed = _input.Text;
-
-        // If text matches an entry exactly → commit it
-        var source = EntrySource ?? CustomEntryStore.AllSkills;
-        var exact = source.FirstOrDefault(s =>
+        var typed  = _input.Text;
+        var source = ResolveSource();
+        var exact  = source.FirstOrDefault(s =>
             s.Name.Equals(typed, StringComparison.OrdinalIgnoreCase));
 
         if (exact != null)
@@ -220,12 +266,10 @@ public partial class SkillPickerBox : UserControl
             return;
         }
 
-        // Otherwise filter the list and keep popup open
         RefreshList(typed);
         if (!_popupOpen && !string.IsNullOrWhiteSpace(typed))
             OpenPopup();
 
-        // Clear SelectedSkill if text diverges from it
         if (!string.IsNullOrWhiteSpace(SelectedSkill))
         {
             _suppressTextChange = true;
@@ -255,13 +299,11 @@ public partial class SkillPickerBox : UserControl
 
             case Key.Escape:
                 ClosePopup();
-                // Revert input to last committed skill
                 SyncInputFromProperty();
                 e.Handled = true;
                 break;
 
             case Key.Enter:
-                // Pick first item if list is showing
                 if (_popupOpen && _list.Items.Count > 0)
                 {
                     CommitSkill((string)_list.Items[0]);
@@ -297,7 +339,6 @@ public partial class SkillPickerBox : UserControl
                 break;
 
             case Key.Up when _list?.SelectedIndex == 0:
-                // Move focus back to input
                 ClosePopup();
                 _input?.Focus();
                 e.Handled = true;
@@ -305,13 +346,37 @@ public partial class SkillPickerBox : UserControl
         }
     }
 
+    // ── Create custom entry ───────────────────────────────────────────────
+
+    private void OnCreateBtnClicked(object sender, RoutedEventArgs e)
+    {
+        ClosePopup();
+
+        var title = EntryKey switch
+        {
+            "CoreAbility" => "Create Custom Core Ability",
+            "Flaw"        => "Create Custom Flaw",
+            _             => "Create Custom Entry",
+        };
+
+        var dlg = new CreateCustomEntryDialog(title) { Owner = Window.GetWindow(this) };
+        if (dlg.ShowDialog() != true) return;
+
+        switch (EntryKey)
+        {
+            case "CoreAbility": CustomEntryStore.AddCoreAbility(dlg.EntryName, dlg.EntryDescription); break;
+            case "Flaw":        CustomEntryStore.AddFlaw(dlg.EntryName,        dlg.EntryDescription); break;
+        }
+
+        // Select and commit the newly created entry
+        CommitSkill(dlg.EntryName);
+    }
+
     // ── Window-level click-outside handler ───────────────────────────────
 
     private void OnWindowMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (!_popupOpen) return;
-
-        // If click is inside this control or its popup, leave it open
         if (ContainsElement(e.OriginalSource as DependencyObject)) return;
         if (_popup?.Child != null &&
             (_popup.Child == e.OriginalSource ||
@@ -337,7 +402,7 @@ public partial class SkillPickerBox : UserControl
     private void CommitSkill(string name)
     {
         ClosePopup();
-        SelectedSkill = name;          // DP → triggers OnSelectedSkillChanged → SyncInputFromProperty
+        SelectedSkill = name;
         _input?.Focus();
     }
 }

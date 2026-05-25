@@ -121,25 +121,25 @@
               <TextBlock DockPanel.Dock="Left" Text="①" Width="20" Style="{StaticResource FieldLabel}"/>
               <ctrl:SkillPickerBox
                        SelectedSkill="{Binding Flaw1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntrySource="{x:Static data:FlawList.All}"/>
+                       EntryKey="Flaw"/>
             </DockPanel>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="②" Width="20" Style="{StaticResource FieldLabel}"/>
               <ctrl:SkillPickerBox
                        SelectedSkill="{Binding Flaw2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntrySource="{x:Static data:FlawList.All}"/>
+                       EntryKey="Flaw"/>
             </DockPanel>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="③" Width="20" Style="{StaticResource FieldLabel}"/>
               <ctrl:SkillPickerBox
                        SelectedSkill="{Binding Flaw3, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntrySource="{x:Static data:FlawList.All}"/>
+                       EntryKey="Flaw"/>
             </DockPanel>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="④" Width="20" Style="{StaticResource FieldLabel}"/>
               <ctrl:SkillPickerBox
                        SelectedSkill="{Binding Flaw4, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntrySource="{x:Static data:FlawList.All}"/>
+                       EntryKey="Flaw"/>
             </DockPanel>
 
             <!-- ─── CORE ABILITY ──────────────────────────────────── -->
@@ -147,7 +147,7 @@
             <TextBlock Text="CORE ABILITY" Style="{StaticResource SectionHeader}"/>
             <ctrl:SkillPickerBox
                      SelectedSkill="{Binding CoreAbility, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     EntrySource="{x:Static data:CoreAbilityList.All}"/>
+                     EntryKey="CoreAbility"/>
 
             <!-- ─── SUMMARY ────────────────────────────────────────── -->
             <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,14,0,10"/>

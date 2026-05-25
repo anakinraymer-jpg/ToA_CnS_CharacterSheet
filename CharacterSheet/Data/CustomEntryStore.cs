@@ -4,8 +4,9 @@ using System.Text.Json;
 namespace CharacterSheet.Data;
 
 /// <summary>
-/// App-wide store for user-created custom skills and equipment entries.
-/// Persisted to AppData between sessions, shared across all characters.
+/// App-wide store for user-created custom skills, equipment, core abilities,
+/// and flaws.  All lists are persisted to AppData between sessions and shared
+/// across all characters.
 /// </summary>
 public static class CustomEntryStore
 {
@@ -15,21 +16,31 @@ public static class CustomEntryStore
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                      "ToA_CnS_CharacterSheet");
 
-    private static readonly string SkillsFile    = Path.Combine(SaveDir, "custom_skills.json");
-    private static readonly string EquipmentFile = Path.Combine(SaveDir, "custom_equipment.json");
+    private static readonly string SkillsFile        = Path.Combine(SaveDir, "custom_skills.json");
+    private static readonly string EquipmentFile     = Path.Combine(SaveDir, "custom_equipment.json");
+    private static readonly string CoreAbilitiesFile = Path.Combine(SaveDir, "custom_core_abilities.json");
+    private static readonly string FlawsFile         = Path.Combine(SaveDir, "custom_flaws.json");
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 
     // ── In-memory collections ─────────────────────────────────────────────
 
-    private static readonly List<SkillEntry> _customSkills    = [];
-    private static readonly List<SkillEntry> _customEquipment = [];
+    private static readonly List<SkillEntry> _customSkills        = [];
+    private static readonly List<SkillEntry> _customEquipment     = [];
+    private static readonly List<SkillEntry> _customCoreAbilities = [];
+    private static readonly List<SkillEntry> _customFlaws         = [];
 
-    /// <summary>All skills available for the picker: built-in + custom, alphabetical.</summary>
-    public static IReadOnlyList<SkillEntry> AllSkills { get; private set; } = SkillList.All;
+    /// <summary>All skills: built-in + custom, alphabetical.</summary>
+    public static IReadOnlyList<SkillEntry> AllSkills        { get; private set; } = SkillList.All;
 
-    /// <summary>Custom equipment entries available for the equipment picker.</summary>
-    public static IReadOnlyList<SkillEntry> AllEquipment => _customEquipment;
+    /// <summary>Custom equipment entries.</summary>
+    public static IReadOnlyList<SkillEntry> AllEquipment     => _customEquipment;
+
+    /// <summary>All core abilities: built-in + custom, alphabetical.</summary>
+    public static IReadOnlyList<SkillEntry> AllCoreAbilities { get; private set; } = CoreAbilityList.All;
+
+    /// <summary>All flaws: built-in + custom, alphabetical.</summary>
+    public static IReadOnlyList<SkillEntry> AllFlaws         { get; private set; } = FlawList.All;
 
     // ── Initialiser ───────────────────────────────────────────────────────
 
@@ -37,26 +48,44 @@ public static class CustomEntryStore
     {
         Load();
         RebuildAllSkills();
+        RebuildAllCoreAbilities();
+        RebuildAllFlaws();
     }
 
     // ── Public API ────────────────────────────────────────────────────────
 
     public static void AddSkill(string name, string description)
     {
-        if (_customSkills.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            return;                                       // no duplicates
+        if (_customSkills.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) return;
         _customSkills.Add(new SkillEntry(name, description));
         RebuildAllSkills();
-        SaveSkills();
+        SaveList(SkillsFile, _customSkills);
     }
 
     public static void AddEquipment(string name, string description)
     {
-        if (_customEquipment.Any(e => e.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            return;
+        if (_customEquipment.Any(e => e.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) return;
         _customEquipment.Add(new SkillEntry(name, description));
-        SaveEquipment();
+        SaveList(EquipmentFile, _customEquipment);
     }
+
+    public static void AddCoreAbility(string name, string description)
+    {
+        if (_customCoreAbilities.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) return;
+        _customCoreAbilities.Add(new SkillEntry(name, description));
+        RebuildAllCoreAbilities();
+        SaveList(CoreAbilitiesFile, _customCoreAbilities);
+    }
+
+    public static void AddFlaw(string name, string description)
+    {
+        if (_customFlaws.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) return;
+        _customFlaws.Add(new SkillEntry(name, description));
+        RebuildAllFlaws();
+        SaveList(FlawsFile, _customFlaws);
+    }
+
+    // ── Description helpers ───────────────────────────────────────────────
 
     public static string? GetSkillDescription(string? name) =>
         name == null ? null :
@@ -68,42 +97,46 @@ public static class CustomEntryStore
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    private static void RebuildAllSkills()
-    {
-        AllSkills = SkillList.All
-            .Concat(_customSkills)
-            .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList()
-            .AsReadOnly();
-    }
+    private static void RebuildAllSkills() =>
+        AllSkills = Merge(SkillList.All, _customSkills);
+
+    private static void RebuildAllCoreAbilities() =>
+        AllCoreAbilities = Merge(CoreAbilityList.All, _customCoreAbilities);
+
+    private static void RebuildAllFlaws() =>
+        AllFlaws = Merge(FlawList.All, _customFlaws);
+
+    private static IReadOnlyList<SkillEntry> Merge(
+        IReadOnlyList<SkillEntry> builtIn, List<SkillEntry> custom) =>
+        builtIn.Concat(custom)
+               .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+               .ToList().AsReadOnly();
 
     private static void Load()
     {
         try
         {
-            if (File.Exists(SkillsFile))
-                foreach (var e in Deserialize(SkillsFile))
-                    _customSkills.Add(new SkillEntry(e.Name, e.Description));
-
-            if (File.Exists(EquipmentFile))
-                foreach (var e in Deserialize(EquipmentFile))
-                    _customEquipment.Add(new SkillEntry(e.Name, e.Description));
+            TryLoad(SkillsFile,        _customSkills);
+            TryLoad(EquipmentFile,     _customEquipment);
+            TryLoad(CoreAbilitiesFile, _customCoreAbilities);
+            TryLoad(FlawsFile,         _customFlaws);
         }
         catch { /* bad file → start empty */ }
     }
 
-    private static void SaveSkills()
+    private static void TryLoad(string path, List<SkillEntry> target)
     {
-        Directory.CreateDirectory(SaveDir);
-        File.WriteAllText(SkillsFile,
-            JsonSerializer.Serialize(_customSkills.Select(s => new StoredEntry(s.Name, s.Description)), JsonOpts));
+        if (!File.Exists(path)) return;
+        foreach (var e in Deserialize(path))
+            target.Add(new SkillEntry(e.Name, e.Description));
     }
 
-    private static void SaveEquipment()
+    private static void SaveList(string path, List<SkillEntry> list)
     {
         Directory.CreateDirectory(SaveDir);
-        File.WriteAllText(EquipmentFile,
-            JsonSerializer.Serialize(_customEquipment.Select(e => new StoredEntry(e.Name, e.Description)), JsonOpts));
+        File.WriteAllText(path,
+            JsonSerializer.Serialize(
+                list.Select(s => new StoredEntry(s.Name, s.Description)), JsonOpts));
     }
 
     private static List<StoredEntry> Deserialize(string path)

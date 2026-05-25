@@ -24,43 +24,73 @@
               BorderThickness="1"
               CornerRadius="2"
               MinWidth="220"
-              MaxWidth="320"
-              MaxHeight="220">
-        <ListBox x:Name="PART_List"
-                 Background="Transparent"
-                 BorderThickness="0"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                 VirtualizingPanel.IsVirtualizing="True">
-          <ListBox.ItemContainerStyle>
-            <Style TargetType="ListBoxItem">
-              <Setter Property="Foreground"   Value="#D4A96A"/>
-              <Setter Property="FontFamily"   Value="Palatino Linotype"/>
-              <Setter Property="FontSize"     Value="12"/>
-              <Setter Property="Padding"      Value="8,4"/>
-              <Setter Property="Cursor"       Value="Hand"/>
-              <Setter Property="Template">
-                <Setter.Value>
-                  <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="Bd"
-                            Background="Transparent"
-                            Padding="{TemplateBinding Padding}">
-                      <ContentPresenter/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                      <Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="Bd" Property="Background" Value="#3A2010"/>
-                      </Trigger>
-                      <Trigger Property="IsSelected" Value="True">
-                        <Setter TargetName="Bd" Property="Background" Value="#4A2E10"/>
-                      </Trigger>
-                    </ControlTemplate.Triggers>
-                  </ControlTemplate>
-                </Setter.Value>
-              </Setter>
-            </Style>
-          </ListBox.ItemContainerStyle>
-        </ListBox>
+              MaxWidth="320">
+        <StackPanel>
+          <ListBox x:Name="PART_List"
+                   Background="Transparent"
+                   BorderThickness="0"
+                   MaxHeight="200"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto"
+                   VirtualizingPanel.IsVirtualizing="True">
+            <ListBox.ItemContainerStyle>
+              <Style TargetType="ListBoxItem">
+                <Setter Property="Foreground"   Value="#D4A96A"/>
+                <Setter Property="FontFamily"   Value="Palatino Linotype"/>
+                <Setter Property="FontSize"     Value="12"/>
+                <Setter Property="Padding"      Value="8,4"/>
+                <Setter Property="Cursor"       Value="Hand"/>
+                <Setter Property="Template">
+                  <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                      <Border x:Name="Bd"
+                              Background="Transparent"
+                              Padding="{TemplateBinding Padding}">
+                        <ContentPresenter/>
+                      </Border>
+                      <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                          <Setter TargetName="Bd" Property="Background" Value="#3A2010"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                          <Setter TargetName="Bd" Property="Background" Value="#4A2E10"/>
+                        </Trigger>
+                      </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                  </Setter.Value>
+                </Setter>
+              </Style>
+            </ListBox.ItemContainerStyle>
+          </ListBox>
+
+          <!-- Shown only when EntryKey enables custom creation -->
+          <Separator x:Name="PART_Separator"
+                     Visibility="Collapsed"
+                     Background="#5A2E0E" Height="1" Margin="0"/>
+          <Button x:Name="PART_CreateBtn"
+                  Visibility="Collapsed"
+                  Content="＋  Add custom…"
+                  Background="Transparent" BorderThickness="0"
+                  Foreground="#D4A96A"
+                  FontFamily="Palatino Linotype" FontSize="11"
+                  Padding="10,6" HorizontalAlignment="Left" Cursor="Hand">
+            <Button.Template>
+              <ControlTemplate TargetType="Button">
+                <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                  <ContentPresenter/>
+                </Border>
+                <ControlTemplate.Triggers>
+                  <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="bd" Property="Background" Value="#3A2010"/>
+                  </Trigger>
+                  <Trigger Property="IsPressed" Value="True">
+                    <Setter TargetName="bd" Property="Background" Value="#4A2E10"/>
+                  </Trigger>
+                </ControlTemplate.Triggers>
+              </ControlTemplate>
+            </Button.Template>
+          </Button>
+        </StackPanel>
       </Border>
     </Popup>
   </Grid>
