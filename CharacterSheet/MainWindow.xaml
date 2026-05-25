@@ -119,23 +119,27 @@
             <TextBlock Text="FLAWS" Style="{StaticResource SectionHeader}"/>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="①" Width="20" Style="{StaticResource FieldLabel}"/>
-              <TextBox Style="{StaticResource HdrTextBox}"
-                       Text="{Binding Flaw1, UpdateSourceTrigger=PropertyChanged}"/>
+              <ctrl:SkillPickerBox
+                       SelectedSkill="{Binding Flaw1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       EntrySource="{x:Static data:FlawList.All}"/>
             </DockPanel>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="②" Width="20" Style="{StaticResource FieldLabel}"/>
-              <TextBox Style="{StaticResource HdrTextBox}"
-                       Text="{Binding Flaw2, UpdateSourceTrigger=PropertyChanged}"/>
+              <ctrl:SkillPickerBox
+                       SelectedSkill="{Binding Flaw2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       EntrySource="{x:Static data:FlawList.All}"/>
             </DockPanel>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="③" Width="20" Style="{StaticResource FieldLabel}"/>
-              <TextBox Style="{StaticResource HdrTextBox}"
-                       Text="{Binding Flaw3, UpdateSourceTrigger=PropertyChanged}"/>
+              <ctrl:SkillPickerBox
+                       SelectedSkill="{Binding Flaw3, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       EntrySource="{x:Static data:FlawList.All}"/>
             </DockPanel>
             <DockPanel Margin="0,3">
               <TextBlock DockPanel.Dock="Left" Text="④" Width="20" Style="{StaticResource FieldLabel}"/>
-              <TextBox Style="{StaticResource HdrTextBox}"
-                       Text="{Binding Flaw4, UpdateSourceTrigger=PropertyChanged}"/>
+              <ctrl:SkillPickerBox
+                       SelectedSkill="{Binding Flaw4, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       EntrySource="{x:Static data:FlawList.All}"/>
             </DockPanel>
 
             <!-- ─── CORE ABILITY ──────────────────────────────────── -->
