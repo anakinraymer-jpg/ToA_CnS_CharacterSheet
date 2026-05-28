@@ -69,6 +69,15 @@ public static class CustomEntryStore
         SaveList(EquipmentFile, _customEquipment);
     }
 
+    public static void RemoveEquipment(string name)
+    {
+        var entry = _customEquipment.FirstOrDefault(e =>
+            e.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (entry == null) return;
+        _customEquipment.Remove(entry);
+        SaveList(EquipmentFile, _customEquipment);
+    }
+
     public static void AddCoreAbility(string name, string description)
     {
         if (_customCoreAbilities.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) return;

@@ -49,6 +49,25 @@
         </Setter>
       </Style>
 
+      <!-- Item template for equipment pick list — includes a delete × button -->
+      <DataTemplate x:Key="EquipPickItemTemplate">
+        <DockPanel LastChildFill="True">
+          <Button DockPanel.Dock="Right"
+                  Content="×"
+                  Tag="{Binding Name}"
+                  Click="OnDeleteEquipEntry"
+                  FontFamily="Palatino Linotype" FontSize="12"
+                  Foreground="#AA5A2E0E" Background="Transparent"
+                  BorderThickness="0" Padding="4,0" Margin="6,0,0,0"
+                  Cursor="Hand" Focusable="False"
+                  ToolTip="Remove from list"/>
+          <TextBlock Text="{Binding Name}"
+                     TextTrimming="CharacterEllipsis"
+                     ToolTip="{Binding Description}"
+                     VerticalAlignment="Center"/>
+        </DockPanel>
+      </DataTemplate>
+
       <!-- ListBox item style for dark dialog background -->
       <Style x:Key="PickListItem" TargetType="ListBoxItem">
         <Setter Property="Foreground"               Value="#F2E4C0"/>

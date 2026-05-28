@@ -73,6 +73,10 @@ public partial class AddEntryDialog : Window
         LbEntries.MouseDoubleClick += (_, _) => TryConfirm();
         LbEntries.SelectionChanged += (_, _) => UpdateSpecializationVisibility();
 
+        // Equipment list gets a delete button on each row
+        if (!_isSkill)
+            LbEntries.ItemTemplate = (System.Windows.DataTemplate)FindResource("EquipPickItemTemplate");
+
         PopulateList(string.Empty);
 
         // If nothing to pick, jump straight to Create mode
@@ -126,6 +130,23 @@ public partial class AddEntryDialog : Window
 
     private void OnFilterChanged(object sender, TextChangedEventArgs e)
         => PopulateList(TbFilter.Text);
+
+    private void OnDeleteEquipEntry(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string name) return;
+
+        var result = MessageBox.Show(
+            $"Remove \"{name}\" from the equipment list?",
+            "Remove Entry",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        CustomEntryStore.RemoveEquipment(name);
+        PopulateList(TbFilter.Text);
+        e.Handled = true;   // prevent the click from also selecting the item
+    }
 
     private void PopulateList(string filter)
     {
