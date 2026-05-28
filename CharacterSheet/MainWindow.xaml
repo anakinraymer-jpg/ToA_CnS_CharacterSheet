@@ -20,10 +20,18 @@
                Margin="0,12,0,12" Orientation="Horizontal">
       <Button x:Name="BtnNew"    Content="☠ New Character"
               Style="{StaticResource CtrlButton}" Margin="4,0"/>
+      <Button x:Name="BtnOpen"   Content="Open"
+              Style="{StaticResource CtrlButton}" Margin="4,0"
+              ToolTip="Open a save file  (Ctrl+O)"/>
+      <Button x:Name="BtnSave"   Content="Save"
+              Style="{StaticResource CtrlButton}" Margin="4,0"
+              ToolTip="Save to current file  (Ctrl+S)"/>
       <Button x:Name="BtnExport" Content="↓ Export"
-              Style="{StaticResource CtrlButton}" Margin="4,0"/>
+              Style="{StaticResource CtrlButton}" Margin="4,0"
+              ToolTip="Export a copy to a chosen location"/>
       <Button x:Name="BtnImport" Content="↑ Import"
-              Style="{StaticResource CtrlButton}" Margin="4,0"/>
+              Style="{StaticResource CtrlButton}" Margin="4,0"
+              ToolTip="Import / merge from a file"/>
       <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
       <Button x:Name="BtnZoomOut" Content="−" Padding="12,8"
               Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Zoom out  (Ctrl -)"/>

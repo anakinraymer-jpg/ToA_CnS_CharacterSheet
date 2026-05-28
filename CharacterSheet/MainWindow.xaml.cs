@@ -28,6 +28,16 @@ public partial class MainWindow : Window
     private const double SheetMarginH = 20;
     private const double SheetMarginT = 20;
 
+    // ── Save-file tracking ────────────────────────────────────────────
+    private string? _currentFilePath;
+
+    private void SetCurrentFilePath(string? path)
+    {
+        _currentFilePath = path;
+        var tag = path != null ? $" — {Path.GetFileName(path)}" : "";
+        Title = $"Crown & Skull — Character Sheet{tag}";
+    }
+
     // ── Hero-point tracking ───────────────────────────────────────────
     private string _prevCoreAbility = "";
     private string _prevFlaw1 = "", _prevFlaw2 = "", _prevFlaw3 = "", _prevFlaw4 = "";
@@ -45,6 +55,8 @@ public partial class MainWindow : Window
     private void WireUiEvents()
     {
         BtnNew.Click    += OnBtnNew;
+        BtnOpen.Click   += OnBtnOpen;
+        BtnSave.Click   += OnBtnSave;
         BtnExport.Click += OnBtnExport;
         BtnImport.Click += OnBtnImport;
 
@@ -207,7 +219,7 @@ public partial class MainWindow : Window
     private void UpdateAddButtonStates()
     {
         BtnAddEquip.IsEnabled = _state.Equipment.Count < 10;
-        BtnAddSkill.IsEnabled = _state.Skills.Count    < 10;
+        BtnAddSkill.IsEnabled = _state.Skills.Count < 10 && _state.HeroPointsCurrent >= 3;
     }
 
     // ── Armor bonus ───────────────────────────────────────────────────
@@ -220,7 +232,8 @@ public partial class MainWindow : Window
         int bonus = _state.Equipment
             .Where(eq => eq.ArmorValue > 0 && !eq.EquipUsed)
             .Sum(eq => eq.ArmorValue);
-        _state.ArmorBonus = bonus;
+        int cap = Math.Max(0, 18 - _state.DefenseBase);
+        _state.ArmorBonus = Math.Min(bonus, cap);
     }
 
     // ── Zoom core ─────────────────────────────────────────────────────
@@ -321,6 +334,14 @@ public partial class MainWindow : Window
                 FitToWindow();
                 e.Handled = true;
                 break;
+            case Key.S:
+                OnBtnSave(this, new RoutedEventArgs());
+                e.Handled = true;
+                break;
+            case Key.O:
+                OnBtnOpen(this, new RoutedEventArgs());
+                e.Handled = true;
+                break;
         }
     }
 
@@ -342,6 +363,16 @@ public partial class MainWindow : Window
             case nameof(CharacterState.Flaw2): ApplyFlawDelta(ref _prevFlaw2, _state.Flaw2); break;
             case nameof(CharacterState.Flaw3): ApplyFlawDelta(ref _prevFlaw3, _state.Flaw3); break;
             case nameof(CharacterState.Flaw4): ApplyFlawDelta(ref _prevFlaw4, _state.Flaw4); break;
+
+            // DefenseBase changed: re-enforce armor cap (bonus ≤ 18 − base)
+            case nameof(CharacterState.DefenseBase):
+                RecomputeArmorBonus();
+                break;
+
+            // Available Points changed: refresh whether Add Skill is allowed
+            case nameof(CharacterState.HeroPointsCurrent):
+                UpdateAddButtonStates();
+                break;
         }
 
         Save();
@@ -512,7 +543,51 @@ public partial class MainWindow : Window
                             MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
 
         LoadState(CharacterState.CreateDefault());
+        SetCurrentFilePath(null);
         Save();
+    }
+
+    private void OnBtnOpen(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Filter = "Character Sheet files|*.json",
+            Title  = "Open Character Sheet",
+        };
+        if (dlg.ShowDialog() != true) return;
+        try
+        {
+            var json  = File.ReadAllText(dlg.FileName);
+            var state = Persistence.LoadFromJson(json);
+            LoadState(state);
+            SetCurrentFilePath(dlg.FileName);
+            Save();   // sync AppData so the app resumes this file on next launch
+        }
+        catch
+        {
+            MessageBox.Show("Could not read that file. Make sure it's a valid character JSON.",
+                            "Open Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void OnBtnSave(object sender, RoutedEventArgs e)
+    {
+        if (_currentFilePath == null)
+        {
+            // No current file yet — prompt for a location (Save As)
+            var name = string.IsNullOrWhiteSpace(_state.Name) ? "character" : _state.Name;
+            var safe = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
+            var saveDlg = new SaveFileDialog
+            {
+                FileName   = $"{safe}_cs_sheet.json",
+                DefaultExt = ".json",
+                Filter     = "Character Sheet files|*.json",
+                Title      = "Save Character Sheet",
+            };
+            if (saveDlg.ShowDialog() != true) return;
+            SetCurrentFilePath(saveDlg.FileName);
+        }
+        File.WriteAllText(_currentFilePath!, Persistence.ExportJson(_state));
     }
 
     private void OnBtnExport(object sender, RoutedEventArgs e)
