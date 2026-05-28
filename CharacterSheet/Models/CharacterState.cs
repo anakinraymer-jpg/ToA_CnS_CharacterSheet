@@ -34,6 +34,14 @@ public class SkillData : INotifyPropertyChanged
     private bool   _skillAdv;
     private int    _skillRating = 0;   // 0 = no skill; 3–18 = active
 
+    // ── Advanced skill properties ──────────────────────────────────────
+    private int  _minRating          = 3;   // floor for SkillRating (default 3)
+    private int  _freeRating         = 0;   // how much of the base rating costs no AP
+    private int  _ratingStep         = 1;   // DieBubble step + AP-cost divisor
+    private bool _isAlwaysFree       = false; // no AP cost ever (e.g. Create Device)
+    private bool _isLocked           = false; // DieBubble is display-only (e.g. Create Device)
+    private bool _isCoreAbilitySkill = false; // auto-added by a core ability
+
     public string SkillName
     {
         get => _skillName;
@@ -60,16 +68,64 @@ public class SkillData : INotifyPropertyChanged
     public bool HasSkill => !string.IsNullOrWhiteSpace(_skillName);
 
     /// <summary>
-    /// 0 when no skill is assigned; 3–18 when a skill is assigned (clamped).
+    /// 0 when no skill is assigned; MinRating–18 when a skill is assigned (clamped).
     /// </summary>
     public int SkillRating
     {
         get => _skillRating;
         set
         {
-            _skillRating = HasSkill ? Math.Clamp(value, 3, 18) : 0;
+            _skillRating = HasSkill ? Math.Clamp(value, _minRating, 18) : 0;
             OnPropertyChanged();
         }
+    }
+
+    /// <summary>Minimum allowed rating (default 3). Auto-added skills use their grant level.</summary>
+    public int MinRating
+    {
+        get => _minRating;
+        set { _minRating = Math.Max(1, value); OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Portion of the base rating that costs no Available Points.
+    /// AP cost formula: max(0, SkillRating − FreeRating) / RatingStep.
+    /// </summary>
+    public int FreeRating
+    {
+        get => _freeRating;
+        set { _freeRating = Math.Max(0, value); OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// DieBubble increment/decrement per click, and AP-cost divisor.
+    /// 1 = normal; 2 = Loremaster Knowledge (1 AP per 2 rating points).
+    /// </summary>
+    public int RatingStep
+    {
+        get => _ratingStep;
+        set { _ratingStep = Math.Max(1, value); OnPropertyChanged(); }
+    }
+
+    /// <summary>When true the skill never costs or refunds Available Points (e.g. Create Device).</summary>
+    public bool IsAlwaysFree
+    {
+        get => _isAlwaysFree;
+        set { _isAlwaysFree = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>When true the DieBubble is display-only — the user cannot change the rating (e.g. Create Device).</summary>
+    public bool IsLocked
+    {
+        get => _isLocked;
+        set { _isLocked = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>True for skills auto-added by a core ability (Druid, Empath, Mountaineer, Inventor).</summary>
+    public bool IsCoreAbilitySkill
+    {
+        get => _isCoreAbilitySkill;
+        set { _isCoreAbilitySkill = value; OnPropertyChanged(); }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

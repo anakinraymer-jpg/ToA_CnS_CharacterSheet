@@ -398,6 +398,9 @@
                                           VerticalAlignment="Center"
                                           Value="{Binding SkillRating, Mode=TwoWay}"
                                           HasSkill="{Binding HasSkill}"
+                                          MinValue="{Binding MinRating}"
+                                          Step="{Binding RatingStep}"
+                                          IsLocked="{Binding IsLocked}"
                                           CanIncrease="{Binding DataContext.CanSpendPoint,
                                                         RelativeSource={RelativeSource AncestorType=Window}}"/>
 

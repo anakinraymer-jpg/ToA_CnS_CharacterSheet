@@ -7,7 +7,15 @@ namespace CharacterSheet.Models;
 
 public record EquipDto(string EquipName, string EquipSub, bool EquipUsed, int ArmorValue = 0);
 
-public record SkillDto(string SkillName, string SkillSub, bool SkillAdv, int SkillRating);
+public record SkillDto(
+    string SkillName, string SkillSub, bool SkillAdv, int SkillRating,
+    // Added for core-ability skills — defaults keep old saves valid
+    int  MinRating          = 3,
+    int  FreeRating         = 0,
+    int  RatingStep         = 1,
+    bool IsAlwaysFree       = false,
+    bool IsLocked           = false,
+    bool IsCoreAbilitySkill = false);
 
 // ── Legacy DTO (kept for migrating saves written before the split) ────────────
 
@@ -85,7 +93,10 @@ public static class Persistence
         s.Summary,
         s.Portrait,
         Equipment: s.Equipment.Select(e  => new EquipDto(e.EquipName, e.EquipSub, e.EquipUsed, e.ArmorValue)).ToList(),
-        Skills:    s.Skills.Select(sk => new SkillDto(sk.SkillName, sk.SkillSub, sk.SkillAdv, sk.SkillRating)).ToList(),
+        Skills:    s.Skills.Select(sk => new SkillDto(
+                       sk.SkillName, sk.SkillSub, sk.SkillAdv, sk.SkillRating,
+                       sk.MinRating, sk.FreeRating, sk.RatingStep,
+                       sk.IsAlwaysFree, sk.IsLocked, sk.IsCoreAbilitySkill)).ToList(),
         Rows:      null,   // legacy field — intentionally null in new saves
         Spells:    [.. s.Spells],
         Defense:           s.DefenseBase,
@@ -125,14 +136,20 @@ public static class Persistence
 
             foreach (var sk in d.Skills ?? [])
             {
-                // SkillName must be set before SkillRating so HasSkill is correct
-                // when the SkillRating setter clamps the value.
+                // MinRating must be set before SkillName so the auto-promote clamps correctly.
+                // SkillName must be set before SkillRating so HasSkill is correct.
                 s.Skills.Add(new SkillData
                 {
-                    SkillName   = sk.SkillName ?? "",
-                    SkillSub    = sk.SkillSub  ?? "",
-                    SkillAdv    = sk.SkillAdv,
-                    SkillRating = sk.SkillRating,
+                    MinRating          = sk.MinRating,
+                    FreeRating         = sk.FreeRating,
+                    RatingStep         = sk.RatingStep,
+                    IsAlwaysFree       = sk.IsAlwaysFree,
+                    IsLocked           = sk.IsLocked,
+                    IsCoreAbilitySkill = sk.IsCoreAbilitySkill,
+                    SkillName          = sk.SkillName   ?? "",
+                    SkillSub           = sk.SkillSub    ?? "",
+                    SkillAdv           = sk.SkillAdv,
+                    SkillRating        = sk.SkillRating,
                 });
             }
         }

@@ -43,6 +43,38 @@ public partial class MainWindow : Window
     private string _prevFlaw1 = "", _prevFlaw2 = "", _prevFlaw3 = "", _prevFlaw4 = "";
     private readonly Dictionary<SkillData, int> _prevSkillRating = new();
 
+    // ── Core-ability auto-added skills ────────────────────────────────
+    /// <summary>Skills automatically added by the current Core Ability (Druid, Empath, etc.).</summary>
+    private readonly List<SkillData> _coreAbilitySkills = new();
+
+    // ── AP helpers ────────────────────────────────────────────────────
+
+    private static int ApCostForAdd(SkillData sk)
+        => sk.IsAlwaysFree ? 0
+         : Math.Max(0, sk.SkillRating - sk.FreeRating) / sk.RatingStep;
+
+    private static int ApRefundForRemove(SkillData sk, int prevRating)
+        => sk.IsAlwaysFree ? 0
+         : Math.Max(0, prevRating - sk.FreeRating) / sk.RatingStep;
+
+    /// <summary>
+    /// AP cost when rating changes from oldRating to newRating.
+    /// Negative = refund. Respects FreeRating zone and RatingStep.
+    /// </summary>
+    private static int ApDeltaForChange(SkillData sk, int oldRating, int newRating)
+    {
+        if (sk.IsAlwaysFree) return 0;
+        int oldPaid = Math.Max(0, oldRating - sk.FreeRating);
+        int newPaid = Math.Max(0, newRating - sk.FreeRating);
+        return (newPaid - oldPaid) / sk.RatingStep;
+    }
+
+    private bool IsLoremasterActive
+        => _state.CoreAbility.Equals("Loremaster", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsKnowledgeSkill(SkillData sk)
+        => sk.SkillName.StartsWith("Knowledge", StringComparison.OrdinalIgnoreCase);
+
     public MainWindow()
     {
         InitializeComponent();
@@ -130,6 +162,9 @@ public partial class MainWindow : Window
         // Recompute armor bonus from loaded equipment (no save triggered by this)
         RecomputeArmorBonus();
 
+        // Re-populate the core-ability skill list from the saved IsCoreAbilitySkill flags
+        RepopulateCoreAbilitySkills();
+
         UpdateAddButtonStates();
     }
 
@@ -151,7 +186,16 @@ public partial class MainWindow : Window
                 _prevSkillRating[sk] = sk.SkillRating;
 
                 if (!_loading && sk.HasSkill)
-                    _state.HeroPointsCurrent -= sk.SkillRating;
+                {
+                    int cost = ApCostForAdd(sk);
+                    if (cost > 0) _state.HeroPointsCurrent -= cost;
+                }
+
+                // If Inventor is active and Repair just joined, refresh the mirror
+                if (!_loading &&
+                    _state.CoreAbility.Equals("Inventor", StringComparison.OrdinalIgnoreCase) &&
+                    sk.SkillName.Equals("Repair", StringComparison.OrdinalIgnoreCase))
+                    UpdateCreateDeviceMirror();
             }
 
         if (e.OldItems != null)
@@ -159,8 +203,11 @@ public partial class MainWindow : Window
             {
                 sk.PropertyChanged -= OnSkillDataChanged;
 
-                if (!_loading && _prevSkillRating.TryGetValue(sk, out int prev) && prev > 0)
-                    _state.HeroPointsCurrent += prev;
+                if (!_loading && _prevSkillRating.TryGetValue(sk, out int prev))
+                {
+                    int refund = ApRefundForRemove(sk, prev);
+                    if (refund > 0) _state.HeroPointsCurrent += refund;
+                }
 
                 _prevSkillRating.Remove(sk);
             }
@@ -187,17 +234,22 @@ public partial class MainWindow : Window
 
                 if (!hadSkill && hasSkill)
                 {
-                    int cost = sk.SkillRating;   // auto-promoted to 3 by the model
-                    _state.HeroPointsCurrent -= cost;
-                    _prevSkillRating[sk]      = cost;
+                    int cost = ApCostForAdd(sk);
+                    if (cost > 0) _state.HeroPointsCurrent -= cost;
+                    _prevSkillRating[sk] = sk.SkillRating;
                 }
                 else if (hadSkill && !hasSkill)
                 {
-                    _state.HeroPointsCurrent += prevRating;
-                    _prevSkillRating[sk]      = 0;
+                    int refund = ApRefundForRemove(sk, prevRating);
+                    if (refund > 0) _state.HeroPointsCurrent += refund;
+                    _prevSkillRating[sk] = 0;
                 }
 
                 _state.RefreshSelectedSkillNames();
+
+                // Repair name change while Inventor is active → update mirror
+                if (_state.CoreAbility.Equals("Inventor", StringComparison.OrdinalIgnoreCase))
+                    UpdateCreateDeviceMirror();
                 break;
             }
 
@@ -205,11 +257,16 @@ public partial class MainWindow : Window
             {
                 int prevRating = _prevSkillRating.TryGetValue(sk, out int pr) ? pr : 0;
                 int newRating  = sk.SkillRating;
-                int delta      = newRating - prevRating;
-                if (delta != 0)
+                if (newRating != prevRating)
                 {
-                    _state.HeroPointsCurrent -= delta;
-                    _prevSkillRating[sk]      = newRating;
+                    int apDelta = ApDeltaForChange(sk, prevRating, newRating);
+                    if (apDelta != 0) _state.HeroPointsCurrent -= apDelta;
+                    _prevSkillRating[sk] = newRating;
+
+                    // If Repair changed while Inventor is active, mirror to Create Device
+                    if (_state.CoreAbility.Equals("Inventor", StringComparison.OrdinalIgnoreCase) &&
+                        sk.SkillName.Equals("Repair", StringComparison.OrdinalIgnoreCase))
+                        UpdateCreateDeviceMirror();
                 }
                 break;
             }
@@ -384,12 +441,126 @@ public partial class MainWindow : Window
         bool nowEmpty = string.IsNullOrWhiteSpace(next);
 
         if (wasEmpty && !nowEmpty)
-            _state.HeroPointsCurrent -= 15;   // acquiring a Core Ability costs 15
+        {
+            _state.HeroPointsCurrent -= 15;
+            ApplyCoreAbilitySkills(next);
+        }
         else if (!wasEmpty && nowEmpty)
-            _state.HeroPointsCurrent += 15;   // full refund on removal
-        // non-empty → different non-empty (rename): no change
+        {
+            _state.HeroPointsCurrent += 15;
+            RemoveCoreAbilitySkills();
+        }
+        else if (!wasEmpty && !nowEmpty &&
+                 !prev.Equals(next, StringComparison.OrdinalIgnoreCase))
+        {
+            // Core ability swapped — remove old bonus skills, add new ones
+            RemoveCoreAbilitySkills();
+            ApplyCoreAbilitySkills(next);
+        }
 
         prev = next;
+    }
+
+    // ── Core-ability skill management ─────────────────────────────────
+
+    /// <summary>
+    /// Grants the bonus skills for the given Core Ability.
+    /// Skills are added for free (FreeRating = initial rating) with a minimum floor.
+    /// </summary>
+    private void ApplyCoreAbilitySkills(string ability)
+    {
+        if (ability.Equals("Druid", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCoreAbilitySkill("Tracking", initialRating: 9,  minRating: 9);
+            AddCoreAbilitySkill("Hunting",  initialRating: 9,  minRating: 9);
+        }
+        else if (ability.Equals("Empath", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCoreAbilitySkill("Investigation", initialRating: 7, minRating: 7);
+            AddCoreAbilitySkill("Streetwise",    initialRating: 7, minRating: 7);
+            AddCoreAbilitySkill("Oratory",       initialRating: 7, minRating: 7);
+        }
+        else if (ability.Equals("Mountaineer", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCoreAbilitySkill("Climber",   initialRating: 10, minRating: 10);
+            AddCoreAbilitySkill("Breakfall", initialRating: 10, minRating: 10);
+        }
+        else if (ability.Equals("Inventor", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCoreAbilitySkill("Create Device", initialRating: 3, minRating: 3,
+                                isAlwaysFree: true, isLocked: true);
+            UpdateCreateDeviceMirror();
+        }
+    }
+
+    /// <summary>
+    /// Removes all skills auto-added by the current Core Ability and refunds any
+    /// Available Points the player spent above the free base.
+    /// </summary>
+    private void RemoveCoreAbilitySkills()
+    {
+        foreach (var sk in _coreAbilitySkills.ToList())
+        {
+            sk.PropertyChanged -= OnItemChanged;
+            _state.Skills.Remove(sk);   // OnSkillsCollectionChanged handles refund
+        }
+        _coreAbilitySkills.Clear();
+    }
+
+    /// <summary>
+    /// Creates and adds a single Core-Ability bonus skill to both the skill list
+    /// and the tracking collection.  The skill costs 0 AP (free up to initialRating).
+    /// </summary>
+    private void AddCoreAbilitySkill(
+        string name, int initialRating, int minRating,
+        bool isAlwaysFree = false, bool isLocked = false)
+    {
+        var sk = new SkillData
+        {
+            MinRating          = minRating,
+            FreeRating         = isAlwaysFree ? 0 : initialRating,
+            IsAlwaysFree       = isAlwaysFree,
+            IsLocked           = isLocked,
+            IsCoreAbilitySkill = true,
+            // SkillName last: auto-promote clamps to MinRating, setting the correct initial rating
+            SkillName          = name,
+        };
+
+        sk.PropertyChanged += OnItemChanged;
+        _coreAbilitySkills.Add(sk);
+        _state.Skills.Add(sk);   // OnSkillsCollectionChanged sets _prevSkillRating and charges 0 AP
+    }
+
+    /// <summary>
+    /// Re-populates _coreAbilitySkills from the loaded skill collection
+    /// (skills with IsCoreAbilitySkill = true).  Called after LoadState.
+    /// </summary>
+    private void RepopulateCoreAbilitySkills()
+    {
+        _coreAbilitySkills.Clear();
+        foreach (var sk in _state.Skills)
+            if (sk.IsCoreAbilitySkill)
+                _coreAbilitySkills.Add(sk);
+
+        // Re-apply mirror in case Inventor is the loaded ability
+        if (_state.CoreAbility.Equals("Inventor", StringComparison.OrdinalIgnoreCase))
+            UpdateCreateDeviceMirror();
+    }
+
+    /// <summary>
+    /// Sets Create Device's rating to match Repair's current rating (if Repair is present).
+    /// No-op when Create Device is not in the core-ability list.
+    /// </summary>
+    private void UpdateCreateDeviceMirror()
+    {
+        var createDevice = _coreAbilitySkills.FirstOrDefault(s =>
+            s.SkillName.Equals("Create Device", StringComparison.OrdinalIgnoreCase));
+        if (createDevice == null) return;
+
+        var repair = _state.Skills.FirstOrDefault(s =>
+            s.SkillName.Equals("Repair", StringComparison.OrdinalIgnoreCase));
+        if (repair != null)
+            createDevice.SkillRating = repair.SkillRating;
     }
 
     private void ApplyFlawDelta(ref string prev, string next)
@@ -455,6 +626,16 @@ public partial class MainWindow : Window
             SkillName = dlg.EntryName,
             SkillSub  = dlg.EntryDescription,
         };
+        // item.SkillRating is now 3 (auto-promoted by SkillName setter)
+
+        // ── Loremaster: Knowledge starts at 6 free, increments give 2 rating per 1 AP ──
+        if (IsLoremasterActive && IsKnowledgeSkill(item))
+        {
+            item.FreeRating  = 6;
+            item.RatingStep  = 2;
+            item.SkillRating = 6;  // override before Add so OnSkillsCollectionChanged sees 6
+        }
+
         item.PropertyChanged += OnItemChanged;
         _state.Skills.Add(item);   // OnSkillsCollectionChanged handles point deduction
         Save();

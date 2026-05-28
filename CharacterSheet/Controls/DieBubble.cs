@@ -61,6 +61,45 @@ public class DieBubble : Control
         set => SetValue(CanIncreaseProperty, value);
     }
 
+    public static readonly DependencyProperty MinValueProperty =
+        DependencyProperty.Register(nameof(MinValue), typeof(int), typeof(DieBubble),
+            new FrameworkPropertyMetadata(3));
+
+    /// <summary>Minimum value right-click can reach.  Bind to SkillData.MinRating.</summary>
+    public int MinValue
+    {
+        get => (int)GetValue(MinValueProperty);
+        set => SetValue(MinValueProperty, value);
+    }
+
+    public static readonly DependencyProperty StepProperty =
+        DependencyProperty.Register(nameof(Step), typeof(int), typeof(DieBubble),
+            new FrameworkPropertyMetadata(1));
+
+    /// <summary>
+    /// How much each click changes Value.  Bind to SkillData.RatingStep.
+    /// 1 = normal; 2 = Loremaster Knowledge (1 AP per 2 rating points).
+    /// </summary>
+    public int Step
+    {
+        get => (int)GetValue(StepProperty);
+        set => SetValue(StepProperty, value);
+    }
+
+    public static readonly DependencyProperty IsLockedProperty =
+        DependencyProperty.Register(nameof(IsLocked), typeof(bool), typeof(DieBubble),
+            new FrameworkPropertyMetadata(false));
+
+    /// <summary>
+    /// When true all mouse interaction is disabled (display-only).
+    /// Bind to SkillData.IsLocked for skills like Create Device that mirror another skill.
+    /// </summary>
+    public bool IsLocked
+    {
+        get => (bool)GetValue(IsLockedProperty);
+        set => SetValue(IsLockedProperty, value);
+    }
+
     // ── Brushes ───────────────────────────────────────────────────────
 
     private static readonly SolidColorBrush ActiveStroke   = Frozen("#5A2E0E");
@@ -96,16 +135,16 @@ public class DieBubble : Control
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonDown(e);
-        if (HasSkill && CanIncrease && Value < 18)
-            Value++;
+        if (!IsLocked && HasSkill && CanIncrease && Value + Step <= 18)
+            Value += Step;
         e.Handled = true;
     }
 
     protected override void OnMouseRightButtonDown(MouseButtonEventArgs e)
     {
         base.OnMouseRightButtonDown(e);
-        if (HasSkill && Value > 3)
-            Value--;
+        if (!IsLocked && HasSkill && Value - Step >= MinValue)
+            Value -= Step;
         e.Handled = true;
     }
 
