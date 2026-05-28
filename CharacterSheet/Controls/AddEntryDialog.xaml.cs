@@ -71,6 +71,7 @@ public partial class AddEntryDialog : Window
     {
         TbFilter.TextChanged       += OnFilterChanged;
         LbEntries.MouseDoubleClick += (_, _) => TryConfirm();
+        LbEntries.SelectionChanged += (_, _) => UpdateSpecializationVisibility();
 
         PopulateList(string.Empty);
 
@@ -95,6 +96,30 @@ public partial class AddEntryDialog : Window
             TbFilter.Focus();
         else
             TbName.Focus();
+
+        UpdateSpecializationVisibility();
+    }
+
+    // ── Specialization panel ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Shows the SPECIALIZATION text box whenever a specializable skill is
+    /// selected in Pick mode (Knowledge, Languages, Profession, Resist (Type), Scholar).
+    /// </summary>
+    private void UpdateSpecializationVisibility()
+    {
+        bool show = _isSkill
+                 && RbPick.IsChecked == true
+                 && LbEntries.SelectedItem is SkillEntry sel
+                 && s_multiAllowed.Contains(sel.Name);
+
+        PanelSpecialization.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+
+        if (show)
+        {
+            TbSpecialization.Clear();
+            TbSpecialization.Focus();
+        }
     }
 
     // ── Pick helpers ──────────────────────────────────────────────────────
@@ -157,6 +182,14 @@ public partial class AddEntryDialog : Window
             if (LbEntries.SelectedItem is not SkillEntry entry) return;
             EntryName        = entry.Name;
             EntryDescription = entry.Description ?? "";
+
+            // Append specialization in brackets when the panel was shown
+            if (PanelSpecialization.Visibility == Visibility.Visible)
+            {
+                var spec = TbSpecialization.Text?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(spec))
+                    EntryName = $"{EntryName} [{spec}]";
+            }
         }
         else
         {

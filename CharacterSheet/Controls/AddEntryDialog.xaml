@@ -118,6 +118,16 @@
           </ListBox.ItemTemplate>
         </ListBox>
 
+        <!-- Appears only for skills that accept a specialization (Knowledge, Languages, …) -->
+        <StackPanel x:Name="PanelSpecialization" Visibility="Collapsed" Margin="0,10,0,0">
+          <TextBlock Text="SPECIALIZATION"
+                     FontFamily="Palatino Linotype" FontSize="9"
+                     Foreground="#D4A96A" Margin="0,0,0,4"/>
+          <TextBox x:Name="TbSpecialization"
+                   Style="{StaticResource DialogTextBox}"
+                   ToolTip="Shown in brackets after the skill name, e.g. Knowledge [History]"/>
+        </StackPanel>
+
       </StackPanel>
 
       <!-- ── CREATE PANEL ───────────────────────────────────────────── -->
