@@ -35,6 +35,23 @@ public partial class ShieldCounter : UserControl
     private static void OnValueChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         => ((ShieldCounter)d).UpdateDisplay();
 
+    // ── Bonus ────────────────────────────────────────────────────────────────
+    // Armor bonus added on top of the base Value. Displayed as Value + Bonus.
+
+    public static readonly DependencyProperty BonusProperty =
+        DependencyProperty.Register(
+            nameof(Bonus), typeof(int), typeof(ShieldCounter),
+            new FrameworkPropertyMetadata(0, OnBonusChanged));
+
+    public int Bonus
+    {
+        get => (int)GetValue(BonusProperty);
+        set => SetValue(BonusProperty, value);
+    }
+
+    private static void OnBonusChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        => ((ShieldCounter)d).UpdateDisplay();
+
     // ── Fields ───────────────────────────────────────────────────────────
 
     private Path?      _shield;
@@ -95,6 +112,6 @@ public partial class ShieldCounter : UserControl
 
     private void UpdateDisplay()
     {
-        if (_text != null) _text.Text = Value.ToString();
+        if (_text != null) _text.Text = (Value + Bonus).ToString();
     }
 }

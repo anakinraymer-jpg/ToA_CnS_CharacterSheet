@@ -5,7 +5,7 @@ namespace CharacterSheet.Models;
 
 // ── New-format DTOs ───────────────────────────────────────────────────────────
 
-public record EquipDto(string EquipName, string EquipSub, bool EquipUsed);
+public record EquipDto(string EquipName, string EquipSub, bool EquipUsed, int ArmorValue = 0);
 
 public record SkillDto(string SkillName, string SkillSub, bool SkillAdv, int SkillRating);
 
@@ -30,7 +30,7 @@ public record CharacterDto(
     List<RowDto>?    Rows,        // legacy — null in new saves, populated in old saves
     List<string>     Spells,
     // Added later — default values keep old saves valid
-    int  Defense          = 6,
+    int  Defense          = 6,    // kept as "Defense" in JSON for backward compatibility
     bool Hit1             = false,
     bool Hit2             = false,
     bool Hit3             = false,
@@ -84,11 +84,11 @@ public static class Persistence
         s.CoreAbility,
         s.Summary,
         s.Portrait,
-        Equipment: s.Equipment.Select(e  => new EquipDto(e.EquipName, e.EquipSub, e.EquipUsed)).ToList(),
+        Equipment: s.Equipment.Select(e  => new EquipDto(e.EquipName, e.EquipSub, e.EquipUsed, e.ArmorValue)).ToList(),
         Skills:    s.Skills.Select(sk => new SkillDto(sk.SkillName, sk.SkillSub, sk.SkillAdv, sk.SkillRating)).ToList(),
         Rows:      null,   // legacy field — intentionally null in new saves
         Spells:    [.. s.Spells],
-        Defense:           s.Defense,
+        Defense:           s.DefenseBase,
         Hit1: s.Hit1, Hit2: s.Hit2, Hit3: s.Hit3, Hit4: s.Hit4, Hit5: s.Hit5,
         HeroPointsMax:     s.HeroPointsMax,
         HeroPointsCurrent: s.HeroPointsCurrent);
@@ -117,9 +117,10 @@ public static class Persistence
             foreach (var e in d.Equipment)
                 s.Equipment.Add(new EquipData
                 {
-                    EquipName = e.EquipName ?? "",
-                    EquipSub  = e.EquipSub  ?? "",
-                    EquipUsed = e.EquipUsed,
+                    EquipName  = e.EquipName ?? "",
+                    EquipSub   = e.EquipSub  ?? "",
+                    EquipUsed  = e.EquipUsed,
+                    ArmorValue = e.ArmorValue,
                 });
 
             foreach (var sk in d.Skills ?? [])
@@ -143,9 +144,10 @@ public static class Persistence
                 if (!string.IsNullOrWhiteSpace(r.EquipName))
                     s.Equipment.Add(new EquipData
                     {
-                        EquipName = r.EquipName ?? "",
-                        EquipSub  = r.EquipSub  ?? "",
-                        EquipUsed = r.EquipUsed,
+                        EquipName  = r.EquipName ?? "",
+                        EquipSub   = r.EquipSub  ?? "",
+                        EquipUsed  = r.EquipUsed,
+                        ArmorValue = 0,   // legacy rows have no armor
                     });
 
                 if (!string.IsNullOrWhiteSpace(r.SkillName))
@@ -162,7 +164,7 @@ public static class Persistence
         var sp = d.Spells ?? [];
         for (int i = 0; i < 3; i++) s.Spells.Add(i < sp.Count ? sp[i] : "");
 
-        s.Defense          = d.Defense;   // defaults to 6 for old saves
+        s.DefenseBase       = d.Defense;   // DTO field stays "Defense" for backward compat; defaults to 6
         s.Hit1             = d.Hit1;
         s.Hit2             = d.Hit2;
         s.Hit3             = d.Hit3;

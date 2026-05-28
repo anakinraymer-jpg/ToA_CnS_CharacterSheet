@@ -48,6 +48,10 @@ public partial class AddEntryDialog : Window
         BtnCancel.Click += (_, _) => { DialogResult = false; };
 
         Loaded += OnDialogLoaded;
+
+        // Armor section is only relevant for equipment
+        if (isSkill)
+            PanelArmor.Visibility = System.Windows.Visibility.Collapsed;
     }
 
     // ── Results ───────────────────────────────────────────────────────────
@@ -57,6 +61,9 @@ public partial class AddEntryDialog : Window
 
     /// <summary>Description of the chosen / created entry (EquipSub or SkillSub).</summary>
     public string EntryDescription { get; private set; } = "";
+
+    /// <summary>Armor value for the new equipment item (always 0 for skills).</summary>
+    public int EntryArmorValue     { get; private set; } = 0;
 
     // ── Loaded ────────────────────────────────────────────────────────────
 
@@ -166,6 +173,12 @@ public partial class AddEntryDialog : Window
             EntryName        = name;
             EntryDescription = desc;
         }
+
+        // Read armor value (equipment only; ignored for skills)
+        if (!_isSkill)
+            EntryArmorValue = int.TryParse(TbArmorValue.Text?.Trim(), out int av)
+                ? Math.Max(0, av)
+                : 0;
 
         DialogResult = true;
     }

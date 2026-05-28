@@ -183,9 +183,10 @@
                          Style="{StaticResource FieldLabel}"
                          HorizontalAlignment="Center" Margin="0,0,0,4"/>
 
-              <!-- Shield — left-click +1, right-click −1, range 6-18 -->
+              <!-- Shield — left-click +1, right-click −1, range 6-18; Bonus = active armor sum -->
               <ctrl:ShieldCounter Grid.Row="1" Grid.Column="0"
-                                  Value="{Binding Defense, Mode=TwoWay}"
+                                  Value="{Binding DefenseBase, Mode=TwoWay}"
+                                  Bonus="{Binding ArmorBonus}"
                                   VerticalAlignment="Center"/>
 
               <!-- 5-section hit tracker -->
@@ -260,8 +261,43 @@
                           </Grid.ColumnDefinitions>
 
                           <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0">
-                            <TextBox Style="{StaticResource RowNameTextBox}"
-                                     Text="{Binding EquipName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <!-- Name row: equipment name (strikethrough when attritioned) + AC badge -->
+                            <Grid>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                              </Grid.ColumnDefinitions>
+
+                              <TextBox Grid.Column="0"
+                                       Text="{Binding EquipName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                <TextBox.Style>
+                                  <Style TargetType="TextBox" BasedOn="{StaticResource RowNameTextBox}">
+                                    <Style.Triggers>
+                                      <DataTrigger Binding="{Binding EquipUsed}" Value="True">
+                                        <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                      </DataTrigger>
+                                    </Style.Triggers>
+                                  </Style>
+                                </TextBox.Style>
+                              </TextBox>
+
+                              <!-- Armor value: label + editable textbox, always visible -->
+                              <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                          VerticalAlignment="Center" Margin="5,0,0,0">
+                                <TextBlock Text="AC"
+                                           FontFamily="Palatino Linotype" FontSize="8"
+                                           Foreground="#885A2E0E" VerticalAlignment="Center"
+                                           Margin="0,0,2,0"/>
+                                <TextBox Width="26"
+                                         Text="{Binding ArmorValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         FontFamily="Palatino Linotype" FontSize="10"
+                                         Foreground="#5A2E0E" Background="Transparent"
+                                         BorderThickness="0,0,0,1" BorderBrush="#885A2E0E"
+                                         VerticalAlignment="Center" TextAlignment="Center"
+                                         ToolTip="Armor value — adds to Defense when not attritioned"/>
+                              </StackPanel>
+                            </Grid>
+
                             <TextBox Style="{StaticResource RowSubTextBox}"
                                      Text="{Binding EquipSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                           </StackPanel>

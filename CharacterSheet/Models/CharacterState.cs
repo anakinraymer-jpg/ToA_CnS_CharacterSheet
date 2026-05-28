@@ -9,13 +9,16 @@ namespace CharacterSheet.Models;
 
 public class EquipData : INotifyPropertyChanged
 {
-    private string _equipName = "";
-    private string _equipSub  = "";
+    private string _equipName  = "";
+    private string _equipSub   = "";
     private bool   _equipUsed;
+    private int    _armorValue = 0;
 
-    public string EquipName { get => _equipName; set { _equipName = value; OnPropertyChanged(); } }
-    public string EquipSub  { get => _equipSub;  set { _equipSub  = value; OnPropertyChanged(); } }
-    public bool   EquipUsed { get => _equipUsed; set { _equipUsed = value; OnPropertyChanged(); } }
+    public string EquipName  { get => _equipName;  set { _equipName  = value; OnPropertyChanged(); } }
+    public string EquipSub   { get => _equipSub;   set { _equipSub   = value; OnPropertyChanged(); } }
+    public bool   EquipUsed  { get => _equipUsed;  set { _equipUsed  = value; OnPropertyChanged(); } }
+    /// <summary>Armor class contribution. 0 = no armor. Active only when EquipUsed is false.</summary>
+    public int    ArmorValue { get => _armorValue; set { _armorValue = Math.Max(0, value); OnPropertyChanged(); } }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
@@ -88,7 +91,8 @@ public class CharacterState : INotifyPropertyChanged
     private string _coreAbility = "";
     private string _summary     = "";
     private string _portrait    = "";
-    private int    _defense          = 6;
+    private int    _defenseBase       = 6;    // manual shield value (6-18)
+    private int    _armorBonus        = 0;    // computed by MainWindow from active armor
     private bool   _hit1, _hit2, _hit3, _hit4, _hit5;
     private int    _heroPointsMax     = 50;
     private int    _heroPointsCurrent = 50;
@@ -103,7 +107,10 @@ public class CharacterState : INotifyPropertyChanged
     public string CoreAbility { get => _coreAbility; set { _coreAbility = value; OnPropertyChanged(); } }
     public string Summary     { get => _summary;     set { _summary     = value; OnPropertyChanged(); } }
     public string Portrait    { get => _portrait;    set { _portrait    = value; OnPropertyChanged(); } }
-    public int    Defense     { get => _defense;     set { _defense = Math.Clamp(value, 6, 18); OnPropertyChanged(); } }
+    /// <summary>Manual shield value set by the user (clamped 6–18).</summary>
+    public int    DefenseBase  { get => _defenseBase;  set { _defenseBase = Math.Clamp(value, 6, 18); OnPropertyChanged(); } }
+    /// <summary>Sum of armor values from non-attritioned equipment. Set by MainWindow.</summary>
+    public int    ArmorBonus   { get => _armorBonus;   set { _armorBonus  = Math.Max(0, value);       OnPropertyChanged(); } }
     public bool   Hit1        { get => _hit1;        set { _hit1 = value; OnPropertyChanged(); } }
     public bool   Hit2        { get => _hit2;        set { _hit2 = value; OnPropertyChanged(); } }
     public bool   Hit3        { get => _hit3;        set { _hit3 = value; OnPropertyChanged(); } }

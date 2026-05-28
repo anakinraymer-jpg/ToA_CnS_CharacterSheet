@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -24,15 +25,12 @@ public partial class MainWindow : Window
 
     // Must match SheetContent Width and Margin in XAML
     private const double SheetWidth   = 680;
-    private const double SheetMarginH = 20;   // horizontal margin each side
-    private const double SheetMarginT = 20;   // top margin (for vertical zoom anchor)
+    private const double SheetMarginH = 20;
+    private const double SheetMarginT = 20;
 
     // ── Hero-point tracking ───────────────────────────────────────────
-    // Previous flaw values — used to detect add (+5 pts) vs remove (−5 pts)
+    private string _prevCoreAbility = "";
     private string _prevFlaw1 = "", _prevFlaw2 = "", _prevFlaw3 = "", _prevFlaw4 = "";
-
-    // Previous SkillRating per skill — used to compute point deltas on rating changes.
-    // Rating 0 means "no skill assigned" (cost = 0).
     private readonly Dictionary<SkillData, int> _prevSkillRating = new();
 
     public MainWindow()
@@ -104,7 +102,8 @@ public partial class MainWindow : Window
         }
         _state.RefreshSelectedSkillNames();
 
-        // Initialise hero-point tracking to the loaded state — no adjustments during load
+        // Seed hero-point trackers from loaded state — no adjustments during load
+        _prevCoreAbility = _state.CoreAbility;
         _prevFlaw1 = _state.Flaw1;
         _prevFlaw2 = _state.Flaw2;
         _prevFlaw3 = _state.Flaw3;
@@ -115,13 +114,20 @@ public partial class MainWindow : Window
             _prevSkillRating[sk] = sk.SkillRating;
 
         _loading = false;
+
+        // Recompute armor bonus from loaded equipment (no save triggered by this)
+        RecomputeArmorBonus();
+
         UpdateAddButtonStates();
     }
 
     // ── Collection change tracking ────────────────────────────────────
     private void OnEquipmentCollectionChanged(object? sender,
         System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-        => UpdateAddButtonStates();
+    {
+        RecomputeArmorBonus();
+        UpdateAddButtonStates();
+    }
 
     private void OnSkillsCollectionChanged(object? sender,
         System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -132,7 +138,6 @@ public partial class MainWindow : Window
                 sk.PropertyChanged += OnSkillDataChanged;
                 _prevSkillRating[sk] = sk.SkillRating;
 
-                // Deduct skill cost from Available Points when a skill is first added
                 if (!_loading && sk.HasSkill)
                     _state.HeroPointsCurrent -= sk.SkillRating;
             }
@@ -142,7 +147,6 @@ public partial class MainWindow : Window
             {
                 sk.PropertyChanged -= OnSkillDataChanged;
 
-                // Refund full skill cost to Available Points when a skill is removed
                 if (!_loading && _prevSkillRating.TryGetValue(sk, out int prev) && prev > 0)
                     _state.HeroPointsCurrent += prev;
 
@@ -154,8 +158,8 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Handles SkillName and SkillRating changes for hero-point adjustments.
-    /// Also refreshes the excluded-name list for picker boxes.
+    /// Handles SkillName and SkillRating changes for hero-point adjustments
+    /// and exclusion-list refresh.
     /// </summary>
     private void OnSkillDataChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -171,19 +175,15 @@ public partial class MainWindow : Window
 
                 if (!hadSkill && hasSkill)
                 {
-                    // Skill acquired by typing into a previously empty slot
-                    // SkillRating has already been auto-promoted to 3 in the model
-                    int cost = sk.SkillRating;
+                    int cost = sk.SkillRating;   // auto-promoted to 3 by the model
                     _state.HeroPointsCurrent -= cost;
                     _prevSkillRating[sk]      = cost;
                 }
                 else if (hadSkill && !hasSkill)
                 {
-                    // Skill name cleared — refund entire accumulated cost
                     _state.HeroPointsCurrent += prevRating;
                     _prevSkillRating[sk]      = 0;
                 }
-                // non-empty → different non-empty (rename): no point change
 
                 _state.RefreshSelectedSkillNames();
                 break;
@@ -196,7 +196,7 @@ public partial class MainWindow : Window
                 int delta      = newRating - prevRating;
                 if (delta != 0)
                 {
-                    _state.HeroPointsCurrent -= delta;   // positive = spend; negative = refund
+                    _state.HeroPointsCurrent -= delta;
                     _prevSkillRating[sk]      = newRating;
                 }
                 break;
@@ -208,6 +208,19 @@ public partial class MainWindow : Window
     {
         BtnAddEquip.IsEnabled = _state.Equipment.Count < 10;
         BtnAddSkill.IsEnabled = _state.Skills.Count    < 10;
+    }
+
+    // ── Armor bonus ───────────────────────────────────────────────────
+    /// <summary>
+    /// Recomputes ArmorBonus from all equipment items that have ArmorValue > 0
+    /// and are NOT attritioned (EquipUsed = false).
+    /// </summary>
+    private void RecomputeArmorBonus()
+    {
+        int bonus = _state.Equipment
+            .Where(eq => eq.ArmorValue > 0 && !eq.EquipUsed)
+            .Sum(eq => eq.ArmorValue);
+        _state.ArmorBonus = bonus;
     }
 
     // ── Zoom core ─────────────────────────────────────────────────────
@@ -311,16 +324,20 @@ public partial class MainWindow : Window
         }
     }
 
-    // ── Auto-save & hero-point automation ────────────────────────────
+    // ── Auto-save & hero-point / armor automation ─────────────────────
 
     private void OnStateChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (_loading) return;
 
-        // Flaw transitions: adding a flaw (+5 total & available);
-        //                   removing a flaw (−5 total & available).
         switch (e.PropertyName)
         {
+            // Core ability: −15 Available on acquisition, +15 on removal
+            case nameof(CharacterState.CoreAbility):
+                ApplyCoreAbilityDelta(ref _prevCoreAbility, _state.CoreAbility);
+                break;
+
+            // Flaws: ±5 both Total and Available
             case nameof(CharacterState.Flaw1): ApplyFlawDelta(ref _prevFlaw1, _state.Flaw1); break;
             case nameof(CharacterState.Flaw2): ApplyFlawDelta(ref _prevFlaw2, _state.Flaw2); break;
             case nameof(CharacterState.Flaw3): ApplyFlawDelta(ref _prevFlaw3, _state.Flaw3); break;
@@ -330,10 +347,20 @@ public partial class MainWindow : Window
         Save();
     }
 
-    /// <summary>
-    /// Applies a +5/−5 hero-point delta when a flaw slot transitions
-    /// between empty and non-empty.  Tracks the previous value via <paramref name="prev"/>.
-    /// </summary>
+    private void ApplyCoreAbilityDelta(ref string prev, string next)
+    {
+        bool wasEmpty = string.IsNullOrWhiteSpace(prev);
+        bool nowEmpty = string.IsNullOrWhiteSpace(next);
+
+        if (wasEmpty && !nowEmpty)
+            _state.HeroPointsCurrent -= 15;   // acquiring a Core Ability costs 15
+        else if (!wasEmpty && nowEmpty)
+            _state.HeroPointsCurrent += 15;   // full refund on removal
+        // non-empty → different non-empty (rename): no change
+
+        prev = next;
+    }
+
     private void ApplyFlawDelta(ref string prev, string next)
     {
         bool wasEmpty = string.IsNullOrWhiteSpace(prev);
@@ -341,26 +368,33 @@ public partial class MainWindow : Window
 
         if (wasEmpty && !nowEmpty)
         {
-            // Flaw acquired: +5 total points, +5 available points
             _state.HeroPointsMax     += 5;
             _state.HeroPointsCurrent += 5;
         }
         else if (!wasEmpty && nowEmpty)
         {
-            // Flaw removed: −5 total (clamped to 50), −5 available (proportional to actual drop)
             int oldMax = _state.HeroPointsMax;
             _state.HeroPointsMax -= 5;
-            int actualDrop = oldMax - _state.HeroPointsMax;   // 0 if already at floor
+            int actualDrop = oldMax - _state.HeroPointsMax;
             _state.HeroPointsCurrent -= actualDrop;
         }
-        // non-empty → different non-empty (replacement): no point change
 
         prev = next;
     }
 
     private void OnItemChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (!_loading) Save();
+        if (_loading) return;
+
+        // Recompute armor bonus when EquipUsed (attrition) or ArmorValue changes
+        if (sender is EquipData &&
+            (e.PropertyName == nameof(EquipData.EquipUsed) ||
+             e.PropertyName == nameof(EquipData.ArmorValue)))
+        {
+            RecomputeArmorBonus();
+        }
+
+        Save();
     }
 
     // ── Add equipment / skill rows ────────────────────────────────────
@@ -371,11 +405,12 @@ public partial class MainWindow : Window
 
         var item = new EquipData
         {
-            EquipName = dlg.EntryName,
-            EquipSub  = dlg.EntryDescription,
+            EquipName  = dlg.EntryName,
+            EquipSub   = dlg.EntryDescription,
+            ArmorValue = dlg.EntryArmorValue,
         };
         item.PropertyChanged += OnItemChanged;
-        _state.Equipment.Add(item);
+        _state.Equipment.Add(item);   // OnEquipmentCollectionChanged → RecomputeArmorBonus
         Save();
     }
 
@@ -399,7 +434,7 @@ public partial class MainWindow : Window
     {
         if (((Button)sender).DataContext is not EquipData item) return;
         item.PropertyChanged -= OnItemChanged;
-        _state.Equipment.Remove(item);
+        _state.Equipment.Remove(item);   // OnEquipmentCollectionChanged → RecomputeArmorBonus
         Save();
     }
 

@@ -135,6 +135,17 @@
 
       </StackPanel>
 
+      <!-- Armor value (equipment only; hidden for skills) -->
+      <StackPanel x:Name="PanelArmor" Margin="0,14,0,0">
+        <TextBlock Text="ARMOR VALUE"
+                   FontFamily="Palatino Linotype" FontSize="9"
+                   Foreground="#D4A96A" Margin="0,0,0,4"/>
+        <TextBox x:Name="TbArmorValue"
+                 Style="{StaticResource DialogTextBox}"
+                 Text="0"
+                 ToolTip="Leave 0 for non-armor equipment"/>
+      </StackPanel>
+
       <!-- Buttons -->
       <DockPanel Margin="0,18,0,0">
         <Button x:Name="BtnCancel" DockPanel.Dock="Right"
