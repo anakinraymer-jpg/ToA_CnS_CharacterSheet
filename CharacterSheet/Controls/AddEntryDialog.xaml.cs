@@ -19,13 +19,30 @@ public partial class AddEntryDialog : Window
     // The full list used for Pick mode (updated once at construction)
     private readonly System.Collections.Generic.IReadOnlyList<SkillEntry> _allEntries;
 
-    public AddEntryDialog(bool isSkill)
+    // Names already in use on existing rows (null = no filtering)
+    private readonly HashSet<string>? _excluded;
+
+    // Skills that may appear on multiple rows and are therefore never excluded
+    private static readonly HashSet<string> s_multiAllowed =
+        new(StringComparer.OrdinalIgnoreCase)
+        { "Knowledge", "Languages", "Profession", "Resist (Type)", "Scholar" };
+
+    /// <param name="isSkill">True for the skill list, false for equipment.</param>
+    /// <param name="excludedNames">
+    /// Skill names already selected on existing rows.  These are hidden from
+    /// the pick list unless they are in the multi-allowed set.
+    /// Pass <c>null</c> (or omit) to show the full list.
+    /// </param>
+    public AddEntryDialog(bool isSkill, IEnumerable<string>? excludedNames = null)
     {
         InitializeComponent();
         _isSkill = isSkill;
 
         TbTitle.Text = isSkill ? "Add Skill" : "Add Equipment";
         _allEntries  = isSkill ? CustomEntryStore.AllSkills : CustomEntryStore.AllEquipment;
+
+        if (isSkill && excludedNames != null)
+            _excluded = new HashSet<string>(excludedNames, StringComparer.OrdinalIgnoreCase);
 
         BtnAdd.Click    += (_, _) => TryConfirm();
         BtnCancel.Click += (_, _) => { DialogResult = false; };
@@ -83,6 +100,12 @@ public partial class AddEntryDialog : Window
         LbEntries.Items.Clear();
         foreach (var entry in _allEntries)
         {
+            // Hide already-selected skills unless they are multi-allowed
+            if (_excluded != null &&
+                _excluded.Contains(entry.Name) &&
+                !s_multiAllowed.Contains(entry.Name))
+                continue;
+
             if (string.IsNullOrWhiteSpace(filter) ||
                 entry.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
             {

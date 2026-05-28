@@ -266,7 +266,7 @@ public partial class MainWindow : Window
 
     private void OnAddSkillClicked(object sender, RoutedEventArgs e)
     {
-        var dlg = new AddEntryDialog(isSkill: true) { Owner = this };
+        var dlg = new AddEntryDialog(isSkill: true, excludedNames: _state.SelectedSkillNames) { Owner = this };
         if (dlg.ShowDialog() != true) return;
 
         var item = new SkillData
