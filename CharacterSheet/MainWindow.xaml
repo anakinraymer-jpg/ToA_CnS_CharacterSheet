@@ -159,6 +159,50 @@
             <TextBox Style="{StaticResource SummaryTextBox}"
                      Text="{Binding Summary, UpdateSourceTrigger=PropertyChanged}"/>
 
+            <!-- ─── DEFENSE &amp; HIT TRACKER ──────────────────── -->
+            <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,14,0,10"/>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>  <!-- shield -->
+                <ColumnDefinition Width="*"/>     <!-- bar centred in remaining space -->
+              </Grid.ColumnDefinitions>
+
+              <!-- Shield — left-click +1, right-click −1, range 6-18 -->
+              <ctrl:ShieldCounter Grid.Column="0"
+                                  Value="{Binding Defense, Mode=TwoWay}"
+                                  VerticalAlignment="Center"/>
+
+              <!-- 5-section hit tracker -->
+              <Border Grid.Column="1"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      BorderBrush="#5A2E0E" BorderThickness="1" CornerRadius="2">
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="1"/>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="1"/>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="1"/>
+                    <ColumnDefinition Width="52"/>
+                    <ColumnDefinition Width="1"/>
+                    <ColumnDefinition Width="52"/>
+                  </Grid.ColumnDefinitions>
+
+                  <ctrl:HitSegment Grid.Column="0" Number="1" IsMarked="{Binding Hit1, Mode=TwoWay}"/>
+                  <Rectangle      Grid.Column="1" Fill="#5A2E0E"/>
+                  <ctrl:HitSegment Grid.Column="2" Number="2" IsMarked="{Binding Hit2, Mode=TwoWay}"/>
+                  <Rectangle      Grid.Column="3" Fill="#5A2E0E"/>
+                  <ctrl:HitSegment Grid.Column="4" Number="3" IsMarked="{Binding Hit3, Mode=TwoWay}"/>
+                  <Rectangle      Grid.Column="5" Fill="#5A2E0E"/>
+                  <ctrl:HitSegment Grid.Column="6" Number="4" IsMarked="{Binding Hit4, Mode=TwoWay}"/>
+                  <Rectangle      Grid.Column="7" Fill="#5A2E0E"/>
+                  <ctrl:HitSegment Grid.Column="8" Number="5" IsMarked="{Binding Hit5, Mode=TwoWay}"/>
+                </Grid>
+              </Border>
+            </Grid>
+
             <!-- ─── EQUIPMENT &amp; SKILLS ────────────────────────── -->
             <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,20,0,10"/>
             <TextBlock Text="EQUIPMENT &amp; SKILLS" Style="{StaticResource SectionHeader}"/>

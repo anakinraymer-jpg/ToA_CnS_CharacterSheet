@@ -1,0 +1,27 @@
+<UserControl x:Class="CharacterSheet.Controls.ShieldCounter"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="54" Height="70"
+             Cursor="Hand"
+             ToolTip="Left-click: +1  •  Right-click: −1">
+  <Grid>
+    <!-- Shield shape -->
+    <Path x:Name="PART_Shield"
+          Data="M 2,2 L 52,2 L 52,44 Q 52,68 27,68 Q 2,68 2,44 Z"
+          Fill="#2B1A08"
+          Stroke="#5A2E0E"
+          StrokeThickness="1.5"
+          StrokeLineJoin="Round"/>
+
+    <!-- Value number — centred in the rectangular upper portion of the shield -->
+    <TextBlock x:Name="PART_Text"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Top"
+               Margin="0,14,0,0"
+               FontFamily="Palatino Linotype"
+               FontSize="18"
+               FontWeight="Bold"
+               Foreground="#D4A96A"
+               IsHitTestVisible="False"/>
+  </Grid>
+</UserControl>

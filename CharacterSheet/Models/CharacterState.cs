@@ -88,6 +88,8 @@ public class CharacterState : INotifyPropertyChanged
     private string _coreAbility = "";
     private string _summary     = "";
     private string _portrait    = "";
+    private int    _defense     = 6;
+    private bool   _hit1, _hit2, _hit3, _hit4, _hit5;
 
     public string Name        { get => _name;        set { _name        = value; OnPropertyChanged(); } }
     public string Lineage     { get => _lineage;     set { _lineage     = value; OnPropertyChanged(); } }
@@ -99,6 +101,12 @@ public class CharacterState : INotifyPropertyChanged
     public string CoreAbility { get => _coreAbility; set { _coreAbility = value; OnPropertyChanged(); } }
     public string Summary     { get => _summary;     set { _summary     = value; OnPropertyChanged(); } }
     public string Portrait    { get => _portrait;    set { _portrait    = value; OnPropertyChanged(); } }
+    public int    Defense     { get => _defense;     set { _defense = Math.Clamp(value, 6, 18); OnPropertyChanged(); } }
+    public bool   Hit1        { get => _hit1;        set { _hit1 = value; OnPropertyChanged(); } }
+    public bool   Hit2        { get => _hit2;        set { _hit2 = value; OnPropertyChanged(); } }
+    public bool   Hit3        { get => _hit3;        set { _hit3 = value; OnPropertyChanged(); } }
+    public bool   Hit4        { get => _hit4;        set { _hit4 = value; OnPropertyChanged(); } }
+    public bool   Hit5        { get => _hit5;        set { _hit5 = value; OnPropertyChanged(); } }
 
     public ObservableCollection<EquipData> Equipment { get; set; } = [];
     public ObservableCollection<SkillData> Skills    { get; set; } = [];

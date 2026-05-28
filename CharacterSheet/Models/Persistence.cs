@@ -28,7 +28,14 @@ public record CharacterDto(
     List<EquipDto>?  Equipment,   // new format
     List<SkillDto>?  Skills,      // new format
     List<RowDto>?    Rows,        // legacy — null in new saves, populated in old saves
-    List<string>     Spells);
+    List<string>     Spells,
+    // Added later — default values keep old saves valid
+    int  Defense = 6,
+    bool Hit1    = false,
+    bool Hit2    = false,
+    bool Hit3    = false,
+    bool Hit4    = false,
+    bool Hit5    = false);
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
@@ -78,7 +85,9 @@ public static class Persistence
         Equipment: s.Equipment.Select(e  => new EquipDto(e.EquipName, e.EquipSub, e.EquipUsed)).ToList(),
         Skills:    s.Skills.Select(sk => new SkillDto(sk.SkillName, sk.SkillSub, sk.SkillAdv, sk.SkillRating)).ToList(),
         Rows:      null,   // legacy field — intentionally null in new saves
-        Spells:    [.. s.Spells]);
+        Spells:    [.. s.Spells],
+        Defense:   s.Defense,
+        Hit1: s.Hit1, Hit2: s.Hit2, Hit3: s.Hit3, Hit4: s.Hit4, Hit5: s.Hit5);
 
     // ── Deserialise ───────────────────────────────────────────────────────────
 
@@ -148,6 +157,14 @@ public static class Persistence
 
         var sp = d.Spells ?? [];
         for (int i = 0; i < 3; i++) s.Spells.Add(i < sp.Count ? sp[i] : "");
+
+        s.Defense = d.Defense;   // defaults to 6 for old saves
+        s.Hit1    = d.Hit1;
+        s.Hit2    = d.Hit2;
+        s.Hit3    = d.Hit3;
+        s.Hit4    = d.Hit4;
+        s.Hit5    = d.Hit5;
+
         return s;
     }
 }
