@@ -1,6 +1,7 @@
 # Build output
 CharacterSheet/bin/
 CharacterSheet/obj/
+publish/
 
 # VS / Rider
 .vs/
