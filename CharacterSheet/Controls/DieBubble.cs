@@ -47,6 +47,20 @@ public class DieBubble : Control
         set => SetValue(HasSkillProperty, value);
     }
 
+    public static readonly DependencyProperty CanIncreaseProperty =
+        DependencyProperty.Register(nameof(CanIncrease), typeof(bool), typeof(DieBubble),
+            new FrameworkPropertyMetadata(true));
+
+    /// <summary>
+    /// When false, left-click is ignored so the rating cannot be increased.
+    /// Bind to CharacterState.CanSpendPoint to gate on Available Points > 0.
+    /// </summary>
+    public bool CanIncrease
+    {
+        get => (bool)GetValue(CanIncreaseProperty);
+        set => SetValue(CanIncreaseProperty, value);
+    }
+
     // ── Brushes ───────────────────────────────────────────────────────
 
     private static readonly SolidColorBrush ActiveStroke   = Frozen("#5A2E0E");
@@ -82,7 +96,7 @@ public class DieBubble : Control
     protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonDown(e);
-        if (HasSkill && Value < 18)
+        if (HasSkill && CanIncrease && Value < 18)
             Value++;
         e.Handled = true;
     }

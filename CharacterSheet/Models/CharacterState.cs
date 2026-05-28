@@ -124,8 +124,16 @@ public class CharacterState : INotifyPropertyChanged
     public int    HeroPointsCurrent
     {
         get => _heroPointsCurrent;
-        set { _heroPointsCurrent = Math.Clamp(value, 0, _heroPointsMax); OnPropertyChanged(); }
+        set
+        {
+            _heroPointsCurrent = Math.Clamp(value, 0, _heroPointsMax);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanSpendPoint));
+        }
     }
+
+    /// <summary>True when there is at least one Available Point left to spend on a skill rating increase.</summary>
+    public bool CanSpendPoint => _heroPointsCurrent > 0;
 
     public ObservableCollection<EquipData> Equipment { get; set; } = [];
     public ObservableCollection<SkillData> Skills    { get; set; } = [];

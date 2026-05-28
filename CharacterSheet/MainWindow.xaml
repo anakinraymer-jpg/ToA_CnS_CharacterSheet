@@ -358,10 +358,26 @@
                           </Grid.ColumnDefinitions>
 
                           <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0">
-                            <ctrl:SkillPickerBox
-                                     SelectedSkill="{Binding SkillName, Mode=TwoWay}"
-                                     ExcludedValues="{Binding DataContext.SelectedSkillNames,
-                                                      RelativeSource={RelativeSource AncestorType=Window}}"/>
+                            <!-- Skill name with strikethrough overlay when SkillAdv (Attrition) is marked -->
+                            <Grid>
+                              <ctrl:SkillPickerBox
+                                       SelectedSkill="{Binding SkillName, Mode=TwoWay}"
+                                       ExcludedValues="{Binding DataContext.SelectedSkillNames,
+                                                        RelativeSource={RelativeSource AncestorType=Window}}"/>
+                              <Rectangle VerticalAlignment="Center" Height="1.5"
+                                         Fill="#5A2E0E" IsHitTestVisible="False">
+                                <Rectangle.Style>
+                                  <Style TargetType="Rectangle">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                      <DataTrigger Binding="{Binding SkillAdv}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                      </DataTrigger>
+                                    </Style.Triggers>
+                                  </Style>
+                                </Rectangle.Style>
+                              </Rectangle>
+                            </Grid>
                             <TextBox Style="{StaticResource RowSubTextBox}"
                                      Text="{Binding SkillSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                           </StackPanel>
@@ -373,7 +389,9 @@
                           <ctrl:DieBubble Grid.Column="2" Width="36" Height="36"
                                           VerticalAlignment="Center"
                                           Value="{Binding SkillRating, Mode=TwoWay}"
-                                          HasSkill="{Binding HasSkill}"/>
+                                          HasSkill="{Binding HasSkill}"
+                                          CanIncrease="{Binding DataContext.CanSpendPoint,
+                                                        RelativeSource={RelativeSource AncestorType=Window}}"/>
 
                           <Button Grid.Column="3" Content="×"
                                   Style="{StaticResource RemoveButton}"
