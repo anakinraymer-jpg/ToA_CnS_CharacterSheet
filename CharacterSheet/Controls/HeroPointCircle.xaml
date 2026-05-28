@@ -1,50 +1,55 @@
 <UserControl x:Class="CharacterSheet.Controls.HeroPointCircle"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Width="80" Height="80"
-             Cursor="Arrow">
+             Width="90" Height="90">
 
   <Grid>
-    <!-- Circle outline -->
+    <!-- Circle outline (behind everything, non-interactive) -->
     <Ellipse Stroke="#5A2E0E" StrokeThickness="1.5" Fill="Transparent"
              IsHitTestVisible="False"/>
 
-    <!-- Horizontal divider at mid-point -->
-    <Rectangle Height="1" Fill="#5A2E0E" VerticalAlignment="Center"
-               IsHitTestVisible="False"/>
+    <!-- Inner layout: top hemisphere | 1px divider | bottom hemisphere -->
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="1"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
 
-    <!-- Top hemisphere: MaxPoints centred in upper half -->
-    <TextBlock x:Name="PART_Max"
-               HorizontalAlignment="Center" VerticalAlignment="Top"
-               Margin="0,8,0,0"
-               FontFamily="Palatino Linotype" FontSize="15" FontWeight="Bold"
-               Foreground="#5A2E0E" IsHitTestVisible="False"/>
+      <!-- Top hemisphere — Total Points; left-click +1, right-click −1 -->
+      <Border x:Name="PART_TopArea" Grid.Row="0"
+              Background="Transparent" Cursor="Hand"
+              ToolTip="Left-click: +1 total  •  Right-click: −1 total">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+          <TextBlock Text="Total Points"
+                     HorizontalAlignment="Center"
+                     FontFamily="Palatino Linotype" FontSize="7.5"
+                     Foreground="#5A2E0E" IsHitTestVisible="False"/>
+          <TextBlock x:Name="PART_Max"
+                     HorizontalAlignment="Center"
+                     FontFamily="Palatino Linotype" FontSize="15" FontWeight="Bold"
+                     Foreground="#5A2E0E" IsHitTestVisible="False"/>
+        </StackPanel>
+      </Border>
 
-    <!-- + button: top-left, near divider -->
-    <TextBlock x:Name="PART_Plus" Text="+"
-               HorizontalAlignment="Left" VerticalAlignment="Top"
-               Margin="16,26,0,0"
-               FontFamily="Palatino Linotype" FontSize="13" FontWeight="Bold"
-               Foreground="#5A2E0E" Cursor="Hand"
-               ToolTip="Add a hero point"/>
+      <!-- Divider line -->
+      <Rectangle Grid.Row="1" Fill="#5A2E0E" IsHitTestVisible="False"/>
 
-    <!-- − button: top-right, near divider -->
-    <TextBlock x:Name="PART_Minus" Text="−"
-               HorizontalAlignment="Right" VerticalAlignment="Top"
-               Margin="0,26,16,0"
-               FontFamily="Palatino Linotype" FontSize="13" FontWeight="Bold"
-               Foreground="#5A2E0E" Cursor="Hand"
-               ToolTip="Remove a hero point (minimum 50)"/>
-
-    <!-- Bottom hemisphere: clickable, shows current points -->
-    <Border x:Name="PART_BottomArea"
-            VerticalAlignment="Bottom" Height="40"
-            Background="Transparent" Cursor="Hand"
-            ToolTip="Left-click: spend a point  •  Right-click: restore">
-      <TextBlock x:Name="PART_Current"
-                 HorizontalAlignment="Center" VerticalAlignment="Center"
-                 FontFamily="Palatino Linotype" FontSize="15" FontWeight="Bold"
-                 Foreground="#5A2E0E" IsHitTestVisible="False"/>
-    </Border>
+      <!-- Bottom hemisphere — Available Points; left-click spend, right-click restore -->
+      <Border x:Name="PART_BottomArea" Grid.Row="2"
+              Background="Transparent" Cursor="Hand"
+              ToolTip="Left-click: spend a point  •  Right-click: restore">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+          <TextBlock Text="Available Points"
+                     HorizontalAlignment="Center"
+                     FontFamily="Palatino Linotype" FontSize="7.5"
+                     Foreground="#5A2E0E" IsHitTestVisible="False"/>
+          <TextBlock x:Name="PART_Current"
+                     HorizontalAlignment="Center"
+                     FontFamily="Palatino Linotype" FontSize="15" FontWeight="Bold"
+                     Foreground="#5A2E0E" IsHitTestVisible="False"/>
+        </StackPanel>
+      </Border>
+    </Grid>
   </Grid>
 </UserControl>

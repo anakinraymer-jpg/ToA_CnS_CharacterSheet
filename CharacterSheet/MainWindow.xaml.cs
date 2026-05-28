@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Windows;
@@ -25,6 +26,14 @@ public partial class MainWindow : Window
     private const double SheetWidth   = 680;
     private const double SheetMarginH = 20;   // horizontal margin each side
     private const double SheetMarginT = 20;   // top margin (for vertical zoom anchor)
+
+    // ── Hero-point tracking ───────────────────────────────────────────
+    // Previous flaw values — used to detect add (+5 pts) vs remove (−5 pts)
+    private string _prevFlaw1 = "", _prevFlaw2 = "", _prevFlaw3 = "", _prevFlaw4 = "";
+
+    // Previous SkillRating per skill — used to compute point deltas on rating changes.
+    // Rating 0 means "no skill assigned" (cost = 0).
+    private readonly Dictionary<SkillData, int> _prevSkillRating = new();
 
     public MainWindow()
     {
@@ -68,7 +77,7 @@ public partial class MainWindow : Window
         foreach (var sk in _state.Skills)
         {
             sk.PropertyChanged -= OnItemChanged;
-            sk.PropertyChanged -= OnSkillNameChanged;
+            sk.PropertyChanged -= OnSkillDataChanged;
         }
 
         _state = state;
@@ -91,9 +100,19 @@ public partial class MainWindow : Window
         foreach (var sk in _state.Skills)
         {
             sk.PropertyChanged += OnItemChanged;
-            sk.PropertyChanged += OnSkillNameChanged;
+            sk.PropertyChanged += OnSkillDataChanged;
         }
         _state.RefreshSelectedSkillNames();
+
+        // Initialise hero-point tracking to the loaded state — no adjustments during load
+        _prevFlaw1 = _state.Flaw1;
+        _prevFlaw2 = _state.Flaw2;
+        _prevFlaw3 = _state.Flaw3;
+        _prevFlaw4 = _state.Flaw4;
+
+        _prevSkillRating.Clear();
+        foreach (var sk in _state.Skills)
+            _prevSkillRating[sk] = sk.SkillRating;
 
         _loading = false;
         UpdateAddButtonStates();
@@ -107,20 +126,82 @@ public partial class MainWindow : Window
     private void OnSkillsCollectionChanged(object? sender,
         System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
-        // Wire / unwire OnSkillNameChanged for added / removed items
         if (e.NewItems != null)
-            foreach (SkillData sk in e.NewItems) sk.PropertyChanged += OnSkillNameChanged;
+            foreach (SkillData sk in e.NewItems)
+            {
+                sk.PropertyChanged += OnSkillDataChanged;
+                _prevSkillRating[sk] = sk.SkillRating;
+
+                // Deduct skill cost from Available Points when a skill is first added
+                if (!_loading && sk.HasSkill)
+                    _state.HeroPointsCurrent -= sk.SkillRating;
+            }
+
         if (e.OldItems != null)
-            foreach (SkillData sk in e.OldItems) sk.PropertyChanged -= OnSkillNameChanged;
+            foreach (SkillData sk in e.OldItems)
+            {
+                sk.PropertyChanged -= OnSkillDataChanged;
+
+                // Refund full skill cost to Available Points when a skill is removed
+                if (!_loading && _prevSkillRating.TryGetValue(sk, out int prev) && prev > 0)
+                    _state.HeroPointsCurrent += prev;
+
+                _prevSkillRating.Remove(sk);
+            }
 
         _state.RefreshSelectedSkillNames();
         UpdateAddButtonStates();
     }
 
-    private void OnSkillNameChanged(object? sender, PropertyChangedEventArgs e)
+    /// <summary>
+    /// Handles SkillName and SkillRating changes for hero-point adjustments.
+    /// Also refreshes the excluded-name list for picker boxes.
+    /// </summary>
+    private void OnSkillDataChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(SkillData.SkillName))
-            _state.RefreshSelectedSkillNames();
+        if (_loading) return;
+        if (sender is not SkillData sk) return;
+
+        switch (e.PropertyName)
+        {
+            case nameof(SkillData.SkillName):
+            {
+                bool hadSkill = _prevSkillRating.TryGetValue(sk, out int prevRating) && prevRating > 0;
+                bool hasSkill = sk.HasSkill;
+
+                if (!hadSkill && hasSkill)
+                {
+                    // Skill acquired by typing into a previously empty slot
+                    // SkillRating has already been auto-promoted to 3 in the model
+                    int cost = sk.SkillRating;
+                    _state.HeroPointsCurrent -= cost;
+                    _prevSkillRating[sk]      = cost;
+                }
+                else if (hadSkill && !hasSkill)
+                {
+                    // Skill name cleared — refund entire accumulated cost
+                    _state.HeroPointsCurrent += prevRating;
+                    _prevSkillRating[sk]      = 0;
+                }
+                // non-empty → different non-empty (rename): no point change
+
+                _state.RefreshSelectedSkillNames();
+                break;
+            }
+
+            case nameof(SkillData.SkillRating):
+            {
+                int prevRating = _prevSkillRating.TryGetValue(sk, out int pr) ? pr : 0;
+                int newRating  = sk.SkillRating;
+                int delta      = newRating - prevRating;
+                if (delta != 0)
+                {
+                    _state.HeroPointsCurrent -= delta;   // positive = spend; negative = refund
+                    _prevSkillRating[sk]      = newRating;
+                }
+                break;
+            }
+        }
     }
 
     private void UpdateAddButtonStates()
@@ -138,8 +219,6 @@ public partial class MainWindow : Window
         TbZoom.Text = $"{(int)Math.Round(_zoom * 100)}%";
     }
 
-    // Returns the horizontal content-coordinate of SheetContent's left edge.
-    // When the scaled sheet is narrower than the viewport the Grid centres it.
     private double ContentLeft()
     {
         double scaledW = SheetWidth * _zoom + SheetMarginH * 2;
@@ -149,8 +228,6 @@ public partial class MainWindow : Window
             : SheetMarginH;
     }
 
-    // Zoom to newZoom keeping ptContent (in SheetContent local coords)
-    // pinned under ptViewport (in ScrollViewer viewport coords).
     private void ZoomToPoint(double newZoom, Point ptViewport, Point ptContent)
     {
         double clamped = Math.Clamp(newZoom, ZoomMin, ZoomMax);
@@ -159,7 +236,6 @@ public partial class MainWindow : Window
         ApplyZoom(clamped);
         SheetScroll.UpdateLayout();
 
-        // SheetContent has Margin.Top = SheetMarginT, VerticalAlignment="Top"
         double newH = ContentLeft()  + ptContent.X * _zoom - ptViewport.X;
         double newV = SheetMarginT   + ptContent.Y * _zoom - ptViewport.Y;
 
@@ -167,7 +243,6 @@ public partial class MainWindow : Window
         SheetScroll.ScrollToVerticalOffset(newV);
     }
 
-    // Zoom keeping the viewport centre fixed.
     private void ZoomAroundCenter(double newZoom)
     {
         double clamped = Math.Clamp(newZoom, ZoomMin, ZoomMax);
@@ -183,7 +258,6 @@ public partial class MainWindow : Window
         ZoomToPoint(clamped, ptViewport, ptContent);
     }
 
-    // Fit the full sheet into the window.
     private void FitToWindow()
     {
         SheetScroll.UpdateLayout();
@@ -192,7 +266,7 @@ public partial class MainWindow : Window
         if (vw <= 0 || vh <= 0) return;
 
         double contentH = SheetContent.ActualHeight > 0
-            ? SheetContent.ActualHeight + SheetMarginT + 40   // +top margin + bottom margin
+            ? SheetContent.ActualHeight + SheetMarginT + 40
             : 1400;
 
         ApplyZoom(Math.Min(vw / SheetWidth, vh / contentH));
@@ -208,7 +282,7 @@ public partial class MainWindow : Window
         e.Handled = true;
 
         var ptViewport = e.GetPosition(SheetScroll);
-        var ptContent  = e.GetPosition(SheetContent);   // SheetContent local coords
+        var ptContent  = e.GetPosition(SheetContent);
         ZoomToPoint(_zoom + (e.Delta > 0 ? ZoomStep : -ZoomStep), ptViewport, ptContent);
     }
 
@@ -237,10 +311,51 @@ public partial class MainWindow : Window
         }
     }
 
-    // ── Auto-save ─────────────────────────────────────────────────────
+    // ── Auto-save & hero-point automation ────────────────────────────
+
     private void OnStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (!_loading) Save();
+        if (_loading) return;
+
+        // Flaw transitions: adding a flaw (+5 total & available);
+        //                   removing a flaw (−5 total & available).
+        switch (e.PropertyName)
+        {
+            case nameof(CharacterState.Flaw1): ApplyFlawDelta(ref _prevFlaw1, _state.Flaw1); break;
+            case nameof(CharacterState.Flaw2): ApplyFlawDelta(ref _prevFlaw2, _state.Flaw2); break;
+            case nameof(CharacterState.Flaw3): ApplyFlawDelta(ref _prevFlaw3, _state.Flaw3); break;
+            case nameof(CharacterState.Flaw4): ApplyFlawDelta(ref _prevFlaw4, _state.Flaw4); break;
+        }
+
+        Save();
+    }
+
+    /// <summary>
+    /// Applies a +5/−5 hero-point delta when a flaw slot transitions
+    /// between empty and non-empty.  Tracks the previous value via <paramref name="prev"/>.
+    /// </summary>
+    private void ApplyFlawDelta(ref string prev, string next)
+    {
+        bool wasEmpty = string.IsNullOrWhiteSpace(prev);
+        bool nowEmpty = string.IsNullOrWhiteSpace(next);
+
+        if (wasEmpty && !nowEmpty)
+        {
+            // Flaw acquired: +5 total points, +5 available points
+            _state.HeroPointsMax     += 5;
+            _state.HeroPointsCurrent += 5;
+        }
+        else if (!wasEmpty && nowEmpty)
+        {
+            // Flaw removed: −5 total (clamped to 50), −5 available (proportional to actual drop)
+            int oldMax = _state.HeroPointsMax;
+            _state.HeroPointsMax -= 5;
+            int actualDrop = oldMax - _state.HeroPointsMax;   // 0 if already at floor
+            _state.HeroPointsCurrent -= actualDrop;
+        }
+        // non-empty → different non-empty (replacement): no point change
+
+        prev = next;
     }
 
     private void OnItemChanged(object? sender, PropertyChangedEventArgs e)
@@ -275,7 +390,7 @@ public partial class MainWindow : Window
             SkillSub  = dlg.EntryDescription,
         };
         item.PropertyChanged += OnItemChanged;
-        _state.Skills.Add(item);
+        _state.Skills.Add(item);   // OnSkillsCollectionChanged handles point deduction
         Save();
     }
 
@@ -284,7 +399,7 @@ public partial class MainWindow : Window
     {
         if (((Button)sender).DataContext is not EquipData item) return;
         item.PropertyChanged -= OnItemChanged;
-        _state.Equipment.Remove(item);   // CollectionChanged → UpdateAddButtonStates
+        _state.Equipment.Remove(item);
         Save();
     }
 
@@ -292,7 +407,7 @@ public partial class MainWindow : Window
     {
         if (((Button)sender).DataContext is not SkillData item) return;
         item.PropertyChanged -= OnItemChanged;
-        _state.Skills.Remove(item);      // CollectionChanged → UpdateAddButtonStates
+        _state.Skills.Remove(item);   // OnSkillsCollectionChanged handles point refund
         Save();
     }
 

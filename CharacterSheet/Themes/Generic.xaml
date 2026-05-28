@@ -6,7 +6,7 @@
   <!-- ── AdvCircle: self-contained circle; code-behind sets fill/stroke ── -->
   <Style TargetType="{x:Type ctrl:AdvCircle}">
     <Setter Property="Cursor"  Value="Hand"/>
-    <Setter Property="ToolTip" Value="Click to mark used"/>
+    <Setter Property="ToolTip" Value="Attrition"/>
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="{x:Type ctrl:AdvCircle}">

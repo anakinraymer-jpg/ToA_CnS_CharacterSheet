@@ -6,10 +6,14 @@ namespace CharacterSheet.Controls;
 
 /// <summary>
 /// A split-circle Hero Points tracker.
-/// Top hemisphere: MaxPoints (≥ 50).  + / − buttons add or remove points.
-/// Adding a point also increases CurrentPoints by one.
-/// Bottom hemisphere: CurrentPoints ([0, MaxPoints]).
-/// Left-click the bottom to spend a point; right-click to restore one.
+///
+/// Top hemisphere  ("Total Points")  — MaxPoints (≥ 50).
+///   Left-click : +1 to max.   Right-click : −1 from max.
+///   Flaws add/remove 5 automatically via MainWindow.
+///
+/// Bottom hemisphere ("Available Points") — CurrentPoints ([0, MaxPoints]).
+///   Left-click : spend a point (−1).  Right-click : restore a point (+1).
+///   Skill costs are deducted automatically via MainWindow.
 /// </summary>
 public partial class HeroPointCircle : UserControl
 {
@@ -36,8 +40,7 @@ public partial class HeroPointCircle : UserControl
     private static void OnMaxPointsChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var ctrl = (HeroPointCircle)d;
-        // Re-coerce CurrentPoints so it can never exceed the new MaxPoints
-        ctrl.CoerceValue(CurrentPointsProperty);
+        ctrl.CoerceValue(CurrentPointsProperty);   // keep current ≤ new max
         ctrl.UpdateDisplay();
     }
 
@@ -71,8 +74,7 @@ public partial class HeroPointCircle : UserControl
 
     private TextBlock? _max;
     private TextBlock? _current;
-    private TextBlock? _plus;
-    private TextBlock? _minus;
+    private Border?    _topArea;
     private Border?    _bottomArea;
 
     // ── Constructor ──────────────────────────────────────────────────────────
@@ -87,27 +89,19 @@ public partial class HeroPointCircle : UserControl
     {
         _max        = (TextBlock)FindName("PART_Max");
         _current    = (TextBlock)FindName("PART_Current");
-        _plus       = (TextBlock)FindName("PART_Plus");
-        _minus      = (TextBlock)FindName("PART_Minus");
+        _topArea    = (Border)FindName("PART_TopArea");
         _bottomArea = (Border)FindName("PART_BottomArea");
 
         UpdateDisplay();
 
-        if (_plus != null)
-            _plus.MouseLeftButtonDown += (_, ev) =>
-            {
-                MaxPoints++;
-                CurrentPoints++;   // track the new point
-                ev.Handled = true;
-            };
+        // Top hemisphere: manual total adjustment
+        if (_topArea != null)
+        {
+            _topArea.MouseLeftButtonDown  += (_, ev) => { MaxPoints++;  ev.Handled = true; };
+            _topArea.MouseRightButtonDown += (_, ev) => { MaxPoints--;  ev.Handled = true; };
+        }
 
-        if (_minus != null)
-            _minus.MouseLeftButtonDown += (_, ev) =>
-            {
-                MaxPoints--;           // coerced to ≥ 50; CurrentPoints coerced if needed
-                ev.Handled = true;
-            };
-
+        // Bottom hemisphere: spend / restore available points
         if (_bottomArea != null)
         {
             _bottomArea.MouseLeftButtonDown  += (_, ev) => { CurrentPoints--; ev.Handled = true; };
