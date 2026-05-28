@@ -28,10 +28,19 @@ public partial class SkillPickerBox : UserControl
         new(StringComparer.OrdinalIgnoreCase)
         { "Knowledge", "Languages", "Profession", "Resist (Type)", "Scholar" };
 
-    /// <summary>Flaws that may be selected more than once.</summary>
+    /// <summary>
+    /// Flaws that prompt for a bracket specialization when selected,
+    /// e.g. "Addict [Ale]".  These are also multi-allowed so that two
+    /// different specializations of the same flaw can coexist.
+    /// </summary>
+    private static readonly HashSet<string> s_bracketFlaws =
+        new(StringComparer.OrdinalIgnoreCase)
+        { "Addict", "Employed", "Grudge", "Injured", "Phobia" };
+
+    /// <summary>Flaws that may be selected more than once (each with a unique specialization).</summary>
     private static readonly HashSet<string> s_multiAllowedFlaws =
         new(StringComparer.OrdinalIgnoreCase)
-        { "Injured" };
+        { "Addict", "Employed", "Grudge", "Injured", "Phobia" };
 
     private static readonly HashSet<string> s_emptySet =
         new(StringComparer.OrdinalIgnoreCase);
@@ -210,6 +219,13 @@ public partial class SkillPickerBox : UserControl
         => string.IsNullOrEmpty(EntryKey) && s_parenSkills.Contains(name);
 
     /// <summary>
+    /// True when selecting <paramref name="name"/> as a flaw should trigger the
+    /// bracket-specialization dialog, e.g. "Addict" → "Addict [Ale]".
+    /// </summary>
+    private bool ShouldAskSpecialization(string name)
+        => EntryKey == "Flaw" && s_bracketFlaws.Contains(name);
+
+    /// <summary>
     /// True when <paramref name="text"/> is a parenthesized form of a paren-skill,
     /// e.g. "Knowledge(History)" or "Knowledge(" (mid-typing).
     /// </summary>
@@ -261,6 +277,19 @@ public partial class SkillPickerBox : UserControl
             if (pi > 0)
             {
                 var baseName = SelectedSkill[..pi].TrimEnd();
+                desc = source
+                    .FirstOrDefault(e => e.Name.Equals(baseName, StringComparison.OrdinalIgnoreCase))
+                    ?.Description;
+            }
+        }
+
+        // Fallback: strip bracket specifier to find base flaw (e.g., "Addict [Ale]" → "Addict")
+        if (desc == null && !string.IsNullOrEmpty(SelectedSkill))
+        {
+            var bi = SelectedSkill.IndexOf('[');
+            if (bi > 0)
+            {
+                var baseName = SelectedSkill[..bi].TrimEnd();
                 desc = source
                     .FirstOrDefault(e => e.Name.Equals(baseName, StringComparison.OrdinalIgnoreCase))
                     ?.Description;
@@ -532,6 +561,16 @@ public partial class SkillPickerBox : UserControl
     private void CommitSkill(string name)
     {
         ClosePopup();
+
+        // For bracket-specialization flaws (Addict, Employed, etc.) open the prompt
+        // and append "[specialization]" to the name if the user provides one.
+        if (ShouldAskSpecialization(name))
+        {
+            var dlg = new SpecializationDialog(name) { Owner = Window.GetWindow(this) };
+            if (dlg.ShowDialog() == true && !string.IsNullOrEmpty(dlg.Specialization))
+                name = $"{name} [{dlg.Specialization}]";
+            // Cancelled or blank → commit the plain flaw name as-is
+        }
 
         if (ShouldAddParens(name))
         {
