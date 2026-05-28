@@ -628,10 +628,10 @@ public partial class MainWindow : Window
         };
         // item.SkillRating is now 3 (auto-promoted by SkillName setter)
 
-        // ── Loremaster: Knowledge starts at 6 free, increments give 2 rating per 1 AP ──
+        // ── Loremaster: Knowledge starts at 6, each AP spent gives 2 rating points ──
+        // FreeRating stays 0 so the 6-point start costs 3 AP (6 / step-of-2 = 3).
         if (IsLoremasterActive && IsKnowledgeSkill(item))
         {
-            item.FreeRating  = 6;
             item.RatingStep  = 2;
             item.SkillRating = 6;  // override before Add so OnSkillsCollectionChanged sees 6
         }
