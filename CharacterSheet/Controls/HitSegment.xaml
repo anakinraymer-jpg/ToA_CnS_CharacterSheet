@@ -4,7 +4,7 @@
              Width="52" Height="38"
              Cursor="Hand">
 
-  <Border x:Name="PART_Border" Background="#1A0D04">
+  <Border x:Name="PART_Border" Background="Transparent">
     <TextBlock x:Name="PART_Number"
                HorizontalAlignment="Center"
                VerticalAlignment="Center"

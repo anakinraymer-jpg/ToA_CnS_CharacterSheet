@@ -165,6 +165,7 @@
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>  <!-- shield -->
                 <ColumnDefinition Width="*"/>     <!-- bar centred in remaining space -->
+                <ColumnDefinition Width="Auto"/>  <!-- circle -->
               </Grid.ColumnDefinitions>
 
               <!-- Shield — left-click +1, right-click −1, range 6-18 -->
@@ -201,6 +202,13 @@
                   <ctrl:HitSegment Grid.Column="8" Number="5" IsMarked="{Binding Hit5, Mode=TwoWay}"/>
                 </Grid>
               </Border>
+
+              <!-- Circle — far right, currently empty -->
+              <Ellipse Grid.Column="2"
+                       Width="54" Height="54"
+                       Stroke="#5A2E0E" StrokeThickness="1.5"
+                       Fill="Transparent"
+                       VerticalAlignment="Center"/>
             </Grid>
 
             <!-- ─── EQUIPMENT &amp; SKILLS ────────────────────────── -->

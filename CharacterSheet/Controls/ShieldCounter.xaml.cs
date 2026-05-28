@@ -40,12 +40,16 @@ public partial class ShieldCounter : UserControl
     private Path?      _shield;
     private TextBlock? _text;
 
-    private static readonly SolidColorBrush BrushNormal =
-        new((Color)ColorConverter.ConvertFromString("#2B1A08"));
-    private static readonly SolidColorBrush BrushHover =
-        new((Color)ColorConverter.ConvertFromString("#3D2410"));
-    private static readonly SolidColorBrush BrushPressed =
-        new((Color)ColorConverter.ConvertFromString("#4A2E14"));
+    private static readonly Brush BrushNormal  = Brushes.Transparent;
+    private static readonly Brush BrushHover   = Frozen("#305A2E0E");   // subtle warm tint on hover
+    private static readonly Brush BrushPressed = Frozen("#505A2E0E");   // slightly stronger on press
+
+    private static SolidColorBrush Frozen(string hex)
+    {
+        var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+        b.Freeze();
+        return b;
+    }
 
     // ── Constructor ──────────────────────────────────────────────────────
 
@@ -74,6 +78,8 @@ public partial class ShieldCounter : UserControl
     {
         if (_shield != null) _shield.Fill = BrushPressed;
         Value++;
+        // Stay on hover tint — cursor is still over the control
+        if (_shield != null) _shield.Fill = BrushHover;
         e.Handled = true;
     }
 
@@ -81,6 +87,7 @@ public partial class ShieldCounter : UserControl
     {
         if (_shield != null) _shield.Fill = BrushPressed;
         Value--;
+        if (_shield != null) _shield.Fill = BrushHover;
         e.Handled = true;
     }
 

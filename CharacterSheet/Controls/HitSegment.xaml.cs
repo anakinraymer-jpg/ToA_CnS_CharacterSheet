@@ -40,12 +40,12 @@ public partial class HitSegment : UserControl
 
     // ── Brushes ──────────────────────────────────────────────────────────
 
-    private static readonly SolidColorBrush BgEmpty   = Frozen("#1A0D04");
+    private static readonly Brush            BgEmpty   = Brushes.Transparent;
     private static readonly SolidColorBrush BgFilled  = Frozen("#5A2E0E");
-    private static readonly SolidColorBrush BgHoverE  = Frozen("#2A1608");   // hover unfilled
-    private static readonly SolidColorBrush BgHoverF  = Frozen("#6A3A12");   // hover filled
-    private static readonly SolidColorBrush FgEmpty   = Frozen("#503018");
-    private static readonly SolidColorBrush FgFilled  = Frozen("#D4A96A");
+    private static readonly SolidColorBrush BgHoverE  = Frozen("#305A2E0E"); // subtle warm tint on empty hover
+    private static readonly SolidColorBrush BgHoverF  = Frozen("#6A3A12");   // brighter on filled hover
+    private static readonly SolidColorBrush FgEmpty   = Frozen("#5A2E0E");   // dark brown — readable on parchment
+    private static readonly SolidColorBrush FgFilled  = Frozen("#D4A96A");   // gold on dark fill
 
     private static SolidColorBrush Frozen(string hex)
     {

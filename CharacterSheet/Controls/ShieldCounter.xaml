@@ -8,7 +8,7 @@
     <!-- Shield shape -->
     <Path x:Name="PART_Shield"
           Data="M 2,2 L 52,2 L 52,44 Q 52,68 27,68 Q 2,68 2,44 Z"
-          Fill="#2B1A08"
+          Fill="Transparent"
           Stroke="#5A2E0E"
           StrokeThickness="1.5"
           StrokeLineJoin="Round"/>
@@ -21,7 +21,7 @@
                FontFamily="Palatino Linotype"
                FontSize="18"
                FontWeight="Bold"
-               Foreground="#D4A96A"
+               Foreground="#5A2E0E"
                IsHitTestVisible="False"/>
   </Grid>
 </UserControl>
