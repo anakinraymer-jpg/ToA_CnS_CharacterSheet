@@ -10,10 +10,13 @@
         ShowInTaskbar="False">
 
   <Window.Resources>
-    <ResourceDictionary Source="/Resources/Themes.xaml"/>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/Resources/Themes.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
 
-    <!-- Local legend styles -->
-    <Style x:Key="LegendSection" TargetType="TextBlock">
+      <!-- Local legend styles -->
+      <Style x:Key="LegendSection" TargetType="TextBlock">
       <Setter Property="FontFamily"   Value="Palatino Linotype"/>
       <Setter Property="FontSize"     Value="10"/>
       <Setter Property="FontWeight"   Value="Bold"/>
@@ -40,6 +43,7 @@
       <Setter Property="TextWrapping" Value="Wrap"/>
       <Setter Property="Margin"       Value="0,1,0,0"/>
     </Style>
+    </ResourceDictionary>
   </Window.Resources>
 
   <Border Padding="18,14,18,18">
