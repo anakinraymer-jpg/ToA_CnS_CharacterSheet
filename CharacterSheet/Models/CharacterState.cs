@@ -88,8 +88,10 @@ public class CharacterState : INotifyPropertyChanged
     private string _coreAbility = "";
     private string _summary     = "";
     private string _portrait    = "";
-    private int    _defense     = 6;
+    private int    _defense          = 6;
     private bool   _hit1, _hit2, _hit3, _hit4, _hit5;
+    private int    _heroPointsMax     = 50;
+    private int    _heroPointsCurrent = 50;
 
     public string Name        { get => _name;        set { _name        = value; OnPropertyChanged(); } }
     public string Lineage     { get => _lineage;     set { _lineage     = value; OnPropertyChanged(); } }
@@ -106,7 +108,17 @@ public class CharacterState : INotifyPropertyChanged
     public bool   Hit2        { get => _hit2;        set { _hit2 = value; OnPropertyChanged(); } }
     public bool   Hit3        { get => _hit3;        set { _hit3 = value; OnPropertyChanged(); } }
     public bool   Hit4        { get => _hit4;        set { _hit4 = value; OnPropertyChanged(); } }
-    public bool   Hit5        { get => _hit5;        set { _hit5 = value; OnPropertyChanged(); } }
+    public bool   Hit5           { get => _hit5;           set { _hit5           = value; OnPropertyChanged(); } }
+    public int    HeroPointsMax
+    {
+        get => _heroPointsMax;
+        set { _heroPointsMax = Math.Max(value, 50); OnPropertyChanged(); }
+    }
+    public int    HeroPointsCurrent
+    {
+        get => _heroPointsCurrent;
+        set { _heroPointsCurrent = Math.Clamp(value, 0, _heroPointsMax); OnPropertyChanged(); }
+    }
 
     public ObservableCollection<EquipData> Equipment { get; set; } = [];
     public ObservableCollection<SkillData> Skills    { get; set; } = [];

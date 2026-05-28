@@ -30,12 +30,14 @@ public record CharacterDto(
     List<RowDto>?    Rows,        // legacy — null in new saves, populated in old saves
     List<string>     Spells,
     // Added later — default values keep old saves valid
-    int  Defense = 6,
-    bool Hit1    = false,
-    bool Hit2    = false,
-    bool Hit3    = false,
-    bool Hit4    = false,
-    bool Hit5    = false);
+    int  Defense          = 6,
+    bool Hit1             = false,
+    bool Hit2             = false,
+    bool Hit3             = false,
+    bool Hit4             = false,
+    bool Hit5             = false,
+    int  HeroPointsMax     = 50,
+    int  HeroPointsCurrent = 50);
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
@@ -86,8 +88,10 @@ public static class Persistence
         Skills:    s.Skills.Select(sk => new SkillDto(sk.SkillName, sk.SkillSub, sk.SkillAdv, sk.SkillRating)).ToList(),
         Rows:      null,   // legacy field — intentionally null in new saves
         Spells:    [.. s.Spells],
-        Defense:   s.Defense,
-        Hit1: s.Hit1, Hit2: s.Hit2, Hit3: s.Hit3, Hit4: s.Hit4, Hit5: s.Hit5);
+        Defense:           s.Defense,
+        Hit1: s.Hit1, Hit2: s.Hit2, Hit3: s.Hit3, Hit4: s.Hit4, Hit5: s.Hit5,
+        HeroPointsMax:     s.HeroPointsMax,
+        HeroPointsCurrent: s.HeroPointsCurrent);
 
     // ── Deserialise ───────────────────────────────────────────────────────────
 
@@ -158,12 +162,14 @@ public static class Persistence
         var sp = d.Spells ?? [];
         for (int i = 0; i < 3; i++) s.Spells.Add(i < sp.Count ? sp[i] : "");
 
-        s.Defense = d.Defense;   // defaults to 6 for old saves
-        s.Hit1    = d.Hit1;
-        s.Hit2    = d.Hit2;
-        s.Hit3    = d.Hit3;
-        s.Hit4    = d.Hit4;
-        s.Hit5    = d.Hit5;
+        s.Defense          = d.Defense;   // defaults to 6 for old saves
+        s.Hit1             = d.Hit1;
+        s.Hit2             = d.Hit2;
+        s.Hit3             = d.Hit3;
+        s.Hit4             = d.Hit4;
+        s.Hit5             = d.Hit5;
+        s.HeroPointsMax     = d.HeroPointsMax;      // defaults to 50 for old saves
+        s.HeroPointsCurrent = d.HeroPointsCurrent;  // defaults to 50 for old saves
 
         return s;
     }

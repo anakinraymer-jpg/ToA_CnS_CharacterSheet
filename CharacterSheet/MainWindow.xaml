@@ -218,12 +218,11 @@
                 </Grid>
               </Border>
 
-              <!-- Circle — far right, currently empty -->
-              <Ellipse Grid.Row="1" Grid.Column="2"
-                       Width="54" Height="54"
-                       Stroke="#5A2E0E" StrokeThickness="1.5"
-                       Fill="Transparent"
-                       VerticalAlignment="Center"/>
+              <!-- Hero Points circle — top half: max (≥50); bottom half: current -->
+              <ctrl:HeroPointCircle Grid.Row="1" Grid.Column="2"
+                                    MaxPoints="{Binding HeroPointsMax, Mode=TwoWay}"
+                                    CurrentPoints="{Binding HeroPointsCurrent, Mode=TwoWay}"
+                                    VerticalAlignment="Center"/>
             </Grid>
 
             <!-- ─── EQUIPMENT &amp; SKILLS ────────────────────────── -->
