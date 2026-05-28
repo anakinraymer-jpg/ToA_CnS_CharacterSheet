@@ -47,6 +47,9 @@ public partial class MainWindow : Window
     /// <summary>Skills automatically added by the current Core Ability (Druid, Empath, etc.).</summary>
     private readonly List<SkillData> _coreAbilitySkills = new();
 
+    // ── Legend window (single modeless instance) ──────────────────────
+    private LegendWindow? _legendWindow;
+
     // ── AP helpers ────────────────────────────────────────────────────
 
     private static int ApCostForAdd(SkillData sk)
@@ -95,6 +98,7 @@ public partial class MainWindow : Window
         BtnZoomIn.Click  += (_, _) => ZoomAroundCenter(_zoom + ZoomStep);
         BtnZoomOut.Click += (_, _) => ZoomAroundCenter(_zoom - ZoomStep);
         BtnZoomFit.Click += (_, _) => FitToWindow();
+        BtnLegend.Click  += (_, _) => OpenLegend();
 
         BtnAddEquip.Click += OnAddEquipClicked;
         BtnAddSkill.Click += OnAddSkillClicked;
@@ -809,4 +813,16 @@ public partial class MainWindow : Window
     }
 
     private void Save() => Persistence.Save(_state);
+
+    // ── Legend ────────────────────────────────────────────────────────
+    private void OpenLegend()
+    {
+        if (_legendWindow is { IsLoaded: true })
+        {
+            _legendWindow.Activate();
+            return;
+        }
+        _legendWindow = new LegendWindow { Owner = this };
+        _legendWindow.Show();
+    }
 }

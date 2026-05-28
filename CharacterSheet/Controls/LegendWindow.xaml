@@ -1,0 +1,165 @@
+<Window x:Class="CharacterSheet.Controls.LegendWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Legend"
+        Width="480" Height="660"
+        MinWidth="380" MinHeight="300"
+        ResizeMode="CanResizeWithGrip"
+        WindowStartupLocation="CenterOwner"
+        Background="#1A0D02"
+        ShowInTaskbar="False">
+
+  <Window.Resources>
+    <ResourceDictionary Source="/Resources/Themes.xaml"/>
+
+    <!-- Local legend styles -->
+    <Style x:Key="LegendSection" TargetType="TextBlock">
+      <Setter Property="FontFamily"   Value="Palatino Linotype"/>
+      <Setter Property="FontSize"     Value="10"/>
+      <Setter Property="FontWeight"   Value="Bold"/>
+      <Setter Property="Foreground"   Value="#D4A96A"/>
+      <Setter Property="Margin"       Value="0,14,0,3"/>
+    </Style>
+    <Style x:Key="LegendKey" TargetType="TextBlock">
+      <Setter Property="FontFamily"   Value="Palatino Linotype"/>
+      <Setter Property="FontSize"     Value="11"/>
+      <Setter Property="Foreground"   Value="#D4A96A"/>
+      <Setter Property="Width"        Value="170"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <Style x:Key="LegendVal" TargetType="TextBlock">
+      <Setter Property="FontFamily"   Value="Palatino Linotype"/>
+      <Setter Property="FontSize"     Value="11"/>
+      <Setter Property="Foreground"   Value="#E8D4A8"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+    </Style>
+    <Style x:Key="LegendNote" TargetType="TextBlock">
+      <Setter Property="FontFamily"   Value="Palatino Linotype"/>
+      <Setter Property="FontSize"     Value="10.5"/>
+      <Setter Property="Foreground"   Value="#A07848"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="Margin"       Value="0,1,0,0"/>
+    </Style>
+  </Window.Resources>
+
+  <Border Padding="18,14,18,18">
+    <DockPanel>
+
+      <!-- Title -->
+      <TextBlock DockPanel.Dock="Top"
+                 Text="LEGEND"
+                 FontFamily="Palatino Linotype" FontSize="17" FontWeight="Bold"
+                 Foreground="#D4A96A" HorizontalAlignment="Center"
+                 Margin="0,0,0,6"/>
+      <Rectangle DockPanel.Dock="Top" Height="1" Fill="#6B3A12" Opacity="0.6" Margin="0,0,0,0"/>
+
+      <!-- Scrollable body -->
+      <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,6,4,0">
+        <StackPanel>
+
+          <!-- ── KEYBOARD SHORTCUTS ────────────────────────────────── -->
+          <TextBlock Text="KEYBOARD SHORTCUTS" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Ctrl + S"/><TextBlock Style="{StaticResource LegendVal}" Text="Save  (prompts for location on first save)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Ctrl + O"/><TextBlock Style="{StaticResource LegendVal}" Text="Open a save file"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Ctrl + +  /  Ctrl + −"/><TextBlock Style="{StaticResource LegendVal}" Text="Zoom in / out"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Ctrl + 0"/><TextBlock Style="{StaticResource LegendVal}" Text="Fit sheet to window"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Ctrl + Scroll"/><TextBlock Style="{StaticResource LegendVal}" Text="Zoom in / out at cursor position"/></DockPanel>
+
+          <!-- ── SKILL RATING BUBBLE ───────────────────────────────── -->
+          <TextBlock Text="SKILL RATING BUBBLE  (circle with number)" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Left-click"/><TextBlock Style="{StaticResource LegendVal}" Text="+1 rating  (costs 1 Available Point)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Right-click"/><TextBlock Style="{StaticResource LegendVal}" Text="−1 rating  (refunds 1 Available Point)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Grey bubble"/><TextBlock Style="{StaticResource LegendVal}" Text="No skill assigned — clicks have no effect"/></DockPanel>
+
+          <!-- ── ATTRITION CIRCLE ──────────────────────────────────── -->
+          <TextBlock Text="ATTRITION CIRCLE  (small circle left of rating)" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Click"/><TextBlock Style="{StaticResource LegendVal}" Text="Mark / unmark as attritioned"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Skill attritioned"/><TextBlock Style="{StaticResource LegendVal}" Text="Name is crossed out"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Equipment attritioned"/><TextBlock Style="{StaticResource LegendVal}" Text="Name crossed out; armor value removed from Defense"/></DockPanel>
+
+          <!-- ── HERO POINT CIRCLE ─────────────────────────────────── -->
+          <TextBlock Text="HERO POINT CIRCLE" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Top half — left-click"/><TextBlock Style="{StaticResource LegendVal}" Text="+1 Total Points maximum"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Top half — right-click"/><TextBlock Style="{StaticResource LegendVal}" Text="−1 Total Points maximum"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Bottom half — left-click"/><TextBlock Style="{StaticResource LegendVal}" Text="Spend 1 Available Point"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Bottom half — right-click"/><TextBlock Style="{StaticResource LegendVal}" Text="Restore 1 Available Point"/></DockPanel>
+
+          <!-- ── AUTOMATIC HERO POINT CHANGES ─────────────────────── -->
+          <TextBlock Text="AUTOMATIC HERO POINT CHANGES" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Flaw added"/><TextBlock Style="{StaticResource LegendVal}" Text="+5 Total Points  and  +5 Available Points"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Flaw removed"/><TextBlock Style="{StaticResource LegendVal}" Text="−5 Total Points  and  −5 Available Points"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Core Ability set"/><TextBlock Style="{StaticResource LegendVal}" Text="−15 Available Points  (refunded on removal)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Skill added"/><TextBlock Style="{StaticResource LegendVal}" Text="−(skill rating) Available Points"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Skill rating +1"/><TextBlock Style="{StaticResource LegendVal}" Text="−1 Available Point  (refunded on −1)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Skill removed"/><TextBlock Style="{StaticResource LegendVal}" Text="Refunds all Available Points spent on it"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Available = 0"/><TextBlock Style="{StaticResource LegendVal}" Text="Cannot increase skill ratings"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Available &lt; 3"/><TextBlock Style="{StaticResource LegendVal}" Text="Cannot add new skills"/></DockPanel>
+
+          <!-- ── DEFENSE SHIELD ────────────────────────────────────── -->
+          <TextBlock Text="DEFENSE SHIELD" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Left-click"/><TextBlock Style="{StaticResource LegendVal}" Text="+1 base defense  (range 6 – 18)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Right-click"/><TextBlock Style="{StaticResource LegendVal}" Text="−1 base defense"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Equipment armor"/><TextBlock Style="{StaticResource LegendVal}" Text="Added automatically while not attritioned"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Armor cap"/><TextBlock Style="{StaticResource LegendVal}" Text="Armor cannot push Defense above 18"/></DockPanel>
+
+          <!-- ── HIT TRACK ─────────────────────────────────────────── -->
+          <TextBlock Text="HIT TRACK" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Click segment"/><TextBlock Style="{StaticResource LegendVal}" Text="Mark or unmark a hit"/></DockPanel>
+
+          <!-- ── PORTRAIT ──────────────────────────────────────────── -->
+          <TextBlock Text="PORTRAIT" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Click portrait box"/><TextBlock Style="{StaticResource LegendVal}" Text="Choose an image file (PNG, JPG, BMP, GIF, WebP)"/></DockPanel>
+
+          <!-- ── CORE ABILITY BONUSES ──────────────────────────────── -->
+          <TextBlock Text="CORE ABILITY BONUSES" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Druid"/><TextBlock Style="{StaticResource LegendVal}" Text="Tracking + Hunting added at 9  (free, floor 9)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Empath"/><TextBlock Style="{StaticResource LegendVal}" Text="Investigation + Streetwise + Oratory at 7  (free, floor 7)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Mountaineer"/><TextBlock Style="{StaticResource LegendVal}" Text="Climber + Breakfall at 10  (free, floor 10)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Inventor"/><TextBlock Style="{StaticResource LegendVal}" Text="Create Device added (free; mirrors Repair's rating)"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Loremaster"/><TextBlock Style="{StaticResource LegendVal}" Text="Knowledge starts at 6 (costs 3 AP); each click = +2 rating for 1 AP"/></DockPanel>
+          <TextBlock Style="{StaticResource LegendNote}" Margin="0,3,0,0"
+                     Text="Bonus skills are removed if the Core Ability changes or is cleared."/>
+
+          <!-- ── SPECIALIZATION PROMPTS ────────────────────────────── -->
+          <TextBlock Text="SPECIALIZATION PROMPTS" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Skills"/><TextBlock Style="{StaticResource LegendVal}" Text="Knowledge · Languages · Profession · Resist (Type) · Scholar"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="Flaws"/><TextBlock Style="{StaticResource LegendVal}" Text="Addict · Employed · Grudge · Injured · Phobia"/></DockPanel>
+          <TextBlock Style="{StaticResource LegendNote}" Margin="0,3,0,0"
+                     Text="Selecting one of these prompts for a specialization shown in brackets, e.g. Knowledge [History].  Leave blank to skip."/>
+
+          <!-- ── ADDING / REMOVING ROWS ────────────────────────────── -->
+          <TextBlock Text="ADDING &amp; REMOVING ROWS" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="+ Add Skill / Equipment"/><TextBlock Style="{StaticResource LegendVal}" Text="Opens a searchable picker; or create a custom entry"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="× on a row"/><TextBlock Style="{StaticResource LegendVal}" Text="Remove that skill or equipment row"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="× in pick list (equip)"/><TextBlock Style="{StaticResource LegendVal}" Text="Permanently delete a custom equipment entry"/></DockPanel>
+
+          <!-- bottom padding -->
+          <Rectangle Height="10"/>
+
+        </StackPanel>
+      </ScrollViewer>
+    </DockPanel>
+  </Border>
+</Window>

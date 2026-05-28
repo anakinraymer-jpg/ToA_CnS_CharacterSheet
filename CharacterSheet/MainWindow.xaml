@@ -42,6 +42,9 @@
               Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Zoom in  (Ctrl +)"/>
       <Button x:Name="BtnZoomFit" Content="⊡ Fit" Padding="10,8"
               Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Fit to window  (Ctrl 0)"/>
+      <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
+      <Button x:Name="BtnLegend" Content="? Legend" Padding="10,8"
+              Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Show keyboard shortcuts and control reference"/>
     </WrapPanel>
 
     <!-- ══ SHEET ════════════════════════════════════════════════════ -->
