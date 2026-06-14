@@ -7,6 +7,9 @@ namespace CharacterSheet.Models;
 
 public record EquipDto(string EquipName, string EquipSub, bool EquipUsed, int ArmorValue = 0);
 
+public record InventoryItemDto(string Name, string Description = "");
+public record InventoryCategoryDto(string Name, List<InventoryItemDto> Items);
+
 public record SkillDto(
     string SkillName, string SkillSub, bool SkillAdv, int SkillRating,
     // Added for core-ability skills — defaults keep old saves valid
@@ -45,7 +48,8 @@ public record CharacterDto(
     bool Hit4             = false,
     bool Hit5             = false,
     int  HeroPointsMax     = 50,
-    int  HeroPointsCurrent = 50);
+    int  HeroPointsCurrent = 50,
+    List<InventoryCategoryDto>? Inventory = null);
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
@@ -102,7 +106,11 @@ public static class Persistence
         Defense:           s.DefenseBase,
         Hit1: s.Hit1, Hit2: s.Hit2, Hit3: s.Hit3, Hit4: s.Hit4, Hit5: s.Hit5,
         HeroPointsMax:     s.HeroPointsMax,
-        HeroPointsCurrent: s.HeroPointsCurrent);
+        HeroPointsCurrent: s.HeroPointsCurrent,
+        Inventory: s.Inventory.Select(c => new InventoryCategoryDto(
+            c.Name,
+            c.Items.Select(i => new InventoryItemDto(i.Name, i.Description)).ToList()
+        )).ToList());
 
     // ── Deserialise ───────────────────────────────────────────────────────────
 
@@ -180,6 +188,14 @@ public static class Persistence
 
         var sp = d.Spells ?? [];
         for (int i = 0; i < 3; i++) s.Spells.Add(i < sp.Count ? sp[i] : "");
+
+        foreach (var cat in d.Inventory ?? [])
+        {
+            var category = new InventoryCategory { Name = cat.Name ?? "" };
+            foreach (var itm in cat.Items ?? [])
+                category.Items.Add(new InventoryItem { Name = itm.Name ?? "", Description = itm.Description ?? "" });
+            s.Inventory.Add(category);
+        }
 
         s.DefenseBase       = d.Defense;   // DTO field stays "Defense" for backward compat; defaults to 6
         s.Hit1             = d.Hit1;

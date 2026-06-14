@@ -10,7 +10,43 @@
         WindowStartupLocation="CenterScreen">
 
   <Window.Resources>
-    <ResourceDictionary Source="/Resources/Themes.xaml"/>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/Resources/Themes.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+
+      <!-- Small arrow/edit button used in inventory rows -->
+      <Style x:Key="InvRowButton" TargetType="Button">
+        <Setter Property="Width"           Value="16"/>
+        <Setter Property="Height"          Value="16"/>
+        <Setter Property="Padding"         Value="0"/>
+        <Setter Property="FontFamily"      Value="Palatino Linotype"/>
+        <Setter Property="FontSize"        Value="10"/>
+        <Setter Property="Foreground"      Value="#885A2E0E"/>
+        <Setter Property="Background"      Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Cursor"          Value="Hand"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="Button">
+              <Border x:Name="bd" Background="{TemplateBinding Background}" CornerRadius="3">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="bd" Property="Background" Value="#225A2E0E"/>
+                  <Setter Property="Foreground" Value="#CC5A2E0E"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                  <Setter TargetName="bd" Property="Background" Value="#445A2E0E"/>
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+    </ResourceDictionary>
   </Window.Resources>
 
   <DockPanel>
@@ -437,6 +473,107 @@
               <TextBlock DockPanel.Dock="Left" Text="③" Width="20" Style="{StaticResource FieldLabel}"/>
               <TextBox x:Name="TbSpell2" Style="{StaticResource HdrTextBox}"/>
             </DockPanel>
+
+            <!-- ─── INVENTORY ─────────────────────────────────────────── -->
+            <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,20,0,10"/>
+            <DockPanel Margin="0,0,0,8">
+              <Button DockPanel.Dock="Right" x:Name="BtnAddCategory"
+                      Content="+" Style="{StaticResource AddButton}"
+                      ToolTip="Add category" Margin="0,0,2,0"/>
+              <TextBlock Text="INVENTORY" Style="{StaticResource SectionHeader}" Margin="0"/>
+            </DockPanel>
+
+            <ItemsControl ItemsSource="{Binding Inventory}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <StackPanel Margin="0,0,0,12">
+
+                    <!-- Category header row -->
+                    <DockPanel Margin="0,0,0,2">
+                      <Button DockPanel.Dock="Right" Content="×"
+                              Style="{StaticResource RemoveButton}"
+                              Click="OnRemoveCategoryClick"
+                              ToolTip="Remove category" Margin="4,0,0,0"/>
+                      <Button DockPanel.Dock="Right" Content="▼"
+                              Style="{StaticResource InvRowButton}"
+                              Click="OnMoveCategoryDownClick"
+                              ToolTip="Move category down" Margin="2,0,0,0"/>
+                      <Button DockPanel.Dock="Right" Content="▲"
+                              Style="{StaticResource InvRowButton}"
+                              Click="OnMoveCategoryUpClick"
+                              ToolTip="Move category up" Margin="2,0,0,0"/>
+                      <Button DockPanel.Dock="Right" Content="+"
+                              Style="{StaticResource AddButton}"
+                              Click="OnAddInventoryItemClick"
+                              ToolTip="Add item to this category" Margin="6,0,0,0"/>
+                      <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                               Style="{StaticResource HdrTextBox}"
+                               FontSize="13" FontWeight="Bold"/>
+                    </DockPanel>
+                    <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}"
+                               Opacity="0.3" Margin="0,0,0,3"/>
+
+                    <!-- Items in this category -->
+                    <ItemsControl ItemsSource="{Binding Items}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <StackPanel Margin="10,1,0,1">
+                            <!-- Item name row -->
+                            <DockPanel>
+                              <Button DockPanel.Dock="Right" Content="×"
+                                      Style="{StaticResource RemoveButton}"
+                                      Click="OnRemoveInventoryItemClick"
+                                      ToolTip="Remove item" Margin="4,0,0,0"/>
+                              <Button DockPanel.Dock="Right" Content="▼"
+                                      Style="{StaticResource InvRowButton}"
+                                      Click="OnMoveItemDownClick"
+                                      ToolTip="Move item down" Margin="2,0,0,0"/>
+                              <Button DockPanel.Dock="Right" Content="▲"
+                                      Style="{StaticResource InvRowButton}"
+                                      Click="OnMoveItemUpClick"
+                                      ToolTip="Move item up" Margin="2,0,0,0"/>
+                              <Button DockPanel.Dock="Right" Content="✎"
+                                      Style="{StaticResource InvRowButton}"
+                                      Click="OnToggleItemEditClick"
+                                      ToolTip="Edit description" Margin="4,0,0,0"
+                                      FontSize="11"/>
+                              <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                       Style="{StaticResource RowNameTextBox}"
+                                       ToolTip="{Binding Description}"
+                                       FontSize="14"/>
+                            </DockPanel>
+                            <!-- Description (revealed by ✎) -->
+                            <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                                     TextWrapping="Wrap" AcceptsReturn="True"
+                                     MinHeight="44" MaxHeight="120"
+                                     Margin="0,3,0,5" Padding="6,4"
+                                     FontFamily="Segoe UI" FontSize="13"
+                                     Background="#0A5A2E0E"
+                                     Foreground="{StaticResource InkBrush}"
+                                     BorderBrush="{StaticResource BrownLtBrush}"
+                                     BorderThickness="1" CaretBrush="{StaticResource BrownBrush}"
+                                     SelectionBrush="#445A2E0E"
+                                     VerticalScrollBarVisibility="Auto">
+                              <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                  <Setter Property="Visibility" Value="Collapsed"/>
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                      <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </TextBox.Style>
+                            </TextBox>
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
 
           </StackPanel>
         </Border>

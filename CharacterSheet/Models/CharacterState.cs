@@ -133,6 +133,38 @@ public class SkillData : INotifyPropertyChanged
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
+// ── Inventory item ────────────────────────────────────────────────────────────
+
+public class InventoryItem : INotifyPropertyChanged
+{
+    private string _name        = "";
+    private string _description = "";
+    private bool   _isEditing   = false;
+
+    public string Name        { get => _name;        set { _name        = value; OnPropertyChanged(); } }
+    public string Description { get => _description; set { _description = value; OnPropertyChanged(); } }
+    /// <summary>UI-only flag — not persisted. True while the description TextBox is expanded.</summary>
+    public bool   IsEditing   { get => _isEditing;   set { _isEditing   = value; OnPropertyChanged(); } }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
+// ── Inventory category ────────────────────────────────────────────────────────
+
+public class InventoryCategory : INotifyPropertyChanged
+{
+    private string _name = "New Category";
+
+    public string Name { get => _name; set { _name = value; OnPropertyChanged(); } }
+    public ObservableCollection<InventoryItem> Items { get; set; } = [];
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
 // ── Character ─────────────────────────────────────────────────────────────────
 
 public class CharacterState : INotifyPropertyChanged
@@ -191,9 +223,10 @@ public class CharacterState : INotifyPropertyChanged
     /// <summary>True when there is at least one Available Point left to spend on a skill rating increase.</summary>
     public bool CanSpendPoint => _heroPointsCurrent > 0;
 
-    public ObservableCollection<EquipData> Equipment { get; set; } = [];
-    public ObservableCollection<SkillData> Skills    { get; set; } = [];
-    public ObservableCollection<string>    Spells    { get; set; } = [];
+    public ObservableCollection<EquipData>       Equipment { get; set; } = [];
+    public ObservableCollection<SkillData>       Skills    { get; set; } = [];
+    public ObservableCollection<string>          Spells    { get; set; } = [];
+    public ObservableCollection<InventoryCategory> Inventory { get; set; } = [];
 
     // ── Computed exclusion lists (used by SkillPickerBox.ExcludedValues) ─────
 

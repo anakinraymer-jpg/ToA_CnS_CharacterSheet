@@ -97,8 +97,9 @@ public partial class MainWindow : Window
 
         BtnZoomIn.Click  += (_, _) => ZoomAroundCenter(_zoom + ZoomStep);
         BtnZoomOut.Click += (_, _) => ZoomAroundCenter(_zoom - ZoomStep);
-        BtnZoomFit.Click += (_, _) => FitToWindow();
-        BtnLegend.Click  += (_, _) => OpenLegend();
+        BtnZoomFit.Click    += (_, _) => FitToWindow();
+        BtnLegend.Click     += (_, _) => OpenLegend();
+        BtnAddCategory.Click += (_, _) => OnAddCategoryClicked();
 
         BtnAddEquip.Click += OnAddEquipClicked;
         BtnAddSkill.Click += OnAddSkillClicked;
@@ -125,6 +126,7 @@ public partial class MainWindow : Window
             sk.PropertyChanged -= OnItemChanged;
             sk.PropertyChanged -= OnSkillDataChanged;
         }
+        UnsubscribeInventory(_state);
 
         _state = state;
         DataContext = _state;
@@ -148,6 +150,7 @@ public partial class MainWindow : Window
             sk.PropertyChanged += OnItemChanged;
             sk.PropertyChanged += OnSkillDataChanged;
         }
+        SubscribeInventory(_state);
         _state.RefreshSelectedSkillNames();
 
         // Seed hero-point trackers from loaded state — no adjustments during load
@@ -813,6 +816,157 @@ public partial class MainWindow : Window
     }
 
     private void Save() => Persistence.Save(_state);
+
+    // ── Inventory ─────────────────────────────────────────────────────
+
+    private void SubscribeInventory(CharacterState s)
+    {
+        s.Inventory.CollectionChanged += OnInventoryCategoriesChanged;
+        foreach (var cat in s.Inventory) SubscribeCategory(cat);
+    }
+
+    private void UnsubscribeInventory(CharacterState s)
+    {
+        s.Inventory.CollectionChanged -= OnInventoryCategoriesChanged;
+        foreach (var cat in s.Inventory) UnsubscribeCategory(cat);
+    }
+
+    private void SubscribeCategory(InventoryCategory cat)
+    {
+        cat.PropertyChanged += OnInventoryItemChanged;
+        cat.Items.CollectionChanged += OnInventoryItemsChanged;
+        foreach (var item in cat.Items) item.PropertyChanged += OnInventoryItemChanged;
+    }
+
+    private void UnsubscribeCategory(InventoryCategory cat)
+    {
+        cat.PropertyChanged -= OnInventoryItemChanged;
+        cat.Items.CollectionChanged -= OnInventoryItemsChanged;
+        foreach (var item in cat.Items) item.PropertyChanged -= OnInventoryItemChanged;
+    }
+
+    private void OnInventoryCategoriesChanged(object? sender,
+        System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+            foreach (InventoryCategory cat in e.NewItems) SubscribeCategory(cat);
+        if (e.OldItems != null)
+            foreach (InventoryCategory cat in e.OldItems) UnsubscribeCategory(cat);
+        if (!_loading) Save();
+    }
+
+    private void OnInventoryItemsChanged(object? sender,
+        System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+            foreach (InventoryItem item in e.NewItems) item.PropertyChanged += OnInventoryItemChanged;
+        if (e.OldItems != null)
+            foreach (InventoryItem item in e.OldItems) item.PropertyChanged -= OnInventoryItemChanged;
+        if (!_loading) Save();
+    }
+
+    private void OnInventoryItemChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_loading) return;
+        if (e.PropertyName == nameof(InventoryItem.IsEditing)) return; // UI state, not data
+        Save();
+    }
+
+    private void OnAddCategoryClicked()
+    {
+        _state.Inventory.Add(new InventoryCategory { Name = "New Category" });
+        Save();
+    }
+
+    private void OnRemoveCategoryClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not InventoryCategory cat) return;
+        _state.Inventory.Remove(cat);
+        Save();
+    }
+
+    private void OnMoveCategoryUpClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not InventoryCategory cat) return;
+        int idx = _state.Inventory.IndexOf(cat);
+        if (idx > 0) _state.Inventory.Move(idx, idx - 1);
+        Save();
+    }
+
+    private void OnMoveCategoryDownClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not InventoryCategory cat) return;
+        int idx = _state.Inventory.IndexOf(cat);
+        if (idx >= 0 && idx < _state.Inventory.Count - 1) _state.Inventory.Move(idx, idx + 1);
+        Save();
+    }
+
+    private void OnAddInventoryItemClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not InventoryCategory cat) return;
+        cat.Items.Add(new InventoryItem());
+        Save();
+    }
+
+    private void OnRemoveInventoryItemClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not InventoryItem item) return;
+        var cat = _state.Inventory.FirstOrDefault(c => c.Items.Contains(item));
+        cat?.Items.Remove(item);
+        Save();
+    }
+
+    private void OnMoveItemUpClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not InventoryItem item) return;
+        var cat = _state.Inventory.FirstOrDefault(c => c.Items.Contains(item));
+        if (cat == null) return;
+        int idx = cat.Items.IndexOf(item);
+        if (idx > 0)
+        {
+            cat.Items.Move(idx, idx - 1);
+        }
+        else
+        {
+            // Move to bottom of previous category
+            int catIdx = _state.Inventory.IndexOf(cat);
+            if (catIdx > 0)
+            {
+                cat.Items.Remove(item);
+                _state.Inventory[catIdx - 1].Items.Add(item);
+            }
+        }
+        Save();
+    }
+
+    private void OnMoveItemDownClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not InventoryItem item) return;
+        var cat = _state.Inventory.FirstOrDefault(c => c.Items.Contains(item));
+        if (cat == null) return;
+        int idx = cat.Items.IndexOf(item);
+        if (idx < cat.Items.Count - 1)
+        {
+            cat.Items.Move(idx, idx + 1);
+        }
+        else
+        {
+            // Move to top of next category
+            int catIdx = _state.Inventory.IndexOf(cat);
+            if (catIdx < _state.Inventory.Count - 1)
+            {
+                cat.Items.Remove(item);
+                _state.Inventory[catIdx + 1].Items.Insert(0, item);
+            }
+        }
+        Save();
+    }
+
+    private void OnToggleItemEditClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not InventoryItem item) return;
+        item.IsEditing = !item.IsEditing;
+    }
 
     // ── Legend ────────────────────────────────────────────────────────
     private void OpenLegend()
