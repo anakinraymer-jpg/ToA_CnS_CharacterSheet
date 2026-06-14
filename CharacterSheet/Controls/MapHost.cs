@@ -7,6 +7,7 @@ namespace CharacterSheet.Controls;
 public sealed class MapHost : HwndHost
 {
     private readonly string _mapDir;
+    private readonly string _playerName;
     private Process? _process;
     private IntPtr _hwndHost;
     private IntPtr _childHwnd;
@@ -16,7 +17,11 @@ public sealed class MapHost : HwndHost
     public event Action? EmbedReady;
     public event Action<string>? EmbedFailed;
 
-    public MapHost(string mapDir) => _mapDir = mapDir;
+    public MapHost(string mapDir, string playerName = "")
+    {
+        _mapDir = mapDir;
+        _playerName = playerName;
+    }
 
     protected override HandleRef BuildWindowCore(HandleRef hwndParent)
     {
@@ -56,9 +61,13 @@ public sealed class MapHost : HwndHost
     {
         try
         {
+            var args = "main.py";
+            if (!string.IsNullOrWhiteSpace(_playerName))
+                args += $" --player-name \"{_playerName.Replace("\"", "\\\"")}\"";
+
             _process = new Process
             {
-                StartInfo = new ProcessStartInfo("python", "main.py")
+                StartInfo = new ProcessStartInfo("python", args)
                 {
                     WorkingDirectory = _mapDir,
                     UseShellExecute = false,

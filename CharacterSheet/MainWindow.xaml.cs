@@ -1075,7 +1075,7 @@ public partial class MainWindow : Window
 
         TbMapStatus.Text = "Starting map — this may take a few seconds…";
 
-        _mapHost = new MapHost(_mapDir);
+        _mapHost = new MapHost(_mapDir, _state.Name);
 
         _mapHost.EmbedReady += () =>
         {
