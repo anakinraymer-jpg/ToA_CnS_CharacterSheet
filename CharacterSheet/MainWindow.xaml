@@ -85,6 +85,43 @@
           </Setter.Value>
         </Setter>
       </Style>
+
+      <!-- Tab header style for the main Character Sheet / Map tab control -->
+      <Style x:Key="MainTabItem" TargetType="TabItem">
+        <Setter Property="FontFamily"      Value="Palatino Linotype"/>
+        <Setter Property="FontSize"        Value="14"/>
+        <Setter Property="Foreground"      Value="#D4A96A"/>
+        <Setter Property="Background"      Value="#1A0D02"/>
+        <Setter Property="Padding"         Value="22,9"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="TabItem">
+              <Border x:Name="bd"
+                      Background="{TemplateBinding Background}"
+                      BorderBrush="#6B3A12"
+                      BorderThickness="1,1,1,0"
+                      Margin="0,4,4,0"
+                      CornerRadius="3,3,0,0"
+                      TextElement.Foreground="{TemplateBinding Foreground}">
+                <ContentPresenter ContentSource="Header"
+                                  Margin="{TemplateBinding Padding}"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                  <Setter TargetName="bd" Property="Background"    Value="#2A1205"/>
+                  <Setter TargetName="bd" Property="BorderBrush"   Value="#A05A20"/>
+                  <Setter TargetName="bd" Property="TextElement.Foreground" Value="#F2C860"/>
+                </Trigger>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="bd" Property="Background"    Value="#1E0F04"/>
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
     </ResourceDictionary>
   </Window.Resources>
 
@@ -107,29 +144,38 @@
       <Button x:Name="BtnImport" Content="↑ Import"
               Style="{StaticResource CtrlButton}" Margin="4,0"
               ToolTip="Import / merge from a file"/>
-      <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
-      <Button x:Name="BtnZoomOut" Content="−" Padding="12,8"
-              Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Zoom out  (Ctrl -)"/>
-      <TextBlock x:Name="TbZoom" Text="100%"
-                 Foreground="#D4A96A" FontFamily="Palatino Linotype" FontSize="14"
-                 Width="52" TextAlignment="Center" VerticalAlignment="Center" Margin="2,0"/>
-      <Button x:Name="BtnZoomIn" Content="+" Padding="12,8"
-              Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Zoom in  (Ctrl +)"/>
-      <Button x:Name="BtnZoomFit" Content="⊡ Fit" Padding="10,8"
-              Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Fit to window  (Ctrl 0)"/>
-      <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
-      <ToggleButton x:Name="BtnLayoutEdit" Content="≡ Layout" Padding="10,8"
-                    Style="{StaticResource CtrlToggleButton}" Margin="4,0"
-                    ToolTip="Toggle layout edit mode — reorder sheet sections"/>
-      <Button x:Name="BtnLegend" Content="? Legend" Padding="10,8"
-              Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Show keyboard shortcuts and control reference"/>
+      <StackPanel x:Name="SheetOnlyControls" Orientation="Horizontal" VerticalAlignment="Center">
+        <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
+        <Button x:Name="BtnZoomOut" Content="−" Padding="12,8"
+                Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Zoom out  (Ctrl -)"/>
+        <TextBlock x:Name="TbZoom" Text="100%"
+                   Foreground="#D4A96A" FontFamily="Palatino Linotype" FontSize="14"
+                   Width="52" TextAlignment="Center" VerticalAlignment="Center" Margin="2,0"/>
+        <Button x:Name="BtnZoomIn" Content="+" Padding="12,8"
+                Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Zoom in  (Ctrl +)"/>
+        <Button x:Name="BtnZoomFit" Content="⊡ Fit" Padding="10,8"
+                Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Fit to window  (Ctrl 0)"/>
+        <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
+        <ToggleButton x:Name="BtnLayoutEdit" Content="≡ Layout" Padding="10,8"
+                      Style="{StaticResource CtrlToggleButton}" Margin="4,0"
+                      ToolTip="Toggle layout edit mode — reorder sheet sections"/>
+        <Button x:Name="BtnLegend" Content="? Legend" Padding="10,8"
+                Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Show keyboard shortcuts and control reference"/>
+      </StackPanel>
     </WrapPanel>
 
-    <!-- ══ SHEET ════════════════════════════════════════════════════ -->
-    <ScrollViewer x:Name="SheetScroll"
-                  VerticalScrollBarVisibility="Auto"
-                  HorizontalScrollBarVisibility="Auto"
-                  PreviewMouseWheel="OnScrollWheel">
+    <!-- ══ TABS ════════════════════════════════════════════════════ -->
+    <TabControl x:Name="MainTabControl"
+                SelectionChanged="OnMainTabChanged"
+                Background="#110A02"
+                BorderBrush="#6B3A12"
+                BorderThickness="0,1,0,0">
+
+      <TabItem Header="Character Sheet" Style="{StaticResource MainTabItem}">
+        <ScrollViewer x:Name="SheetScroll"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Auto"
+                      PreviewMouseWheel="OnScrollWheel">
       <Grid>
 
         <!-- Parchment sheet — fixed 680-unit width, centred, zoomable -->
@@ -713,7 +759,36 @@
         </Border>
 
       </Grid>
-    </ScrollViewer>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ══ MAP TAB ══════════════════════════════════════════════ -->
+      <TabItem Header="🗺 Map" x:Name="TabMap" Style="{StaticResource MainTabItem}">
+        <Grid x:Name="MapContainer" Background="#0A0602">
+
+          <!-- Shown while the map is not yet embedded -->
+          <StackPanel x:Name="MapPlaceholder"
+                      VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock Text="Tomb of Annihilation  —  Delver Map"
+                       FontFamily="Palatino Linotype" FontSize="22" FontWeight="Bold"
+                       Foreground="#D4A96A" HorizontalAlignment="Center"/>
+            <TextBlock x:Name="TbMapStatus"
+                       Text="Select this tab to launch the map."
+                       FontFamily="Palatino Linotype" FontSize="14"
+                       Foreground="#8B5E2A" HorizontalAlignment="Center"
+                       Margin="0,12,0,0"/>
+            <Button x:Name="BtnConfigureMap"
+                    Content="Choose Map Directory…"
+                    Style="{StaticResource CtrlButton}"
+                    HorizontalAlignment="Center" Margin="0,20,0,0"
+                    Click="OnConfigureMapClicked"
+                    Visibility="Collapsed"/>
+          </StackPanel>
+
+        </Grid>
+      </TabItem>
+
+    </TabControl>
 
   </DockPanel>
 </Window>

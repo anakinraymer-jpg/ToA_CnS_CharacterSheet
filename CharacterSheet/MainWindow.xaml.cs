@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -46,6 +47,12 @@ public partial class MainWindow : Window
     // ── Core-ability auto-added skills ────────────────────────────────
     /// <summary>Skills automatically added by the current Core Ability (Druid, Empath, etc.).</summary>
     private readonly List<SkillData> _coreAbilitySkills = new();
+
+    // ── Map integration ───────────────────────────────────────────────
+    private MapHost? _mapHost;
+    private string _mapDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        "Dev", "ToA_Delver_Map");
 
     // ── Legend window (single modeless instance) ──────────────────────
     private LegendWindow? _legendWindow;
@@ -94,6 +101,7 @@ public partial class MainWindow : Window
         WireUiEvents();
         LoadState(Persistence.Load());
         Loaded += (_, _) => FitToWindow();
+        Closing += OnWindowClosing;
     }
 
     // ── One-time UI event wiring ──────────────────────────────────────
@@ -1043,6 +1051,75 @@ public partial class MainWindow : Window
         foreach (var p in _sectionPanels) SheetStack.Children.Remove(p);
         for (int i = 0; i < orderedPanels.Count; i++)
             SheetStack.Children.Insert(3 + i, orderedPanels[i]);
+    }
+
+    // ── Map ───────────────────────────────────────────────────────────
+
+    private void OnMainTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        bool isMapTab = MainTabControl.SelectedItem == TabMap;
+        SheetOnlyControls.Visibility = isMapTab ? Visibility.Collapsed : Visibility.Visible;
+
+        if (isMapTab && _mapHost == null)
+            StartMap();
+    }
+
+    private void StartMap()
+    {
+        if (!Directory.Exists(_mapDir))
+        {
+            TbMapStatus.Text = $"Map not found at: {_mapDir}";
+            BtnConfigureMap.Visibility = Visibility.Visible;
+            return;
+        }
+
+        TbMapStatus.Text = "Starting map — this may take a few seconds…";
+
+        _mapHost = new MapHost(_mapDir);
+
+        _mapHost.EmbedReady += () =>
+        {
+            MapPlaceholder.Visibility = Visibility.Collapsed;
+        };
+
+        _mapHost.EmbedFailed += msg =>
+        {
+            TbMapStatus.Text = $"Could not embed map: {msg}";
+            BtnConfigureMap.Visibility = Visibility.Visible;
+            _mapHost.Stop();
+            MapContainer.Children.Remove(_mapHost);
+            _mapHost = null;
+        };
+
+        MapContainer.Children.Add(_mapHost);
+    }
+
+    private void OnConfigureMapClicked(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFolderDialog
+        {
+            Title = "Select the ToA_Delver_Map folder",
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        };
+        if (dlg.ShowDialog() == true)
+        {
+            _mapDir = dlg.FolderName;
+            // Reset and try again
+            if (_mapHost != null)
+            {
+                _mapHost.Stop();
+                MapContainer.Children.Remove(_mapHost);
+                _mapHost = null;
+            }
+            BtnConfigureMap.Visibility = Visibility.Collapsed;
+            MapPlaceholder.Visibility = Visibility.Visible;
+            StartMap();
+        }
+    }
+
+    private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        _mapHost?.Stop();
     }
 
     // ── Legend ────────────────────────────────────────────────────────
