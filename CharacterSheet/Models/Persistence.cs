@@ -49,7 +49,8 @@ public record CharacterDto(
     bool Hit5             = false,
     int  HeroPointsMax     = 50,
     int  HeroPointsCurrent = 50,
-    List<InventoryCategoryDto>? Inventory = null);
+    List<InventoryCategoryDto>? Inventory    = null,
+    List<string>?               SectionOrder = null);
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
@@ -110,7 +111,8 @@ public static class Persistence
         Inventory: s.Inventory.Select(c => new InventoryCategoryDto(
             c.Name,
             c.Items.Select(i => new InventoryItemDto(i.Name, i.Description)).ToList()
-        )).ToList());
+        )).ToList(),
+        SectionOrder: s.SectionOrder.Count > 0 ? [.. s.SectionOrder] : null);
 
     // ── Deserialise ───────────────────────────────────────────────────────────
 
@@ -188,6 +190,8 @@ public static class Persistence
 
         var sp = d.Spells ?? [];
         for (int i = 0; i < 3; i++) s.Spells.Add(i < sp.Count ? sp[i] : "");
+
+        s.SectionOrder = d.SectionOrder?.ToList() ?? [];
 
         foreach (var cat in d.Inventory ?? [])
         {

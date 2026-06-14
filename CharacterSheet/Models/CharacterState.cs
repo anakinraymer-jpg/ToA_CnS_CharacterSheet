@@ -223,10 +223,12 @@ public class CharacterState : INotifyPropertyChanged
     /// <summary>True when there is at least one Available Point left to spend on a skill rating increase.</summary>
     public bool CanSpendPoint => _heroPointsCurrent > 0;
 
-    public ObservableCollection<EquipData>       Equipment { get; set; } = [];
-    public ObservableCollection<SkillData>       Skills    { get; set; } = [];
-    public ObservableCollection<string>          Spells    { get; set; } = [];
-    public ObservableCollection<InventoryCategory> Inventory { get; set; } = [];
+    public ObservableCollection<EquipData>         Equipment    { get; set; } = [];
+    public ObservableCollection<SkillData>         Skills       { get; set; } = [];
+    public ObservableCollection<string>            Spells       { get; set; } = [];
+    public ObservableCollection<InventoryCategory> Inventory    { get; set; } = [];
+    /// <summary>Ordered section IDs as rearranged by the user. Empty = default order.</summary>
+    public List<string>                            SectionOrder { get; set; } = [];
 
     // ── Computed exclusion lists (used by SkillPickerBox.ExcludedValues) ─────
 

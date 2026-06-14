@@ -151,6 +151,15 @@
           <TextBlock Style="{StaticResource LegendNote}" Margin="0,3,0,0"
                      Text="Selecting one of these prompts for a specialization shown in brackets, e.g. Knowledge [History].  Leave blank to skip."/>
 
+          <!-- ── LAYOUT EDIT MODE ─────────────────────────────────── -->
+          <TextBlock Text="LAYOUT EDIT MODE" Style="{StaticResource LegendSection}"/>
+          <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>
+
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="≡ Layout (toolbar)"/><TextBlock Style="{StaticResource LegendVal}" Text="Toggle layout edit mode on / off"/></DockPanel>
+          <DockPanel Margin="0,2"><TextBlock Style="{StaticResource LegendKey}" Text="▲ / ▼ on section bar"/><TextBlock Style="{StaticResource LegendVal}" Text="Move that section up or down on the sheet"/></DockPanel>
+          <TextBlock Style="{StaticResource LegendNote}" Margin="0,3,0,0"
+                     Text="Order is saved automatically. Title and Identity are always fixed at the top."/>
+
           <!-- ── ADDING / REMOVING ROWS ────────────────────────────── -->
           <TextBlock Text="ADDING &amp; REMOVING ROWS" Style="{StaticResource LegendSection}"/>
           <Rectangle Height="1" Fill="#6B3A12" Opacity="0.4" Margin="0,0,0,4"/>

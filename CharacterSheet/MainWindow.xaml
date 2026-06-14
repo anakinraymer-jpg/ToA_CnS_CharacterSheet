@@ -46,6 +46,45 @@
           </Setter.Value>
         </Setter>
       </Style>
+
+      <!-- Toggle button that visually highlights when checked (used for Layout Edit mode) -->
+      <Style x:Key="CtrlToggleButton" TargetType="ToggleButton">
+        <Setter Property="FontFamily"      Value="Palatino Linotype"/>
+        <Setter Property="FontSize"        Value="14"/>
+        <Setter Property="Foreground"      Value="#D4A96A"/>
+        <Setter Property="Background"      Value="#2A1205"/>
+        <Setter Property="BorderBrush"     Value="#6B3A12"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding"         Value="10,8"/>
+        <Setter Property="Cursor"          Value="Hand"/>
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="ToggleButton">
+              <Border x:Name="bd"
+                      Background="{TemplateBinding Background}"
+                      BorderBrush="{TemplateBinding BorderBrush}"
+                      BorderThickness="{TemplateBinding BorderThickness}"
+                      CornerRadius="2">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="bd" Property="Background" Value="#3E1A08"/>
+                  <Setter Property="Foreground" Value="#F0C87A"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                  <Setter TargetName="bd" Property="Background" Value="#1A0A03"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                  <Setter TargetName="bd" Property="Background" Value="#5A2810"/>
+                  <Setter TargetName="bd" Property="BorderBrush" Value="#A05A20"/>
+                  <Setter Property="Foreground" Value="#F2C860"/>
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
     </ResourceDictionary>
   </Window.Resources>
 
@@ -79,6 +118,9 @@
       <Button x:Name="BtnZoomFit" Content="⊡ Fit" Padding="10,8"
               Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Fit to window  (Ctrl 0)"/>
       <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
+      <ToggleButton x:Name="BtnLayoutEdit" Content="≡ Layout" Padding="10,8"
+                    Style="{StaticResource CtrlToggleButton}" Margin="4,0"
+                    ToolTip="Toggle layout edit mode — reorder sheet sections"/>
       <Button x:Name="BtnLegend" Content="? Legend" Padding="10,8"
               Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Show keyboard shortcuts and control reference"/>
     </WrapPanel>
@@ -102,9 +144,9 @@
             <ScaleTransform x:Name="SheetScale" ScaleX="1" ScaleY="1"/>
           </Border.LayoutTransform>
 
-          <StackPanel Margin="32,26,32,28">
+          <StackPanel x:Name="SheetStack" Margin="32,26,32,28">
 
-            <!-- ─── TITLE ─────────────────────────────────────────── -->
+            <!-- ─── TITLE (fixed) ─────────────────────────────────── -->
             <TextBlock Text="CROWN &amp; SKULL"
                        FontFamily="Palatino Linotype" FontSize="26" FontWeight="Bold"
                        Foreground="{StaticResource RedBrush}"
@@ -114,7 +156,7 @@
                        Foreground="{StaticResource BrownBrush}"
                        HorizontalAlignment="Center" Margin="0,2,0,20"/>
 
-            <!-- ─── IDENTITY + PORTRAIT ───────────────────────────── -->
+            <!-- ─── IDENTITY + PORTRAIT (fixed) ─────────────────── -->
             <Grid Margin="0,0,0,4">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -161,419 +203,511 @@
               </Border>
             </Grid>
 
-            <!-- ─── FLAWS ──────────────────────────────────────────── -->
-            <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,14,0,10"/>
-            <TextBlock Text="FLAWS" Style="{StaticResource SectionHeader}"/>
-            <DockPanel Margin="0,3">
-              <TextBlock DockPanel.Dock="Left" Text="①" Width="20" Style="{StaticResource FieldLabel}"/>
-              <ctrl:SkillPickerBox
-                       SelectedSkill="{Binding Flaw1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntryKey="Flaw"
-                       ExcludedValues="{Binding SelectedFlaws}"/>
-            </DockPanel>
-            <DockPanel Margin="0,3">
-              <TextBlock DockPanel.Dock="Left" Text="②" Width="20" Style="{StaticResource FieldLabel}"/>
-              <ctrl:SkillPickerBox
-                       SelectedSkill="{Binding Flaw2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntryKey="Flaw"
-                       ExcludedValues="{Binding SelectedFlaws}"/>
-            </DockPanel>
-            <DockPanel Margin="0,3">
-              <TextBlock DockPanel.Dock="Left" Text="③" Width="20" Style="{StaticResource FieldLabel}"/>
-              <ctrl:SkillPickerBox
-                       SelectedSkill="{Binding Flaw3, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntryKey="Flaw"
-                       ExcludedValues="{Binding SelectedFlaws}"/>
-            </DockPanel>
-            <DockPanel Margin="0,3">
-              <TextBlock DockPanel.Dock="Left" Text="④" Width="20" Style="{StaticResource FieldLabel}"/>
-              <ctrl:SkillPickerBox
-                       SelectedSkill="{Binding Flaw4, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                       EntryKey="Flaw"
-                       ExcludedValues="{Binding SelectedFlaws}"/>
-            </DockPanel>
+            <!-- ═══════════════════════════════════════════════════════
+                 MOVABLE SECTIONS — each wrapped in a named StackPanel
+                 so they can be reordered in layout-edit mode.
+                 ═══════════════════════════════════════════════════════ -->
+
+            <!-- ─── FLAWS ─────────────────────────────────────────── -->
+            <StackPanel x:Name="SecFlaws" Tag="Flaws" Margin="0,14,0,0">
+              <Border x:Name="SecFlawsHandle" Visibility="Collapsed"
+                      Background="#445A2E0E" CornerRadius="2" Padding="8,5" Margin="0,0,0,6">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="▲" Tag="Flaws" Click="OnMoveSectionUp"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,0,0"/>
+                    <Button Content="▼" Tag="Flaws" Click="OnMoveSectionDown"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,4,0"/>
+                  </StackPanel>
+                  <TextBlock Text="≡  FLAWS"
+                             FontFamily="Palatino Linotype" FontSize="10.5" FontWeight="Bold"
+                             Foreground="{StaticResource BrownBrush}" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+              <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,0,0,10"/>
+              <TextBlock Text="FLAWS" Style="{StaticResource SectionHeader}"/>
+              <DockPanel Margin="0,3">
+                <TextBlock DockPanel.Dock="Left" Text="①" Width="20" Style="{StaticResource FieldLabel}"/>
+                <ctrl:SkillPickerBox
+                         SelectedSkill="{Binding Flaw1, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         EntryKey="Flaw"
+                         ExcludedValues="{Binding SelectedFlaws}"/>
+              </DockPanel>
+              <DockPanel Margin="0,3">
+                <TextBlock DockPanel.Dock="Left" Text="②" Width="20" Style="{StaticResource FieldLabel}"/>
+                <ctrl:SkillPickerBox
+                         SelectedSkill="{Binding Flaw2, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         EntryKey="Flaw"
+                         ExcludedValues="{Binding SelectedFlaws}"/>
+              </DockPanel>
+              <DockPanel Margin="0,3">
+                <TextBlock DockPanel.Dock="Left" Text="③" Width="20" Style="{StaticResource FieldLabel}"/>
+                <ctrl:SkillPickerBox
+                         SelectedSkill="{Binding Flaw3, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         EntryKey="Flaw"
+                         ExcludedValues="{Binding SelectedFlaws}"/>
+              </DockPanel>
+              <DockPanel Margin="0,3">
+                <TextBlock DockPanel.Dock="Left" Text="④" Width="20" Style="{StaticResource FieldLabel}"/>
+                <ctrl:SkillPickerBox
+                         SelectedSkill="{Binding Flaw4, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         EntryKey="Flaw"
+                         ExcludedValues="{Binding SelectedFlaws}"/>
+              </DockPanel>
+            </StackPanel>
 
             <!-- ─── CORE ABILITY ──────────────────────────────────── -->
-            <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,14,0,10"/>
-            <TextBlock Text="CORE ABILITY" Style="{StaticResource SectionHeader}"/>
-            <ctrl:SkillPickerBox
-                     SelectedSkill="{Binding CoreAbility, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     EntryKey="CoreAbility"/>
-
-            <!-- ─── SUMMARY ────────────────────────────────────────── -->
-            <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,14,0,10"/>
-            <TextBlock Text="SUMMARY" Style="{StaticResource SectionHeader}"/>
-            <TextBox Style="{StaticResource SummaryTextBox}"
-                     Text="{Binding Summary, UpdateSourceTrigger=PropertyChanged}"/>
-
-            <!-- ─── DEFENSE &amp; HIT TRACKER ──────────────────── -->
-            <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,14,0,10"/>
-            <Grid>
-              <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>  <!-- labels -->
-                <RowDefinition Height="Auto"/>  <!-- controls -->
-              </Grid.RowDefinitions>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>  <!-- shield -->
-                <ColumnDefinition Width="*"/>     <!-- bar centred in remaining space -->
-                <ColumnDefinition Width="Auto"/>  <!-- circle -->
-              </Grid.ColumnDefinitions>
-
-              <!-- ── Labels ── -->
-              <TextBlock Grid.Row="0" Grid.Column="0" Text="DEFENSE"
-                         Style="{StaticResource FieldLabel}"
-                         HorizontalAlignment="Center" Margin="0,0,0,4"/>
-              <TextBlock Grid.Row="0" Grid.Column="1" Text="PHASE"
-                         Style="{StaticResource FieldLabel}"
-                         HorizontalAlignment="Center" Margin="0,0,0,4"/>
-              <TextBlock Grid.Row="0" Grid.Column="2" Text="HERO POINTS"
-                         Style="{StaticResource FieldLabel}"
-                         HorizontalAlignment="Center" Margin="0,0,0,4"/>
-
-              <!-- Shield — left-click +1, right-click −1, range 6-18; Bonus = active armor sum -->
-              <ctrl:ShieldCounter Grid.Row="1" Grid.Column="0"
-                                  Value="{Binding DefenseBase, Mode=TwoWay}"
-                                  Bonus="{Binding ArmorBonus}"
-                                  VerticalAlignment="Center"/>
-
-              <!-- 5-section hit tracker -->
-              <Border Grid.Row="1" Grid.Column="1"
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Center"
-                      BorderBrush="#5A2E0E" BorderThickness="1" CornerRadius="2">
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="52"/>
-                    <ColumnDefinition Width="1"/>
-                    <ColumnDefinition Width="52"/>
-                    <ColumnDefinition Width="1"/>
-                    <ColumnDefinition Width="52"/>
-                    <ColumnDefinition Width="1"/>
-                    <ColumnDefinition Width="52"/>
-                    <ColumnDefinition Width="1"/>
-                    <ColumnDefinition Width="52"/>
-                  </Grid.ColumnDefinitions>
-
-                  <ctrl:HitSegment Grid.Column="0" Number="1" IsMarked="{Binding Hit1, Mode=TwoWay}"/>
-                  <Rectangle      Grid.Column="1" Fill="#5A2E0E"/>
-                  <ctrl:HitSegment Grid.Column="2" Number="2" IsMarked="{Binding Hit2, Mode=TwoWay}"/>
-                  <Rectangle      Grid.Column="3" Fill="#5A2E0E"/>
-                  <ctrl:HitSegment Grid.Column="4" Number="3" IsMarked="{Binding Hit3, Mode=TwoWay}"/>
-                  <Rectangle      Grid.Column="5" Fill="#5A2E0E"/>
-                  <ctrl:HitSegment Grid.Column="6" Number="4" IsMarked="{Binding Hit4, Mode=TwoWay}"/>
-                  <Rectangle      Grid.Column="7" Fill="#5A2E0E"/>
-                  <ctrl:HitSegment Grid.Column="8" Number="5" IsMarked="{Binding Hit5, Mode=TwoWay}"/>
-                </Grid>
-              </Border>
-
-              <!-- Hero Points circle — top half: max (≥50); bottom half: current -->
-              <ctrl:HeroPointCircle Grid.Row="1" Grid.Column="2"
-                                    MaxPoints="{Binding HeroPointsMax, Mode=TwoWay}"
-                                    CurrentPoints="{Binding HeroPointsCurrent, Mode=TwoWay}"
-                                    VerticalAlignment="Center"/>
-            </Grid>
-
-            <!-- ─── EQUIPMENT &amp; SKILLS ────────────────────────── -->
-            <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,20,0,10"/>
-            <TextBlock Text="EQUIPMENT &amp; SKILLS" Style="{StaticResource SectionHeader}"/>
-
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>   <!-- equipment side -->
-                <ColumnDefinition Width="1"/>   <!-- divider -->
-                <ColumnDefinition Width="*"/>   <!-- skill side -->
-              </Grid.ColumnDefinitions>
-
-              <!-- ── EQUIPMENT ──────────────────────────────────────── -->
-              <StackPanel Grid.Column="0" Margin="0,0,8,0">
-
-                <!-- Equipment header -->
-                <DockPanel Margin="0,0,0,2">
-                  <Button x:Name="BtnAddEquip" DockPanel.Dock="Left"
-                          Content="+" Style="{StaticResource AddButton}"
-                          ToolTip="Add equipment" Margin="0,0,4,0"/>
-                  <TextBlock Text="EQUIPMENT" Style="{StaticResource FieldLabel}" Margin="0"/>
+            <StackPanel x:Name="SecCoreAbility" Tag="CoreAbility" Margin="0,14,0,0">
+              <Border x:Name="SecCoreAbilityHandle" Visibility="Collapsed"
+                      Background="#445A2E0E" CornerRadius="2" Padding="8,5" Margin="0,0,0,6">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="▲" Tag="CoreAbility" Click="OnMoveSectionUp"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,0,0"/>
+                    <Button Content="▼" Tag="CoreAbility" Click="OnMoveSectionDown"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,4,0"/>
+                  </StackPanel>
+                  <TextBlock Text="≡  CORE ABILITY"
+                             FontFamily="Palatino Linotype" FontSize="10.5" FontWeight="Bold"
+                             Foreground="{StaticResource BrownBrush}" VerticalAlignment="Center"/>
                 </DockPanel>
+              </Border>
+              <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,0,0,10"/>
+              <TextBlock Text="CORE ABILITY" Style="{StaticResource SectionHeader}"/>
+              <ctrl:SkillPickerBox
+                       SelectedSkill="{Binding CoreAbility, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                       EntryKey="CoreAbility"/>
+            </StackPanel>
 
-                <!-- Equipment rows -->
-                <ItemsControl ItemsSource="{Binding Equipment}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border BorderBrush="#28000000" BorderThickness="0,0,0,1" Padding="0,5">
-                        <Grid>
-                          <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                            <ColumnDefinition Width="20"/>
-                          </Grid.ColumnDefinitions>
+            <!-- ─── SUMMARY ───────────────────────────────────────── -->
+            <StackPanel x:Name="SecSummary" Tag="Summary" Margin="0,14,0,0">
+              <Border x:Name="SecSummaryHandle" Visibility="Collapsed"
+                      Background="#445A2E0E" CornerRadius="2" Padding="8,5" Margin="0,0,0,6">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="▲" Tag="Summary" Click="OnMoveSectionUp"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,0,0"/>
+                    <Button Content="▼" Tag="Summary" Click="OnMoveSectionDown"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,4,0"/>
+                  </StackPanel>
+                  <TextBlock Text="≡  SUMMARY"
+                             FontFamily="Palatino Linotype" FontSize="10.5" FontWeight="Bold"
+                             Foreground="{StaticResource BrownBrush}" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+              <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,0,0,10"/>
+              <TextBlock Text="SUMMARY" Style="{StaticResource SectionHeader}"/>
+              <TextBox Style="{StaticResource SummaryTextBox}"
+                       Text="{Binding Summary, UpdateSourceTrigger=PropertyChanged}"/>
+            </StackPanel>
 
-                          <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0">
-                            <!-- Name row: equipment name (strikethrough when attritioned) + AC badge -->
-                            <Grid>
-                              <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                              </Grid.ColumnDefinitions>
+            <!-- ─── DEFENSE &amp; HIT TRACKER ────────────────────── -->
+            <StackPanel x:Name="SecDefense" Tag="Defense" Margin="0,14,0,0">
+              <Border x:Name="SecDefenseHandle" Visibility="Collapsed"
+                      Background="#445A2E0E" CornerRadius="2" Padding="8,5" Margin="0,0,0,6">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="▲" Tag="Defense" Click="OnMoveSectionUp"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,0,0"/>
+                    <Button Content="▼" Tag="Defense" Click="OnMoveSectionDown"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,4,0"/>
+                  </StackPanel>
+                  <TextBlock Text="≡  DEFENSE &amp; HIT TRACKER"
+                             FontFamily="Palatino Linotype" FontSize="10.5" FontWeight="Bold"
+                             Foreground="{StaticResource BrownBrush}" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+              <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,0,0,10"/>
+              <Grid>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto"/>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-                              <TextBox Grid.Column="0"
-                                       Text="{Binding EquipName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="DEFENSE"
+                           Style="{StaticResource FieldLabel}"
+                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" Text="PHASE"
+                           Style="{StaticResource FieldLabel}"
+                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock Grid.Row="0" Grid.Column="2" Text="HERO POINTS"
+                           Style="{StaticResource FieldLabel}"
+                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+
+                <ctrl:ShieldCounter Grid.Row="1" Grid.Column="0"
+                                    Value="{Binding DefenseBase, Mode=TwoWay}"
+                                    Bonus="{Binding ArmorBonus}"
+                                    VerticalAlignment="Center"/>
+
+                <Border Grid.Row="1" Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        BorderBrush="#5A2E0E" BorderThickness="1" CornerRadius="2">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="52"/>
+                      <ColumnDefinition Width="1"/>
+                      <ColumnDefinition Width="52"/>
+                      <ColumnDefinition Width="1"/>
+                      <ColumnDefinition Width="52"/>
+                      <ColumnDefinition Width="1"/>
+                      <ColumnDefinition Width="52"/>
+                      <ColumnDefinition Width="1"/>
+                      <ColumnDefinition Width="52"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ctrl:HitSegment Grid.Column="0" Number="1" IsMarked="{Binding Hit1, Mode=TwoWay}"/>
+                    <Rectangle      Grid.Column="1" Fill="#5A2E0E"/>
+                    <ctrl:HitSegment Grid.Column="2" Number="2" IsMarked="{Binding Hit2, Mode=TwoWay}"/>
+                    <Rectangle      Grid.Column="3" Fill="#5A2E0E"/>
+                    <ctrl:HitSegment Grid.Column="4" Number="3" IsMarked="{Binding Hit3, Mode=TwoWay}"/>
+                    <Rectangle      Grid.Column="5" Fill="#5A2E0E"/>
+                    <ctrl:HitSegment Grid.Column="6" Number="4" IsMarked="{Binding Hit4, Mode=TwoWay}"/>
+                    <Rectangle      Grid.Column="7" Fill="#5A2E0E"/>
+                    <ctrl:HitSegment Grid.Column="8" Number="5" IsMarked="{Binding Hit5, Mode=TwoWay}"/>
+                  </Grid>
+                </Border>
+
+                <ctrl:HeroPointCircle Grid.Row="1" Grid.Column="2"
+                                      MaxPoints="{Binding HeroPointsMax, Mode=TwoWay}"
+                                      CurrentPoints="{Binding HeroPointsCurrent, Mode=TwoWay}"
+                                      VerticalAlignment="Center"/>
+              </Grid>
+            </StackPanel>
+
+            <!-- ─── EQUIPMENT &amp; SKILLS ───────────────────────── -->
+            <StackPanel x:Name="SecEquipSkills" Tag="EquipSkills" Margin="0,20,0,0">
+              <Border x:Name="SecEquipSkillsHandle" Visibility="Collapsed"
+                      Background="#445A2E0E" CornerRadius="2" Padding="8,5" Margin="0,0,0,6">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="▲" Tag="EquipSkills" Click="OnMoveSectionUp"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,0,0"/>
+                    <Button Content="▼" Tag="EquipSkills" Click="OnMoveSectionDown"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,4,0"/>
+                  </StackPanel>
+                  <TextBlock Text="≡  EQUIPMENT &amp; SKILLS"
+                             FontFamily="Palatino Linotype" FontSize="10.5" FontWeight="Bold"
+                             Foreground="{StaticResource BrownBrush}" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+              <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,0,0,10"/>
+              <TextBlock Text="EQUIPMENT &amp; SKILLS" Style="{StaticResource SectionHeader}"/>
+
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*"/>
+                  <ColumnDefinition Width="1"/>
+                  <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- ── EQUIPMENT ─────────────────────────────────── -->
+                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                  <DockPanel Margin="0,0,0,2">
+                    <Button x:Name="BtnAddEquip" DockPanel.Dock="Left"
+                            Content="+" Style="{StaticResource AddButton}"
+                            ToolTip="Add equipment" Margin="0,0,4,0"/>
+                    <TextBlock Text="EQUIPMENT" Style="{StaticResource FieldLabel}" Margin="0"/>
+                  </DockPanel>
+
+                  <ItemsControl ItemsSource="{Binding Equipment}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border BorderBrush="#28000000" BorderThickness="0,0,0,1" Padding="0,5">
+                          <Grid>
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="*"/>
+                              <ColumnDefinition Width="28"/>
+                              <ColumnDefinition Width="20"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0">
+                              <Grid>
+                                <Grid.ColumnDefinitions>
+                                  <ColumnDefinition Width="*"/>
+                                  <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBox Grid.Column="0"
+                                         Text="{Binding EquipName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                                  <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource RowNameTextBox}">
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding EquipUsed}" Value="True">
+                                          <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBox.Style>
+                                </TextBox>
+
+                                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                            VerticalAlignment="Center" Margin="5,0,0,0">
+                                  <TextBlock Text="AC"
+                                             FontFamily="Palatino Linotype" FontSize="8"
+                                             Foreground="#885A2E0E" VerticalAlignment="Center"
+                                             Margin="0,0,2,0"/>
+                                  <TextBox Width="26"
+                                           Text="{Binding ArmorValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                           FontFamily="Palatino Linotype" FontSize="10"
+                                           Foreground="#5A2E0E" Background="Transparent"
+                                           BorderThickness="0,0,0,1" BorderBrush="#885A2E0E"
+                                           VerticalAlignment="Center" TextAlignment="Center"
+                                           ToolTip="Armor value — adds to Defense when not attritioned"/>
+                                </StackPanel>
+                              </Grid>
+
+                              <TextBox Style="{StaticResource RowSubTextBox}"
+                                       Text="{Binding EquipSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+
+                            <ctrl:AdvCircle Grid.Column="1" Width="20" Height="20"
+                                            VerticalAlignment="Center"
+                                            IsChecked="{Binding EquipUsed, Mode=TwoWay}"/>
+
+                            <Button Grid.Column="2" Content="×"
+                                    Style="{StaticResource RemoveButton}"
+                                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Click="OnRemoveEquipClicked"
+                                    ToolTip="Remove this equipment"/>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+
+                <Rectangle Grid.Column="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.4"/>
+
+                <!-- ── SKILLS ──────────────────────────────────────── -->
+                <StackPanel Grid.Column="2" Margin="8,0,0,0">
+                  <Grid Margin="0,0,0,2">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/>
+                      <ColumnDefinition Width="28"/>
+                      <ColumnDefinition Width="44"/>
+                      <ColumnDefinition Width="20"/>
+                    </Grid.ColumnDefinitions>
+                    <DockPanel Grid.Column="0">
+                      <TextBlock DockPanel.Dock="Left" Text="SKILL"
+                                 Style="{StaticResource FieldLabel}" Margin="0"/>
+                      <Button x:Name="BtnAddSkill" DockPanel.Dock="Left"
+                              Content="+" Style="{StaticResource AddButton}"
+                              ToolTip="Add skill" Margin="4,0,0,0"/>
+                    </DockPanel>
+                  </Grid>
+
+                  <ItemsControl ItemsSource="{Binding Skills}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Border BorderBrush="#28000000" BorderThickness="0,0,0,1" Padding="0,5">
+                          <Grid>
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="*"/>
+                              <ColumnDefinition Width="28"/>
+                              <ColumnDefinition Width="44"/>
+                              <ColumnDefinition Width="20"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0">
+                              <Grid>
+                                <ctrl:SkillPickerBox
+                                         SelectedSkill="{Binding SkillName, Mode=TwoWay}"
+                                         ExcludedValues="{Binding DataContext.SelectedSkillNames,
+                                                          RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Rectangle VerticalAlignment="Center" Height="1.5"
+                                           Fill="#5A2E0E" IsHitTestVisible="False">
+                                  <Rectangle.Style>
+                                    <Style TargetType="Rectangle">
+                                      <Setter Property="Visibility" Value="Collapsed"/>
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SkillAdv}" Value="True">
+                                          <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </Rectangle.Style>
+                                </Rectangle>
+                              </Grid>
+                              <TextBox Style="{StaticResource RowSubTextBox}"
+                                       Text="{Binding SkillSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+
+                            <ctrl:AdvCircle Grid.Column="1" Width="20" Height="20"
+                                            VerticalAlignment="Center"
+                                            IsChecked="{Binding SkillAdv, Mode=TwoWay}"/>
+
+                            <ctrl:DieBubble Grid.Column="2" Width="36" Height="36"
+                                            VerticalAlignment="Center"
+                                            Value="{Binding SkillRating, Mode=TwoWay}"
+                                            HasSkill="{Binding HasSkill}"
+                                            MinValue="{Binding MinRating}"
+                                            Step="{Binding RatingStep}"
+                                            IsLocked="{Binding IsLocked}"
+                                            CanIncrease="{Binding DataContext.CanSpendPoint,
+                                                          RelativeSource={RelativeSource AncestorType=Window}}"/>
+
+                            <Button Grid.Column="3" Content="×"
+                                    Style="{StaticResource RemoveButton}"
+                                    VerticalAlignment="Center" HorizontalAlignment="Center"
+                                    Click="OnRemoveSkillClicked"
+                                    ToolTip="Remove this skill"/>
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Grid>
+            </StackPanel>
+
+            <!-- ─── SPELLS ────────────────────────────────────────── -->
+            <StackPanel x:Name="SecSpells" Tag="Spells" Margin="0,20,0,0">
+              <Border x:Name="SecSpellsHandle" Visibility="Collapsed"
+                      Background="#445A2E0E" CornerRadius="2" Padding="8,5" Margin="0,0,0,6">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="▲" Tag="Spells" Click="OnMoveSectionUp"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,0,0"/>
+                    <Button Content="▼" Tag="Spells" Click="OnMoveSectionDown"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,4,0"/>
+                  </StackPanel>
+                  <TextBlock Text="≡  SPELLS"
+                             FontFamily="Palatino Linotype" FontSize="10.5" FontWeight="Bold"
+                             Foreground="{StaticResource BrownBrush}" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+              <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,0,0,10"/>
+              <TextBlock Text="SPELLS" Style="{StaticResource SectionHeader}"/>
+              <DockPanel Margin="0,4">
+                <TextBlock DockPanel.Dock="Left" Text="①" Width="20" Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="TbSpell0" Style="{StaticResource HdrTextBox}"/>
+              </DockPanel>
+              <DockPanel Margin="0,4">
+                <TextBlock DockPanel.Dock="Left" Text="②" Width="20" Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="TbSpell1" Style="{StaticResource HdrTextBox}"/>
+              </DockPanel>
+              <DockPanel Margin="0,4">
+                <TextBlock DockPanel.Dock="Left" Text="③" Width="20" Style="{StaticResource FieldLabel}"/>
+                <TextBox x:Name="TbSpell2" Style="{StaticResource HdrTextBox}"/>
+              </DockPanel>
+            </StackPanel>
+
+            <!-- ─── INVENTORY ─────────────────────────────────────── -->
+            <StackPanel x:Name="SecInventory" Tag="Inventory" Margin="0,20,0,0">
+              <Border x:Name="SecInventoryHandle" Visibility="Collapsed"
+                      Background="#445A2E0E" CornerRadius="2" Padding="8,5" Margin="0,0,0,6">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="▲" Tag="Inventory" Click="OnMoveSectionUp"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,0,0"/>
+                    <Button Content="▼" Tag="Inventory" Click="OnMoveSectionDown"
+                            Style="{StaticResource InvRowButton}" Width="22" Height="22" FontSize="12" Margin="2,0,4,0"/>
+                  </StackPanel>
+                  <TextBlock Text="≡  INVENTORY"
+                             FontFamily="Palatino Linotype" FontSize="10.5" FontWeight="Bold"
+                             Foreground="{StaticResource BrownBrush}" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+              <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,0,0,10"/>
+              <DockPanel Margin="0,0,0,8">
+                <Button DockPanel.Dock="Right" x:Name="BtnAddCategory"
+                        Content="+" Style="{StaticResource AddButton}"
+                        ToolTip="Add category" Margin="0,0,2,0"/>
+                <TextBlock Text="INVENTORY" Style="{StaticResource SectionHeader}" Margin="0"/>
+              </DockPanel>
+
+              <ItemsControl ItemsSource="{Binding Inventory}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Margin="0,0,0,12">
+                      <DockPanel Margin="0,0,0,2">
+                        <Button DockPanel.Dock="Right" Content="×"
+                                Style="{StaticResource RemoveButton}"
+                                Click="OnRemoveCategoryClick"
+                                ToolTip="Remove category" Margin="4,0,0,0"/>
+                        <Button DockPanel.Dock="Right" Content="▼"
+                                Style="{StaticResource InvRowButton}"
+                                Click="OnMoveCategoryDownClick"
+                                ToolTip="Move category down" Margin="2,0,0,0"/>
+                        <Button DockPanel.Dock="Right" Content="▲"
+                                Style="{StaticResource InvRowButton}"
+                                Click="OnMoveCategoryUpClick"
+                                ToolTip="Move category up" Margin="2,0,0,0"/>
+                        <Button DockPanel.Dock="Right" Content="+"
+                                Style="{StaticResource AddButton}"
+                                Click="OnAddInventoryItemClick"
+                                ToolTip="Add item to this category" Margin="6,0,0,0"/>
+                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource HdrTextBox}"
+                                 FontSize="13" FontWeight="Bold"/>
+                      </DockPanel>
+                      <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}"
+                                 Opacity="0.3" Margin="0,0,0,3"/>
+
+                      <ItemsControl ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <StackPanel Margin="10,1,0,1">
+                              <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="×"
+                                        Style="{StaticResource RemoveButton}"
+                                        Click="OnRemoveInventoryItemClick"
+                                        ToolTip="Remove item" Margin="4,0,0,0"/>
+                                <Button DockPanel.Dock="Right" Content="▼"
+                                        Style="{StaticResource InvRowButton}"
+                                        Click="OnMoveItemDownClick"
+                                        ToolTip="Move item down" Margin="2,0,0,0"/>
+                                <Button DockPanel.Dock="Right" Content="▲"
+                                        Style="{StaticResource InvRowButton}"
+                                        Click="OnMoveItemUpClick"
+                                        ToolTip="Move item up" Margin="2,0,0,0"/>
+                                <Button DockPanel.Dock="Right" Content="✎"
+                                        Style="{StaticResource InvRowButton}"
+                                        Click="OnToggleItemEditClick"
+                                        ToolTip="Edit description" Margin="4,0,0,0"
+                                        FontSize="11"/>
+                                <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                         Style="{StaticResource RowNameTextBox}"
+                                         ToolTip="{Binding Description}"
+                                         FontSize="14"/>
+                              </DockPanel>
+                              <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
+                                       TextWrapping="Wrap" AcceptsReturn="True"
+                                       MinHeight="44" MaxHeight="120"
+                                       Margin="0,3,0,5" Padding="6,4"
+                                       FontFamily="Segoe UI" FontSize="13"
+                                       Background="#0A5A2E0E"
+                                       Foreground="{StaticResource InkBrush}"
+                                       BorderBrush="{StaticResource BrownLtBrush}"
+                                       BorderThickness="1" CaretBrush="{StaticResource BrownBrush}"
+                                       SelectionBrush="#445A2E0E"
+                                       VerticalScrollBarVisibility="Auto">
                                 <TextBox.Style>
-                                  <Style TargetType="TextBox" BasedOn="{StaticResource RowNameTextBox}">
+                                  <Style TargetType="TextBox">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
                                     <Style.Triggers>
-                                      <DataTrigger Binding="{Binding EquipUsed}" Value="True">
-                                        <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                      <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                        <Setter Property="Visibility" Value="Visible"/>
                                       </DataTrigger>
                                     </Style.Triggers>
                                   </Style>
                                 </TextBox.Style>
                               </TextBox>
-
-                              <!-- Armor value: label + editable textbox, always visible -->
-                              <StackPanel Grid.Column="1" Orientation="Horizontal"
-                                          VerticalAlignment="Center" Margin="5,0,0,0">
-                                <TextBlock Text="AC"
-                                           FontFamily="Palatino Linotype" FontSize="8"
-                                           Foreground="#885A2E0E" VerticalAlignment="Center"
-                                           Margin="0,0,2,0"/>
-                                <TextBox Width="26"
-                                         Text="{Binding ArmorValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                         FontFamily="Palatino Linotype" FontSize="10"
-                                         Foreground="#5A2E0E" Background="Transparent"
-                                         BorderThickness="0,0,0,1" BorderBrush="#885A2E0E"
-                                         VerticalAlignment="Center" TextAlignment="Center"
-                                         ToolTip="Armor value — adds to Defense when not attritioned"/>
-                              </StackPanel>
-                            </Grid>
-
-                            <TextBox Style="{StaticResource RowSubTextBox}"
-                                     Text="{Binding EquipSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                          </StackPanel>
-
-                          <ctrl:AdvCircle Grid.Column="1" Width="20" Height="20"
-                                          VerticalAlignment="Center"
-                                          IsChecked="{Binding EquipUsed, Mode=TwoWay}"/>
-
-                          <Button Grid.Column="2" Content="×"
-                                  Style="{StaticResource RemoveButton}"
-                                  VerticalAlignment="Center" HorizontalAlignment="Center"
-                                  Click="OnRemoveEquipClicked"
-                                  ToolTip="Remove this equipment"/>
-                        </Grid>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-              </StackPanel>
-
-              <!-- Vertical divider -->
-              <Rectangle Grid.Column="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.4"/>
-
-              <!-- ── SKILLS ─────────────────────────────────────────── -->
-              <StackPanel Grid.Column="2" Margin="8,0,0,0">
-
-                <!-- Skill header -->
-                <Grid Margin="0,0,0,2">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="28"/>
-                    <ColumnDefinition Width="44"/>
-                    <ColumnDefinition Width="20"/>
-                  </Grid.ColumnDefinitions>
-
-                  <DockPanel Grid.Column="0">
-                    <TextBlock DockPanel.Dock="Left" Text="SKILL"
-                               Style="{StaticResource FieldLabel}" Margin="0"/>
-                    <Button x:Name="BtnAddSkill" DockPanel.Dock="Left"
-                            Content="+" Style="{StaticResource AddButton}"
-                            ToolTip="Add skill" Margin="4,0,0,0"/>
-                  </DockPanel>
-
-                </Grid>
-
-                <!-- Skill rows -->
-                <ItemsControl ItemsSource="{Binding Skills}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Border BorderBrush="#28000000" BorderThickness="0,0,0,1" Padding="0,5">
-                        <Grid>
-                          <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                            <ColumnDefinition Width="44"/>
-                            <ColumnDefinition Width="20"/>
-                          </Grid.ColumnDefinitions>
-
-                          <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,4,0">
-                            <!-- Skill name with strikethrough overlay when SkillAdv (Attrition) is marked -->
-                            <Grid>
-                              <ctrl:SkillPickerBox
-                                       SelectedSkill="{Binding SkillName, Mode=TwoWay}"
-                                       ExcludedValues="{Binding DataContext.SelectedSkillNames,
-                                                        RelativeSource={RelativeSource AncestorType=Window}}"/>
-                              <Rectangle VerticalAlignment="Center" Height="1.5"
-                                         Fill="#5A2E0E" IsHitTestVisible="False">
-                                <Rectangle.Style>
-                                  <Style TargetType="Rectangle">
-                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                    <Style.Triggers>
-                                      <DataTrigger Binding="{Binding SkillAdv}" Value="True">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                      </DataTrigger>
-                                    </Style.Triggers>
-                                  </Style>
-                                </Rectangle.Style>
-                              </Rectangle>
-                            </Grid>
-                            <TextBox Style="{StaticResource RowSubTextBox}"
-                                     Text="{Binding SkillSub, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                          </StackPanel>
-
-                          <ctrl:AdvCircle Grid.Column="1" Width="20" Height="20"
-                                          VerticalAlignment="Center"
-                                          IsChecked="{Binding SkillAdv, Mode=TwoWay}"/>
-
-                          <ctrl:DieBubble Grid.Column="2" Width="36" Height="36"
-                                          VerticalAlignment="Center"
-                                          Value="{Binding SkillRating, Mode=TwoWay}"
-                                          HasSkill="{Binding HasSkill}"
-                                          MinValue="{Binding MinRating}"
-                                          Step="{Binding RatingStep}"
-                                          IsLocked="{Binding IsLocked}"
-                                          CanIncrease="{Binding DataContext.CanSpendPoint,
-                                                        RelativeSource={RelativeSource AncestorType=Window}}"/>
-
-                          <Button Grid.Column="3" Content="×"
-                                  Style="{StaticResource RemoveButton}"
-                                  VerticalAlignment="Center" HorizontalAlignment="Center"
-                                  Click="OnRemoveSkillClicked"
-                                  ToolTip="Remove this skill"/>
-                        </Grid>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-              </StackPanel>
-
-            </Grid>
-
-            <!-- ─── SPELLS ─────────────────────────────────────────── -->
-            <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,20,0,10"/>
-            <TextBlock Text="SPELLS" Style="{StaticResource SectionHeader}"/>
-            <DockPanel Margin="0,4">
-              <TextBlock DockPanel.Dock="Left" Text="①" Width="20" Style="{StaticResource FieldLabel}"/>
-              <TextBox x:Name="TbSpell0" Style="{StaticResource HdrTextBox}"/>
-            </DockPanel>
-            <DockPanel Margin="0,4">
-              <TextBlock DockPanel.Dock="Left" Text="②" Width="20" Style="{StaticResource FieldLabel}"/>
-              <TextBox x:Name="TbSpell1" Style="{StaticResource HdrTextBox}"/>
-            </DockPanel>
-            <DockPanel Margin="0,4">
-              <TextBlock DockPanel.Dock="Left" Text="③" Width="20" Style="{StaticResource FieldLabel}"/>
-              <TextBox x:Name="TbSpell2" Style="{StaticResource HdrTextBox}"/>
-            </DockPanel>
-
-            <!-- ─── INVENTORY ─────────────────────────────────────────── -->
-            <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,20,0,10"/>
-            <DockPanel Margin="0,0,0,8">
-              <Button DockPanel.Dock="Right" x:Name="BtnAddCategory"
-                      Content="+" Style="{StaticResource AddButton}"
-                      ToolTip="Add category" Margin="0,0,2,0"/>
-              <TextBlock Text="INVENTORY" Style="{StaticResource SectionHeader}" Margin="0"/>
-            </DockPanel>
-
-            <ItemsControl ItemsSource="{Binding Inventory}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <StackPanel Margin="0,0,0,12">
-
-                    <!-- Category header row -->
-                    <DockPanel Margin="0,0,0,2">
-                      <Button DockPanel.Dock="Right" Content="×"
-                              Style="{StaticResource RemoveButton}"
-                              Click="OnRemoveCategoryClick"
-                              ToolTip="Remove category" Margin="4,0,0,0"/>
-                      <Button DockPanel.Dock="Right" Content="▼"
-                              Style="{StaticResource InvRowButton}"
-                              Click="OnMoveCategoryDownClick"
-                              ToolTip="Move category down" Margin="2,0,0,0"/>
-                      <Button DockPanel.Dock="Right" Content="▲"
-                              Style="{StaticResource InvRowButton}"
-                              Click="OnMoveCategoryUpClick"
-                              ToolTip="Move category up" Margin="2,0,0,0"/>
-                      <Button DockPanel.Dock="Right" Content="+"
-                              Style="{StaticResource AddButton}"
-                              Click="OnAddInventoryItemClick"
-                              ToolTip="Add item to this category" Margin="6,0,0,0"/>
-                      <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                               Style="{StaticResource HdrTextBox}"
-                               FontSize="13" FontWeight="Bold"/>
-                    </DockPanel>
-                    <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}"
-                               Opacity="0.3" Margin="0,0,0,3"/>
-
-                    <!-- Items in this category -->
-                    <ItemsControl ItemsSource="{Binding Items}">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                          <StackPanel Margin="10,1,0,1">
-                            <!-- Item name row -->
-                            <DockPanel>
-                              <Button DockPanel.Dock="Right" Content="×"
-                                      Style="{StaticResource RemoveButton}"
-                                      Click="OnRemoveInventoryItemClick"
-                                      ToolTip="Remove item" Margin="4,0,0,0"/>
-                              <Button DockPanel.Dock="Right" Content="▼"
-                                      Style="{StaticResource InvRowButton}"
-                                      Click="OnMoveItemDownClick"
-                                      ToolTip="Move item down" Margin="2,0,0,0"/>
-                              <Button DockPanel.Dock="Right" Content="▲"
-                                      Style="{StaticResource InvRowButton}"
-                                      Click="OnMoveItemUpClick"
-                                      ToolTip="Move item up" Margin="2,0,0,0"/>
-                              <Button DockPanel.Dock="Right" Content="✎"
-                                      Style="{StaticResource InvRowButton}"
-                                      Click="OnToggleItemEditClick"
-                                      ToolTip="Edit description" Margin="4,0,0,0"
-                                      FontSize="11"/>
-                              <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                                       Style="{StaticResource RowNameTextBox}"
-                                       ToolTip="{Binding Description}"
-                                       FontSize="14"/>
-                            </DockPanel>
-                            <!-- Description (revealed by ✎) -->
-                            <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
-                                     TextWrapping="Wrap" AcceptsReturn="True"
-                                     MinHeight="44" MaxHeight="120"
-                                     Margin="0,3,0,5" Padding="6,4"
-                                     FontFamily="Segoe UI" FontSize="13"
-                                     Background="#0A5A2E0E"
-                                     Foreground="{StaticResource InkBrush}"
-                                     BorderBrush="{StaticResource BrownLtBrush}"
-                                     BorderThickness="1" CaretBrush="{StaticResource BrownBrush}"
-                                     SelectionBrush="#445A2E0E"
-                                     VerticalScrollBarVisibility="Auto">
-                              <TextBox.Style>
-                                <Style TargetType="TextBox">
-                                  <Setter Property="Visibility" Value="Collapsed"/>
-                                  <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                      <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                  </Style.Triggers>
-                                </Style>
-                              </TextBox.Style>
-                            </TextBox>
-                          </StackPanel>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                  </StackPanel>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                            </StackPanel>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
 
           </StackPanel>
         </Border>

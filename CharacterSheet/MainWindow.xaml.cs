@@ -50,6 +50,14 @@ public partial class MainWindow : Window
     // ── Legend window (single modeless instance) ──────────────────────
     private LegendWindow? _legendWindow;
 
+    // ── Layout edit mode ──────────────────────────────────────────────
+    private bool _isEditMode;
+    private StackPanel[] _sectionPanels  = null!;
+    private Border[]     _sectionHandles = null!;
+
+    private static readonly string[] DefaultSectionOrder =
+        ["Flaws", "CoreAbility", "Summary", "Defense", "EquipSkills", "Spells", "Inventory"];
+
     // ── AP helpers ────────────────────────────────────────────────────
 
     private static int ApCostForAdd(SkillData sk)
@@ -81,6 +89,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _sectionPanels  = [SecFlaws, SecCoreAbility, SecSummary, SecDefense, SecEquipSkills, SecSpells, SecInventory];
+        _sectionHandles = [SecFlawsHandle, SecCoreAbilityHandle, SecSummaryHandle, SecDefenseHandle, SecEquipSkillsHandle, SecSpellsHandle, SecInventoryHandle];
         WireUiEvents();
         LoadState(Persistence.Load());
         Loaded += (_, _) => FitToWindow();
@@ -99,6 +109,8 @@ public partial class MainWindow : Window
         BtnZoomOut.Click += (_, _) => ZoomAroundCenter(_zoom - ZoomStep);
         BtnZoomFit.Click    += (_, _) => FitToWindow();
         BtnLegend.Click     += (_, _) => OpenLegend();
+        BtnLayoutEdit.Checked   += (_, _) => SetLayoutEditMode(true);
+        BtnLayoutEdit.Unchecked += (_, _) => SetLayoutEditMode(false);
         BtnAddCategory.Click += (_, _) => OnAddCategoryClicked();
 
         BtnAddEquip.Click += OnAddEquipClicked;
@@ -165,6 +177,8 @@ public partial class MainWindow : Window
             _prevSkillRating[sk] = sk.SkillRating;
 
         _loading = false;
+
+        ApplySectionOrder(_state.SectionOrder);
 
         // Recompute armor bonus from loaded equipment (no save triggered by this)
         RecomputeArmorBonus();
@@ -966,6 +980,69 @@ public partial class MainWindow : Window
     {
         if (((Button)sender).DataContext is not InventoryItem item) return;
         item.IsEditing = !item.IsEditing;
+    }
+
+    // ── Layout edit mode ──────────────────────────────────────────────
+
+    private void SetLayoutEditMode(bool active)
+    {
+        _isEditMode = active;
+        var vis = active ? Visibility.Visible : Visibility.Collapsed;
+        foreach (var h in _sectionHandles) h.Visibility = vis;
+    }
+
+    private void OnMoveSectionUp(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string tag) return;
+        MoveSectionBy(tag, -1);
+    }
+
+    private void OnMoveSectionDown(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string tag) return;
+        MoveSectionBy(tag, +1);
+    }
+
+    private void MoveSectionBy(string tag, int delta)
+    {
+        var panel = _sectionPanels.FirstOrDefault(p => (string?)p.Tag == tag);
+        if (panel == null) return;
+
+        int idx    = SheetStack.Children.IndexOf(panel);
+        int newIdx = idx + delta;
+
+        // Sections start at index 3 (after title×2 + identity grid)
+        if (newIdx < 3 || newIdx >= SheetStack.Children.Count) return;
+
+        SheetStack.Children.RemoveAt(idx);
+        SheetStack.Children.Insert(newIdx, panel);
+
+        SaveCurrentSectionOrder();
+    }
+
+    private void SaveCurrentSectionOrder()
+    {
+        _state.SectionOrder = _sectionPanels
+            .OrderBy(p => SheetStack.Children.IndexOf(p))
+            .Select(p => (string)p.Tag!)
+            .ToList();
+        Save();
+    }
+
+    private void ApplySectionOrder(List<string> order)
+    {
+        var panelByTag = _sectionPanels.ToDictionary(p => (string)p.Tag!);
+
+        var savedPanels = (order ?? [])
+            .Where(panelByTag.ContainsKey)
+            .Select(id => panelByTag[id])
+            .ToList();
+        var missing = _sectionPanels.Where(p => !savedPanels.Contains(p)).ToList();
+        var orderedPanels = savedPanels.Concat(missing).ToList();
+
+        foreach (var p in _sectionPanels) SheetStack.Children.Remove(p);
+        for (int i = 0; i < orderedPanels.Count; i++)
+            SheetStack.Children.Insert(3 + i, orderedPanels[i]);
     }
 
     // ── Legend ────────────────────────────────────────────────────────
