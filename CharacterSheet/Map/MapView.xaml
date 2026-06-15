@@ -224,16 +224,22 @@
 
           <!-- ── Toolbar actions ────────────────────────────────────────── -->
           <GroupBox Header="Map Tools" Style="{StaticResource MapGroup}">
-            <UniformGrid Columns="2" Rows="2">
+            <UniformGrid Columns="2" Rows="3">
               <Button Content="Open Image…" Style="{StaticResource MapBtn}"
                       Margin="0,0,2,2" Click="OnOpenMapClick"/>
               <Button Content="Grid Settings" Style="{StaticResource MapBtn}"
                       Margin="2,0,0,2" Click="OnGridSettingsClick"/>
               <Button Content="Set Origin" Style="{StaticResource MapBtn}"
-                      Margin="0,2,2,0" ToolTip="Click a hex centre to snap the grid origin"
+                      Margin="0,2,2,2" ToolTip="Click a hex centre to snap the grid origin"
                       Click="OnSetOriginClick"/>
               <Button Content="Reset Warp" Style="{StaticResource MapBtn}"
-                      Margin="2,2,0,0" Click="OnResetWarpClick"/>
+                      Margin="2,2,0,2" Click="OnResetWarpClick"/>
+              <Button Content="💾 Save Map…" Style="{StaticResource MapBtn}"
+                      Margin="0,2,2,0" ToolTip="Save map state to a JSON file"
+                      Click="OnSaveMapClick"/>
+              <Button Content="📂 Load Map…" Style="{StaticResource MapBtn}"
+                      Margin="2,2,0,0" ToolTip="Load map state from a JSON file"
+                      Click="OnLoadMapClick"/>
             </UniformGrid>
           </GroupBox>
 

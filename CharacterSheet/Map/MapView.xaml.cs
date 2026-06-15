@@ -728,6 +728,30 @@ public partial class MapView : UserControl
         SetStatus("Warp reset — grid restored to parametric layout.");
     }
 
+    private void OnSaveMapClick(object s, RoutedEventArgs e)
+    {
+        var dlg = new SaveFileDialog
+        {
+            Filter      = "Map save files|*.json",
+            DefaultExt  = ".json",
+            FileName    = "chult_map.json",
+            Title       = "Save Map",
+        };
+        if (dlg.ShowDialog() == true)
+            SaveState(dlg.FileName);
+    }
+
+    private void OnLoadMapClick(object s, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Filter = "Map save files|*.json",
+            Title  = "Load Map",
+        };
+        if (dlg.ShowDialog() == true)
+            LoadState(dlg.FileName, PlayerName);
+    }
+
     private void OnFogChanged(object s, RoutedEventArgs e)
     {
         if (_canvas is null) return;   // fires during XAML init
