@@ -211,6 +211,11 @@ public partial class MapView : UserControl
         if (EntityList.SelectedItem is not ListBoxItem item) return;
         var entity = _em.Get((string)item.Tag!);
         if (entity is null) return;
+        // Guard: OnEntitySelected rebuilds the list then sets SelectedIndex to sync it.
+        // That re-fires this handler — if the entity is already selected, bail out to
+        // avoid the infinite loop: SetSelected → EntitySelected → OnEntitySelected →
+        // RefreshEntityList → SelectedIndex = i → SelectionChanged → SetSelected → ∞
+        if (_canvas.SelectedEntity?.Id == entity.Id) return;
         _canvas.SetHighlightedLocation(-1);
         LocationList.SelectedIndex = -1;
         _canvas.SetSelected(entity);
