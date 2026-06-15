@@ -209,6 +209,7 @@
             <ScaleTransform x:Name="SheetScale" ScaleX="1" ScaleY="1"/>
           </Border.LayoutTransform>
 
+          <Grid>
           <StackPanel x:Name="SheetStack" Margin="32,26,32,28">
 
             <!-- ─── TITLE (fixed) ─────────────────────────────────── -->
@@ -883,6 +884,9 @@
             </StackPanel>
 
           </StackPanel>
+          <!-- Weather particle overlay — sits above the sheet content, captures no input -->
+          <Canvas x:Name="WeatherCanvas" IsHitTestVisible="False" ClipToBounds="True"/>
+          </Grid>
         </Border>
 
       </Grid>

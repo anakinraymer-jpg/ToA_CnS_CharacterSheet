@@ -7,7 +7,10 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using CharacterSheet.Controls;
 using CharacterSheet.Models;
 using Microsoft.Win32;
@@ -55,6 +58,10 @@ public partial class MainWindow : Window
     // ── Map integration ───────────────────────────────────────────────
     private Map.MapView? _mapView;
     private string _currentMapWeather = "";
+
+    // ── Weather particle effect ────────────────────────────────────────
+    private DispatcherTimer? _mistTimer;
+    private static readonly Random _particleRng = new();
 
     // ── Legend window (single modeless instance) ──────────────────────
     private LegendWindow? _legendWindow;
@@ -1250,6 +1257,87 @@ public partial class MainWindow : Window
     {
         _currentMapWeather = weather;
         ApplyWeatherPenalties();
+        UpdateWeatherParticles(weather);
+    }
+
+    // ── Weather particles ──────────────────────────────────────────────
+
+    private static int MistDensityFor(string weather) => weather switch
+    {
+        "Misty"                    => 1,
+        "Heavy Mist"               => 2,
+        "Rainy"                    => 3,
+        "Extremely Warm and Rainy" => 3,
+        "Heavy Rain"               => 4,
+        "Tropical Storm"           => 6,
+        _                          => 0,
+    };
+
+    private void UpdateWeatherParticles(string weather)
+    {
+        _mistTimer?.Stop();
+        _mistTimer = null;
+        WeatherCanvas.Children.Clear();
+
+        int density = MistDensityFor(weather);
+        if (density == 0) return;
+
+        // density 1 → 900 ms, density 6 → 200 ms between spawns
+        int intervalMs = Math.Max(200, 950 - density * 125);
+        _mistTimer = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(intervalMs)
+        };
+        _mistTimer.Tick += (_, _) => SpawnDrop(density);
+        _mistTimer.Start();
+    }
+
+    private void SpawnDrop(int density)
+    {
+        var canvas = WeatherCanvas;
+        if (canvas.ActualWidth < 10 || canvas.ActualHeight < 10) return;
+
+        // Keep the canvas sparse — cap live drops relative to density
+        int maxDrops = density * 4;
+        if (canvas.Children.Count >= maxDrops) return;
+
+        var rng  = _particleRng;
+        double w = rng.NextDouble() * 3 + 2;   // 2–5 px wide
+        double h = rng.NextDouble() * 4 + 2;   // 2–6 px tall
+
+        var drop = new System.Windows.Shapes.Ellipse
+        {
+            Width  = w,
+            Height = h,
+            Fill   = new SolidColorBrush(Color.FromArgb(210, 170, 210, 235)),
+            Opacity = 0,
+            IsHitTestVisible = false,
+        };
+
+        Canvas.SetLeft(drop, rng.NextDouble() * Math.Max(1, canvas.ActualWidth  - w));
+        Canvas.SetTop (drop, rng.NextDouble() * Math.Max(1, canvas.ActualHeight - h));
+        canvas.Children.Add(drop);
+
+        // max opacity scales with density (misty = subtle, storm = opaque)
+        double peak = 0.10 + density * 0.04;   // 0.14 – 0.34
+        peak *= rng.NextDouble() * 0.5 + 0.75; // ±25% variation
+
+        // Appear → hold → vanish — position never changes (no dribbling)
+        double fadeSec  = 0.6 + rng.NextDouble() * 0.4;
+        double holdSec  = 0.8 + rng.NextDouble() * 0.8;
+        double totalSec = fadeSec + holdSec + fadeSec;
+
+        var anim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        anim.KeyFrames.Add(new LinearDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        anim.KeyFrames.Add(new LinearDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(fadeSec))));
+        anim.KeyFrames.Add(new LinearDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(fadeSec + holdSec))));
+        anim.KeyFrames.Add(new LinearDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.FromSeconds(totalSec))));
+        anim.Completed += (_, _) =>
+        {
+            canvas.Children.Remove(drop);
+            drop.BeginAnimation(UIElement.OpacityProperty, null);
+        };
+        drop.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
     private void ApplyWeatherPenalties()
