@@ -63,7 +63,9 @@ public partial class MainWindow : Window
     // ── Weather particle effect ────────────────────────────────────────
     private DispatcherTimer? _mistTimer;
     private DispatcherTimer? _drizzleTimer;
+    private DispatcherTimer? _drizzleRenderTimer;
     private int              _drizzleWaveToggle;
+    private readonly List<DrizzleState> _activeDrizzles = [];
     private static readonly Random _particleRng = new();
 
     // ── Legend window (single modeless instance) ──────────────────────
@@ -1267,11 +1269,9 @@ public partial class MainWindow : Window
 
     private static int MistDensityFor(string weather) => weather switch
     {
-        "Misty"                    => 1,
-        "Heavy Mist"               => 3,
-        "Rainy"                    => 3,
-        "Extremely Warm and Rainy" => 3,
-        "Heavy Rain"               => 4,
+        "Misty"       => 1,
+        "Heavy Mist"  => 3,
+        "Heavy Rain"  => 4,
         "Tropical Storm"           => 6,
         _                          => 0,
     };
@@ -1286,10 +1286,10 @@ public partial class MainWindow : Window
 
     private void UpdateWeatherParticles(string weather)
     {
-        _mistTimer?.Stop();
-        _mistTimer = null;
-        _drizzleTimer?.Stop();
-        _drizzleTimer = null;
+        _mistTimer?.Stop();          _mistTimer = null;
+        _drizzleTimer?.Stop();       _drizzleTimer = null;
+        _drizzleRenderTimer?.Stop(); _drizzleRenderTimer = null;
+        _activeDrizzles.Clear();
         WeatherCanvas.Children.Clear();
 
         int mistDensity = MistDensityFor(weather);
@@ -1305,11 +1305,16 @@ public partial class MainWindow : Window
         int drizzleDensity = DrizzleDensityFor(weather);
         if (drizzleDensity > 0)
         {
-            // Density 1 (light showers) → 800 ms between trails, Density 2 (rainy) → 400 ms
-            int intervalMs = Math.Max(400, 1400 - drizzleDensity * 500);
-            _drizzleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(intervalMs) };
+            // Spawn timer: Density 1 → 800 ms, Density 2 → 400 ms
+            int spawnMs = Math.Max(400, 1400 - drizzleDensity * 500);
+            _drizzleTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(spawnMs) };
             _drizzleTimer.Tick += (_, _) => SpawnDrizzle(drizzleDensity);
             _drizzleTimer.Start();
+
+            // Shared 30-fps render loop rebuilds every trail's shape each tick
+            _drizzleRenderTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(33) };
+            _drizzleRenderTimer.Tick += (_, _) => UpdateDrizzles();
+            _drizzleRenderTimer.Start();
         }
     }
 
@@ -1460,6 +1465,35 @@ public partial class MainWindow : Window
         wst.BeginAnimation(ScaleTransform.ScaleYProperty, WetScale());
     }
 
+    // ── Drizzle state: one instance per live drizzle trail ────────────
+    private sealed class DrizzleState
+    {
+        public required System.Windows.Shapes.Path Path;
+        public double OriginX;   // canvas X of the trail centreline
+        public double HeadY;     // canvas Y of the leading edge
+        public double TrailLen;  // vertical length of the visible trail (px)
+        public double Speed;     // downward travel speed (px/s)
+        public double WaveAmp;   // max lateral displacement (px); 0 = straight
+        public double WaveLen;   // spatial wavelength of the sine wave (px)
+        public double Phase;     // current wave phase (radians)
+        public double PhaseRate; // radians per second (how fast the wave slithers)
+        public double Age;       // elapsed seconds since spawn
+        public double LifeTime;  // total lifetime seconds
+        public double PeakOpacity;
+    }
+
+    // ── Build one point on the slithering sine-wave path ──────────────
+    // t=0 → tail (top), t=1 → head (bottom).  Amplitude tapers near tail.
+    private static Point DrizzlePoint(DrizzleState d, double t)
+    {
+        double localY = t * d.TrailLen;
+        double taper  = Math.Pow(t, 0.38);  // thin near tail, full at head
+        double localX = d.WaveAmp * taper
+                      * Math.Sin(2 * Math.PI * localY / d.WaveLen + d.Phase);
+        return new Point(localX, localY);
+    }
+
+    // ── Spawn one new drizzle trail ────────────────────────────────────
     private void SpawnDrizzle(int density)
     {
         var canvas = WeatherCanvas;
@@ -1467,91 +1501,130 @@ public partial class MainWindow : Window
         double ch = canvas.ActualHeight > 10 ? canvas.ActualHeight : SheetContent.ActualHeight;
         if (cw < 10 || ch < 10) return;
 
-        // Cap live drizzle trails independently of bead drops
         int maxDrizzles = density * 2 + 2;
-        int liveCount   = canvas.Children.OfType<FrameworkElement>()
-                                 .Count(c => c.Tag is "drizzle");
-        if (liveCount >= maxDrizzles) return;
+        if (_activeDrizzles.Count >= maxDrizzles) return;
 
         var    rng      = _particleRng;
-        bool   wavy     = (_drizzleWaveToggle++ & 1) == 0;  // alternate straight / wavy
-        double startX   = rng.NextDouble() * cw;
-        double startY   = rng.NextDouble() * ch * 0.75;     // start anywhere in top 75 %
-        double trailLen = 40 + rng.NextDouble() * 55;       // 40–95 px visible segment
-        double amplitude = wavy ? 3 + rng.NextDouble() * 4 : 0;  // 3–7 px lateral wave
+        bool   wavy     = (_drizzleWaveToggle++ & 1) == 0;
+        double trailLen = 55 + rng.NextDouble() * 65;          // 55–120 px
+        double waveAmp  = wavy ? 5 + rng.NextDouble() * 6 : 0; // 5–11 px lateral
+        double waveLen  = wavy
+            ? trailLen * (0.45 + rng.NextDouble() * 0.40)      // 0.45–0.85× trail
+            : 1.0;
+        double speed     = 32 + rng.NextDouble() * 28;          // 32–60 px / s
+        double travelDist = 100 + rng.NextDouble() * 160;       // 100–260 px
+        double lifeTime  = travelDist / speed;
+        // Phase rate: wave scrolls ~1–2× faster than the droplet, making it slither
+        double phaseRate = wavy
+            ? 2 * Math.PI * speed / waveLen * (1.0 + rng.NextDouble() * 0.8)
+            : 0;
 
-        // ── Path geometry (local space, top at y=0) ───────────────────────────
-        var figure = new PathFigure { StartPoint = new Point(0, 0), IsClosed = false };
-        if (wavy)
-        {
-            int    numWaves = rng.Next(2, 4);          // 2 or 3 s-curves
-            double segLen   = trailLen / numWaves;
-            double dir      = rng.NextDouble() < 0.5 ? 1 : -1;
-            for (int i = 0; i < numWaves; i++)
-            {
-                figure.Segments.Add(new BezierSegment(
-                    new Point( amplitude * dir, (i + 0.30) * segLen),
-                    new Point(-amplitude * dir, (i + 0.70) * segLen),
-                    new Point(0, (i + 1.0) * segLen),
-                    isStroked: true));
-                dir = -dir;
-            }
-        }
-        else
-        {
-            figure.Segments.Add(new LineSegment(new Point(0, trailLen), isStroked: true));
-        }
-        var geo = new PathGeometry();
-        geo.Figures.Add(figure);
-
-        // ── Gradient stroke: faded tail → opaque drizzle front ────────────────
-        var waterRgb = Color.FromRgb(118, 172, 218);
-        var stroke   = new LinearGradientBrush
+        // ── Gradient stroke: faded tail → vivid mid-trail → rounded head ──────
+        var waterRgb = Color.FromRgb(110, 168, 218);
+        var stroke = new LinearGradientBrush
         {
             StartPoint  = new Point(0.5, 0),
             EndPoint    = new Point(0.5, 1),
             MappingMode = BrushMappingMode.RelativeToBoundingBox,
         };
         stroke.GradientStops.Add(new GradientStop(Color.FromArgb(  0, waterRgb.R, waterRgb.G, waterRgb.B), 0.00));
-        stroke.GradientStops.Add(new GradientStop(Color.FromArgb(140, waterRgb.R, waterRgb.G, waterRgb.B), 0.20));
-        stroke.GradientStops.Add(new GradientStop(Color.FromArgb(215, waterRgb.R, waterRgb.G, waterRgb.B), 0.62));
-        stroke.GradientStops.Add(new GradientStop(Color.FromArgb(200, waterRgb.R, waterRgb.G, waterRgb.B), 0.86));
-        stroke.GradientStops.Add(new GradientStop(Color.FromArgb( 70, waterRgb.R, waterRgb.G, waterRgb.B), 1.00));
+        stroke.GradientStops.Add(new GradientStop(Color.FromArgb(130, waterRgb.R, waterRgb.G, waterRgb.B), 0.18));
+        stroke.GradientStops.Add(new GradientStop(Color.FromArgb(230, waterRgb.R, waterRgb.G, waterRgb.B), 0.58));
+        stroke.GradientStops.Add(new GradientStop(Color.FromArgb(220, waterRgb.R, waterRgb.G, waterRgb.B), 0.84));
+        stroke.GradientStops.Add(new GradientStop(Color.FromArgb( 90, waterRgb.R, waterRgb.G, waterRgb.B), 1.00));
 
         var path = new System.Windows.Shapes.Path
         {
-            Data             = geo,
-            Stroke           = stroke,
-            StrokeThickness  = 0.9 + rng.NextDouble() * 0.9,  // 0.9–1.8 px
-            Tag              = "drizzle",
-            Opacity          = 0,
-            IsHitTestVisible = false,
+            Stroke             = stroke,
+            StrokeThickness    = 2.5 + rng.NextDouble() * 1.5,  // 2.5–4 px
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap   = PenLineCap.Round,
+            StrokeLineJoin     = PenLineJoin.Round,
+            IsHitTestVisible   = false,
+            Opacity            = 0,
+            Effect = new DropShadowEffect
+            {
+                Color       = Color.FromRgb(72, 128, 195),
+                Direction   = 270,
+                ShadowDepth = 1.0,
+                BlurRadius  = 4.0,
+                Opacity     = 0.28,
+            },
         };
 
+        double startX = rng.NextDouble() * cw;
+        double startY = rng.NextDouble() * ch * 0.72;
         Canvas.SetLeft(path, startX);
         Canvas.SetTop (path, startY);
         canvas.Children.Add(path);
 
-        // ── Animate: translate downward at water-trickle speed ────────────────
-        double travelDist = 85 + rng.NextDouble() * 145;          // 85–230 px
-        double speed      = 38 + rng.NextDouble() * 32;           // 38–70 px / s
-        double dur        = travelDist / speed;                    // ~1.2–6 s
+        _activeDrizzles.Add(new DrizzleState
+        {
+            Path        = path,
+            OriginX     = startX,
+            HeadY       = startY + trailLen,   // head begins trailLen below top of trail
+            TrailLen    = trailLen,
+            Speed       = speed,
+            WaveAmp     = waveAmp,
+            WaveLen     = waveLen,
+            Phase       = rng.NextDouble() * 2 * Math.PI,
+            PhaseRate   = phaseRate,
+            Age         = 0,
+            LifeTime    = lifeTime,
+            PeakOpacity = 0.38 + density * 0.06 + rng.NextDouble() * 0.10,
+        });
+    }
 
-        var tt = new TranslateTransform(0, 0);
-        path.RenderTransform = tt;
-        tt.BeginAnimation(TranslateTransform.YProperty,
-            new DoubleAnimation(0, travelDist, TimeSpan.FromSeconds(dur))
-                { FillBehavior = FillBehavior.Stop });
+    // ── Per-frame update: advance every live drizzle and redraw its path ─
+    private void UpdateDrizzles()
+    {
+        const double dt = 1.0 / 30.0;
+        var canvas = WeatherCanvas;
+        double ch  = canvas.ActualHeight > 10 ? canvas.ActualHeight : SheetContent.ActualHeight;
 
-        // Opacity: short fade-in → hold → fade-out
-        double peak = 0.28 + density * 0.07 + rng.NextDouble() * 0.10;
-        var opAnim  = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
-        opAnim.KeyFrames.Add(new LinearDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.Zero)));
-        opAnim.KeyFrames.Add(new LinearDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(dur * 0.12))));
-        opAnim.KeyFrames.Add(new LinearDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(dur * 0.82))));
-        opAnim.KeyFrames.Add(new LinearDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.FromSeconds(dur))));
-        opAnim.Completed += (_, _) => canvas.Children.Remove(path);
-        path.BeginAnimation(UIElement.OpacityProperty, opAnim);
+        for (int i = _activeDrizzles.Count - 1; i >= 0; i--)
+        {
+            var d = _activeDrizzles[i];
+            d.Age   += dt;
+            d.HeadY += d.Speed * dt;
+            d.Phase += d.PhaseRate * dt;
+
+            if (d.Age >= d.LifeTime || d.HeadY > ch + d.TrailLen)
+            {
+                canvas.Children.Remove(d.Path);
+                _activeDrizzles.RemoveAt(i);
+                continue;
+            }
+
+            // Opacity envelope: quick fade-in → hold → fade-out
+            double f  = d.Age / d.LifeTime;
+            double op = f < 0.12 ? d.PeakOpacity * (f / 0.12)
+                      : f > 0.80 ? d.PeakOpacity * Math.Max(0, (1.0 - f) / 0.20)
+                      : d.PeakOpacity;
+            d.Path.Opacity = op;
+
+            // Rebuild path as a smooth quadratic-bezier chain through 12 sample points.
+            // Because Phase advances every tick, the sine-wave shape physically shifts —
+            // the trail literally slithers rather than translating as a rigid image.
+            const int segs = 11;
+            var geo = new StreamGeometry();
+            using (var ctx = geo.Open())
+            {
+                ctx.BeginFigure(DrizzlePoint(d, 0), isFilled: false, isClosed: false);
+                // PolyQuadraticBezierTo expects (control, end) pairs
+                var pts = new Point[segs * 2];
+                for (int j = 0; j < segs; j++)
+                {
+                    pts[j * 2]     = DrizzlePoint(d, (j + 0.5) / segs);  // control
+                    pts[j * 2 + 1] = DrizzlePoint(d, (j + 1.0) / segs);  // end
+                }
+                ctx.PolyQuadraticBezierTo(pts, isStroked: true, isSmoothJoin: false);
+            }
+            d.Path.Data = geo;
+
+            // Reposition: tail sits at Canvas.Top, head is trailLen below
+            Canvas.SetTop(d.Path, d.HeadY - d.TrailLen);
+        }
     }
 
     private void ApplyWeatherPenalties()
