@@ -9,6 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using CharacterSheet.Controls;
@@ -1293,39 +1294,81 @@ public partial class MainWindow : Window
     {
         var canvas = WeatherCanvas;
 
-        // WeatherCanvas is inside SheetContent — fall back to its fixed width/height
-        // when the character-sheet tab hasn't been shown yet and layout is pending.
         double cw = canvas.ActualWidth  > 10 ? canvas.ActualWidth  : SheetContent.ActualWidth;
         double ch = canvas.ActualHeight > 10 ? canvas.ActualHeight : SheetContent.ActualHeight;
         if (cw < 10) return;
 
-        // Cap live drops: 10 for Misty, 40 for Tropical Storm
         int maxDrops = density * 6 + 4;
         if (canvas.Children.Count >= maxDrops) return;
 
         var    rng = _particleRng;
-        double dw  = rng.NextDouble() * 14 + 10;            // 10 – 24 px wide
-        double dh  = dw * (rng.NextDouble() * 0.35 + 1.0); // 1.0 – 1.35× tall
+        double dw  = rng.NextDouble() * 16 + 12;            // 12 – 28 px wide
+        double dh  = dw * (rng.NextDouble() * 0.30 + 1.05); // 1.05 – 1.35× tall
 
-        // Full-alpha fill — transparency is driven solely by Ellipse.Opacity animation
-        var drop = new System.Windows.Shapes.Ellipse
+        // ── Body: radial gradient that mimics a glass water drop ─────────────
+        //   bright off-centre reflection → semi-transparent blue body → dark rim
+        var fill = new RadialGradientBrush
+        {
+            GradientOrigin = new Point(0.32, 0.27),
+            Center         = new Point(0.50, 0.50),
+            RadiusX        = 0.55,
+            RadiusY        = 0.55,
+        };
+        fill.GradientStops.Add(new GradientStop(Color.FromArgb(215, 245, 252, 255), 0.00)); // white reflection
+        fill.GradientStops.Add(new GradientStop(Color.FromArgb(110, 185, 222, 245), 0.28)); // light blue body
+        fill.GradientStops.Add(new GradientStop(Color.FromArgb(140, 125, 178, 220), 0.65)); // mid blue
+        fill.GradientStops.Add(new GradientStop(Color.FromArgb(210,  72, 122, 192), 0.90)); // dark rim
+        fill.GradientStops.Add(new GradientStop(Color.FromArgb(180,  50,  95, 165), 1.00)); // meniscus edge
+
+        var body = new System.Windows.Shapes.Ellipse
         {
             Width  = dw,
             Height = dh,
-            Fill   = new SolidColorBrush(Color.FromArgb(255, 150, 195, 225)),
-            Opacity = 0,
-            IsHitTestVisible = false,
+            Fill   = fill,
+            Effect = new DropShadowEffect
+            {
+                Color       = Color.FromRgb(55, 35, 15),  // warm brown shadow on parchment
+                Direction   = 295,                         // slightly to the right and down
+                ShadowDepth = 2.5,
+                BlurRadius  = 5.0,
+                Opacity     = 0.28,
+            },
         };
 
-        Canvas.SetLeft(drop, rng.NextDouble() * Math.Max(1, cw - dw));
-        Canvas.SetTop (drop, rng.NextDouble() * Math.Max(1, ch - dh));
-        canvas.Children.Add(drop);
+        // ── Specular highlight: small bright ellipse in the upper-left of body ──
+        double hw = dw * 0.38;
+        double hh = dh * 0.25;
+        var highlight = new System.Windows.Shapes.Ellipse
+        {
+            Width               = hw,
+            Height              = hh,
+            Fill                = new SolidColorBrush(Color.FromArgb(195, 255, 255, 255)),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            VerticalAlignment   = VerticalAlignment.Top,
+            Margin              = new Thickness(dw * 0.13, dh * 0.09, 0, 0),
+            IsHitTestVisible    = false,
+        };
 
-        // Misty → peak ~0.45, Storm → peak ~0.65, ±jitter
-        double peak    = 0.40 + density * 0.04 + rng.NextDouble() * 0.10;
-        double fadeIn  = 0.45 + rng.NextDouble() * 0.30;
-        double holdDur = 1.00 + rng.NextDouble() * 0.80;
-        double fadeOut = 0.55 + rng.NextDouble() * 0.30;
+        // ── Pack body + highlight into a Grid so one Opacity drives both ──────
+        var dropGrid = new Grid
+        {
+            Width            = dw,
+            Height           = dh,
+            Opacity          = 0,
+            IsHitTestVisible = false,
+        };
+        dropGrid.Children.Add(body);
+        dropGrid.Children.Add(highlight);
+
+        Canvas.SetLeft(dropGrid, rng.NextDouble() * Math.Max(1, cw - dw));
+        Canvas.SetTop (dropGrid, rng.NextDouble() * Math.Max(1, ch - dh));
+        canvas.Children.Add(dropGrid);
+
+        // ── Appear → hold → vanish (position never changes — no dribbling) ────
+        double peak    = 0.42 + density * 0.04 + rng.NextDouble() * 0.08; // 0.46–0.66
+        double fadeIn  = 0.40 + rng.NextDouble() * 0.35;
+        double holdDur = 1.00 + rng.NextDouble() * 0.90;
+        double fadeOut = 0.50 + rng.NextDouble() * 0.35;
         double total   = fadeIn + holdDur + fadeOut;
 
         var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
@@ -1336,10 +1379,10 @@ public partial class MainWindow : Window
         anim.KeyFrames.Add(new EasingDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.FromSeconds(total)),           ease));
         anim.Completed += (_, _) =>
         {
-            canvas.Children.Remove(drop);
-            drop.BeginAnimation(UIElement.OpacityProperty, null);
+            canvas.Children.Remove(dropGrid);
+            dropGrid.BeginAnimation(UIElement.OpacityProperty, null);
         };
-        drop.BeginAnimation(UIElement.OpacityProperty, anim);
+        dropGrid.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
     private void ApplyWeatherPenalties()
