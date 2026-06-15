@@ -1472,12 +1472,20 @@ public partial class MainWindow : Window
         public required System.Windows.Shapes.Path WetPath;
         public required System.Windows.Shapes.Path BodyPath;
         public required System.Windows.Shapes.Path HighPath;
+        public double StartX;
         public double HeadY;
         public double TrailLen;
         public double Speed;
         public double Age;
         public double LifeTime;
         public double PeakOpacity;
+        // Lateral drift — defines the curved movement path of the container:
+        //   oscillating: X = StartX + DriftAmp * sin(2π*age/DriftPeriod + DriftPhase)
+        //   diagonal:    X = StartX + DriftVelX * age
+        public double DriftAmp;
+        public double DriftPeriod;  // seconds; 0 means constant-angle diagonal
+        public double DriftPhase;
+        public double DriftVelX;
     }
 
     // ── Spawn one new drizzle trail ────────────────────────────────────
@@ -1492,21 +1500,28 @@ public partial class MainWindow : Window
         if (_activeDrizzles.Count >= maxDrizzles) return;
 
         var    rng       = _particleRng;
-        bool   wavy      = (_drizzleWaveToggle++ & 1) == 0;
+        bool   osc       = (_drizzleWaveToggle++ & 1) == 0;  // alternates oscillating vs diagonal
         double trailLen  = 55 + rng.NextDouble() * 65;
         double bodyWidth = 3.5 + rng.NextDouble() * 1.5;
-        double waveAmp   = wavy ? 5 + rng.NextDouble() * 6 : 0;
-        double waveLen   = wavy ? trailLen * (0.45 + rng.NextDouble() * 0.40) : 1.0;
-        double phase     = rng.NextDouble() * 2 * Math.PI;
         double speed     = 32 + rng.NextDouble() * 28;
         double lifeTime  = (100 + rng.NextDouble() * 160) / speed;
 
-        // Shape is fixed at spawn; each trail translates rigidly downward as a whole.
+        // Drift determines the movement path.  The trail shape itself is nearly straight;
+        // the visual curve comes from how the container travels across the canvas.
+        double driftAmp    = osc ? 18 + rng.NextDouble() * 18 : 0;     // 18–36 px oscillation
+        double driftPeriod = osc ? lifeTime * (0.35 + rng.NextDouble() * 0.4) : 0;
+        double driftPhase  = rng.NextDouble() * 2 * Math.PI;
+        double sign        = rng.NextDouble() < 0.5 ? -1 : 1;
+        double driftVelX   = osc ? 0 : sign * (12 + rng.NextDouble() * 12); // ±12–24 px/s
+
+        // Tiny natural wiggle in local shape (1–2 px) prevents a degenerate zero-width
+        // bounding box so the LinearGradientBrush renders correctly.
+        double shapeAmp   = 1.0 + rng.NextDouble();
+        double shapePhase = rng.NextDouble() * 2 * Math.PI;
         Point TrailPt(double t)
         {
             double localY = t * trailLen;
-            double taper  = Math.Pow(t, 0.38);
-            double localX = waveAmp * taper * Math.Sin(2 * Math.PI * localY / waveLen + phase);
+            double localX = shapeAmp * Math.Sin(2 * Math.PI * localY / trailLen + shapePhase);
             return new Point(localX, localY);
         }
 
@@ -1555,7 +1570,7 @@ public partial class MainWindow : Window
             IsHitTestVisible   = false,
         };
 
-        // ── Layer C: specular highlight (offset up-left, simulates top-left light) ──
+        // ── Layer C: specular highlight ────────────────────────────────────
         var highPath = new System.Windows.Shapes.Path
         {
             Stroke             = MakeGradient(
@@ -1572,7 +1587,7 @@ public partial class MainWindow : Window
             RenderTransform    = new TranslateTransform(-1.5, -2.0),
         };
 
-        // Build the path geometry once — shape never changes, only position does.
+        // Trail shape geometry — built once; only the container position changes each frame.
         const int segs = 11;
         var geo = new StreamGeometry();
         using (var ctx = geo.Open())
@@ -1608,17 +1623,21 @@ public partial class MainWindow : Window
             WetPath     = wetPath,
             BodyPath    = bodyPath,
             HighPath    = highPath,
+            StartX      = startX,
             HeadY       = startY + trailLen,
             TrailLen    = trailLen,
             Speed       = speed,
             Age         = 0,
             LifeTime    = lifeTime,
             PeakOpacity = 0.90 + rng.NextDouble() * 0.08,
+            DriftAmp    = driftAmp,
+            DriftPeriod = driftPeriod,
+            DriftPhase  = driftPhase,
+            DriftVelX   = driftVelX,
         });
     }
 
-    // ── Per-frame update: advance position and opacity only ────────────
-    // Geometry is computed once at spawn, so only Canvas.Top and opacity need updating.
+    // ── Per-frame update: advance position along the curved path ───────
     private void UpdateDrizzles()
     {
         const double dt = 1.0 / 30.0;
@@ -1643,7 +1662,13 @@ public partial class MainWindow : Window
                       : f > 0.80 ? d.PeakOpacity * Math.Max(0, (1.0 - f) / 0.20)
                       : d.PeakOpacity;
             d.Container.Opacity = op;
-            Canvas.SetTop(d.Container, d.HeadY - d.TrailLen);
+
+            // Lateral position follows the curved movement path
+            double x = d.DriftPeriod > 0
+                ? d.StartX + d.DriftAmp * Math.Sin(2 * Math.PI * d.Age / d.DriftPeriod + d.DriftPhase)
+                : d.StartX + d.DriftVelX * d.Age;
+            Canvas.SetLeft(d.Container, x);
+            Canvas.SetTop (d.Container, d.HeadY - d.TrailLen);
         }
     }
 
