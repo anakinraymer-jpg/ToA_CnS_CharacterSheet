@@ -1269,9 +1269,12 @@ public partial class MainWindow : Window
 
     private static int MistDensityFor(string weather) => weather switch
     {
-        "Misty"       => 1,
-        "Heavy Mist"  => 3,
-        "Heavy Rain"  => 4,
+        "Misty"                    => 1,
+        "Heavy Mist"               => 3,
+        "Rainy"                    => 1,
+        "Sunny with Rain Showers"  => 1,
+        "Extremely Warm and Rainy" => 1,
+        "Heavy Rain"               => 4,
         "Tropical Storm"           => 6,
         _                          => 0,
     };
@@ -1281,6 +1284,8 @@ public partial class MainWindow : Window
         "Rainy"                    => 2,
         "Sunny with Rain Showers"  => 1,
         "Extremely Warm and Rainy" => 2,
+        "Heavy Rain"               => 3,
+        "Tropical Storm"           => 4,
         _                          => 0,
     };
 
@@ -1325,8 +1330,9 @@ public partial class MainWindow : Window
         double ch = canvas.ActualHeight > 10 ? canvas.ActualHeight : SheetContent.ActualHeight;
         if (cw < 10) return;
 
-        int maxDrops = density * 6 + 4;
-        if (canvas.Children.Count >= maxDrops) return;
+        int maxDrops   = density * 6 + 4;
+        int mistOnCanvas = canvas.Children.Count - _activeDrizzles.Count;
+        if (mistOnCanvas >= maxDrops) return;
 
         var    rng    = _particleRng;
         double dw     = rng.NextDouble() * 16 + 12;             // 12–28 px wide
