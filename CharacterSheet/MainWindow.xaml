@@ -323,6 +323,24 @@
               <ctrl:SkillPickerBox
                        SelectedSkill="{Binding CoreAbility, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        EntryKey="CoreAbility"/>
+              <!-- Druid Wild Bonus banner -->
+              <Border Margin="0,10,0,0" Padding="10,7" CornerRadius="4"
+                      Background="#0D2B0D" BorderBrush="#2E6B2E" BorderThickness="1">
+                <Border.Style>
+                  <Style TargetType="Border">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding DruidWildBonusActive}" Value="True">
+                        <Setter Property="Visibility" Value="Visible"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Border.Style>
+                <TextBlock Text="🌿  Wild Bonus — +3 to all active skill rolls"
+                           FontFamily="Palatino Linotype" FontSize="12"
+                           Foreground="#5EBF5E"
+                           HorizontalAlignment="Center"/>
+              </Border>
             </StackPanel>
 
             <!-- ─── SUMMARY ───────────────────────────────────────── -->

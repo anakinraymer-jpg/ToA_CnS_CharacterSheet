@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -53,6 +54,10 @@ public partial class MainWindow : Window
     private string _mapDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         "Dev", "ToA_Delver_Map");
+    private FileSystemWatcher? _locationWatcher;
+    private static readonly string LocationFilePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "ToA_CnS_CharacterSheet", "player_location.json");
 
     // ── Legend window (single modeless instance) ──────────────────────
     private LegendWindow? _legendWindow;
@@ -100,6 +105,7 @@ public partial class MainWindow : Window
         _sectionHandles = [SecFlawsHandle, SecCoreAbilityHandle, SecSummaryHandle, SecDefenseHandle, SecEquipSkillsHandle, SecSpellsHandle, SecInventoryHandle];
         WireUiEvents();
         LoadState(Persistence.Load());
+        StartLocationWatcher();
         Loaded += (_, _) => FitToWindow();
         Closing += OnWindowClosing;
     }
@@ -442,6 +448,7 @@ public partial class MainWindow : Window
             // Core ability: −15 Available on acquisition, +15 on removal
             case nameof(CharacterState.CoreAbility):
                 ApplyCoreAbilityDelta(ref _prevCoreAbility, _state.CoreAbility);
+                UpdateDruidWildBonus();
                 break;
 
             // Flaws: ±5 both Total and Available
@@ -1120,6 +1127,46 @@ public partial class MainWindow : Window
     private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         _mapHost?.Stop();
+        _locationWatcher?.Dispose();
+    }
+
+    // ── Druid Wild Bonus ──────────────────────────────────────────────
+
+    private void StartLocationWatcher()
+    {
+        var dir = Path.GetDirectoryName(LocationFilePath)!;
+        Directory.CreateDirectory(dir);
+        _locationWatcher = new FileSystemWatcher(dir, "player_location.json")
+        {
+            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+            EnableRaisingEvents = true,
+        };
+        _locationWatcher.Changed += (_, _) => Task.Delay(100).ContinueWith(
+            _ => Dispatcher.Invoke(UpdateDruidWildBonus), TaskScheduler.Default);
+        _locationWatcher.Created += (_, _) => Task.Delay(100).ContinueWith(
+            _ => Dispatcher.Invoke(UpdateDruidWildBonus), TaskScheduler.Default);
+        UpdateDruidWildBonus();
+    }
+
+    private void UpdateDruidWildBonus()
+    {
+        bool isDruid = _state.CoreAbility.Equals("Druid", StringComparison.OrdinalIgnoreCase);
+        if (!isDruid) { _state.DruidWildBonusActive = false; return; }
+
+        string terrain = "";
+        try
+        {
+            if (File.Exists(LocationFilePath))
+            {
+                var text = File.ReadAllText(LocationFilePath);
+                using var doc = JsonDocument.Parse(text);
+                terrain = doc.RootElement.GetProperty("terrain").GetString() ?? "";
+            }
+        }
+        catch { }
+
+        // Unknown/empty terrain = out in the wild → bonus active
+        _state.DruidWildBonusActive = terrain != "Structure" && terrain != "Cave";
     }
 
     // ── Legend ────────────────────────────────────────────────────────

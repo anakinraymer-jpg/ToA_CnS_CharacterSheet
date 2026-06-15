@@ -184,6 +184,7 @@ public class CharacterState : INotifyPropertyChanged
     private bool   _hit1, _hit2, _hit3, _hit4, _hit5;
     private int    _heroPointsMax     = 50;
     private int    _heroPointsCurrent = 50;
+    private bool   _druidWildBonusActive = false;
 
     public string Name        { get => _name;        set { _name        = value; OnPropertyChanged(); } }
     public string Lineage     { get => _lineage;     set { _lineage     = value; OnPropertyChanged(); } }
@@ -218,6 +219,13 @@ public class CharacterState : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanSpendPoint));
         }
+    }
+
+    /// <summary>True when the Druid Wild Bonus (+3 to all active skill rolls) is currently active.</summary>
+    public bool DruidWildBonusActive
+    {
+        get => _druidWildBonusActive;
+        set { _druidWildBonusActive = value; OnPropertyChanged(); }
     }
 
     /// <summary>True when there is at least one Available Point left to spend on a skill rating increase.</summary>
