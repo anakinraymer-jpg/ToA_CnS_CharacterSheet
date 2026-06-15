@@ -54,6 +54,7 @@ public partial class MainWindow : Window
 
     // ── Map integration ───────────────────────────────────────────────
     private Map.MapView? _mapView;
+    private string _currentMapWeather = "";
 
     // ── Legend window (single modeless instance) ──────────────────────
     private LegendWindow? _legendWindow;
@@ -247,6 +248,7 @@ public partial class MainWindow : Window
 
         _state.RefreshSelectedSkillNames();
         UpdateAddButtonStates();
+        ApplyWeatherPenalties();
     }
 
     /// <summary>
@@ -279,6 +281,7 @@ public partial class MainWindow : Window
                 }
 
                 _state.RefreshSelectedSkillNames();
+                ApplyWeatherPenalties();
 
                 // Repair name change while Inventor is active → update mirror
                 if (_state.CoreAbility.Equals("Inventor", StringComparison.OrdinalIgnoreCase))
@@ -469,6 +472,11 @@ public partial class MainWindow : Window
             // Available Points changed: refresh whether Add Skill is allowed
             case nameof(CharacterState.HeroPointsCurrent):
                 UpdateAddButtonStates();
+                break;
+
+            // Weather toggle changed: reapply (or clear) penalties
+            case nameof(CharacterState.WeatherEffectsEnabled):
+                ApplyWeatherPenalties();
                 break;
         }
 
@@ -1083,6 +1091,7 @@ public partial class MainWindow : Window
     {
         _mapView = new Map.MapView { PlayerName = _state.Name };
         _mapView.PlayerLocationChanged += OnPlayerLocationChanged;
+        _mapView.WeatherChanged        += OnMapWeatherChanged;
         MapContainer.Children.Add(_mapView);
         MapPlaceholder.Visibility = Visibility.Collapsed;
     }
@@ -1164,6 +1173,41 @@ public partial class MainWindow : Window
             sk.PropertyChanged -= OnItemChanged;
             _state.Skills.Remove(sk);
         }
+    }
+
+    // ── Weather Skill Penalties ───────────────────────────────────────
+
+    private static readonly System.Collections.Generic.HashSet<string> WeatherAffectedSkills =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Breakfall", "Climber", "Forage", "Hunting", "Investigate",
+            "Scout", "Tracking", "Cartographer", "Traps",
+        };
+
+    private static int WeatherPenaltyFor(string weather) => weather switch
+    {
+        "Misty"       => -2,
+        "Heavy Mist"  => -3,
+        "Rainy"       => -4,
+        "Heavy Rain"  => -5,
+        _             => 0,
+    };
+
+    private void OnMapWeatherChanged(string weather)
+    {
+        _currentMapWeather = weather;
+        ApplyWeatherPenalties();
+    }
+
+    private void ApplyWeatherPenalties()
+    {
+        int penalty = _state.WeatherEffectsEnabled
+            ? WeatherPenaltyFor(_currentMapWeather)
+            : 0;
+
+        foreach (var sk in _state.Skills)
+            sk.WeatherPenalty = sk.HasSkill && WeatherAffectedSkills.Contains(sk.SkillName)
+                ? penalty : 0;
     }
 
     // ── Legend ────────────────────────────────────────────────────────

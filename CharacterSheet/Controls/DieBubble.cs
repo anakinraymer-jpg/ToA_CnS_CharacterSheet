@@ -62,6 +62,20 @@ public class DieBubble : Control
         set => SetValue(HasBonusProperty, value);
     }
 
+    public static readonly DependencyProperty WeatherPenaltyValueProperty =
+        DependencyProperty.Register(nameof(WeatherPenaltyValue), typeof(int), typeof(DieBubble),
+            new FrameworkPropertyMetadata(0, OnVisualChanged));
+
+    /// <summary>
+    /// Weather-driven skill penalty (0 or negative). Shown in red; a rain indicator appears.
+    /// The underlying Value is not modified — display-only.
+    /// </summary>
+    public int WeatherPenaltyValue
+    {
+        get => (int)GetValue(WeatherPenaltyValueProperty);
+        set => SetValue(WeatherPenaltyValueProperty, value);
+    }
+
     public static readonly DependencyProperty CanIncreaseProperty =
         DependencyProperty.Register(nameof(CanIncrease), typeof(bool), typeof(DieBubble),
             new FrameworkPropertyMetadata(true));
@@ -122,6 +136,7 @@ public class DieBubble : Control
     private static readonly SolidColorBrush ActiveFillHov  = Frozen("#E8D4A8");
     private static readonly SolidColorBrush ActiveText     = Frozen("#1A0D02");
     private static readonly SolidColorBrush BonusText      = Frozen("#1A4A10");  // dark green for bonus value
+    private static readonly SolidColorBrush PenaltyText    = Frozen("#8B1A0A");  // dark red for penalty value
     private static readonly SolidColorBrush InactiveStroke = Frozen("#885A2E0E");
     private static readonly SolidColorBrush InactiveFill   = Frozen("#E8E2D8");
     private static readonly SolidColorBrush InactiveText   = Frozen("#885A2E0E");
@@ -138,6 +153,7 @@ public class DieBubble : Control
     private Ellipse?   _ellipse;
     private TextBlock? _label;
     private TextBlock? _leafLabel;
+    private TextBlock? _rainLabel;
 
     public override void OnApplyTemplate()
     {
@@ -145,6 +161,7 @@ public class DieBubble : Control
         _ellipse   = GetTemplateChild("PART_Ellipse")   as Ellipse;
         _label     = GetTemplateChild("PART_Label")     as TextBlock;
         _leafLabel = GetTemplateChild("PART_LeafLabel") as TextBlock;
+        _rainLabel = GetTemplateChild("PART_RainLabel") as TextBlock;
         UpdateVisual(hover: false);
     }
 
@@ -192,16 +209,12 @@ public class DieBubble : Control
             _ellipse.Stroke = ActiveStroke;
             _ellipse.Fill   = hover ? ActiveFillHov : ActiveFill;
 
-            if (HasBonus)
-            {
-                _label.Text       = Math.Min(18, Value + 3).ToString();
-                _label.Foreground = BonusText;
-            }
-            else
-            {
-                _label.Text       = Value.ToString();
-                _label.Foreground = ActiveText;
-            }
+            int net       = (HasBonus ? 3 : 0) + WeatherPenaltyValue;
+            int displayed = Math.Clamp(Value + net, 1, 18);
+            _label.Text       = displayed.ToString();
+            _label.Foreground = net > 0 ? BonusText
+                              : net < 0 ? PenaltyText
+                              : ActiveText;
         }
         else
         {
@@ -213,7 +226,10 @@ public class DieBubble : Control
 
         if (_leafLabel != null)
             _leafLabel.Visibility = HasSkill && HasBonus
-                ? Visibility.Visible
-                : Visibility.Collapsed;
+                ? Visibility.Visible : Visibility.Collapsed;
+
+        if (_rainLabel != null)
+            _rainLabel.Visibility = HasSkill && WeatherPenaltyValue < 0
+                ? Visibility.Visible : Visibility.Collapsed;
     }
 }

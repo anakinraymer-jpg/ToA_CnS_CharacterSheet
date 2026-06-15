@@ -582,6 +582,13 @@
                       <Button x:Name="BtnAddSkill" DockPanel.Dock="Left"
                               Content="+" Style="{StaticResource AddButton}"
                               ToolTip="Add skill" Margin="4,0,0,0"/>
+                      <CheckBox DockPanel.Dock="Right"
+                                IsChecked="{Binding WeatherEffectsEnabled, Mode=TwoWay}"
+                                VerticalAlignment="Center"
+                                ToolTip="Apply weather effects to Breakfall, Climber, Forage, Hunting, Investigate, Scout, Tracking, Cartographer, Traps"
+                                Margin="6,0,0,0">
+                        <TextBlock Text="WX" FontSize="9" FontWeight="Bold" Foreground="#5A2E0E"/>
+                      </CheckBox>
                     </DockPanel>
                   </Grid>
 
@@ -635,7 +642,8 @@
                                             CanIncrease="{Binding DataContext.CanSpendPoint,
                                                           RelativeSource={RelativeSource AncestorType=Window}}"
                                             HasBonus="{Binding DataContext.DruidWildBonusActive,
-                                                       RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                       RelativeSource={RelativeSource AncestorType=Window}}"
+                                            WeatherPenaltyValue="{Binding WeatherPenalty}"/>
 
                             <Button Grid.Column="3" Content="×"
                                     Style="{StaticResource RemoveButton}"

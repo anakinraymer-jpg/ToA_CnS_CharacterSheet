@@ -139,6 +139,14 @@ public class SkillData : INotifyPropertyChanged
         set { _isConditionalBonus = value; OnPropertyChanged(); }
     }
 
+    private int _weatherPenalty = 0;
+    /// <summary>Weather-driven penalty (0 or negative). Set by MainWindow; display-only, never persisted.</summary>
+    public int WeatherPenalty
+    {
+        get => _weatherPenalty;
+        set { _weatherPenalty = value; OnPropertyChanged(); }
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -196,6 +204,7 @@ public class CharacterState : INotifyPropertyChanged
     private int    _heroPointsMax     = 50;
     private int    _heroPointsCurrent = 50;
     private bool   _druidWildBonusActive  = false;
+    private bool   _weatherEffectsEnabled = true;
     private int    _playerNode            = -1;
     private string _playerTerrain         = "";
     private string _playerLocationName    = "";
@@ -241,6 +250,13 @@ public class CharacterState : INotifyPropertyChanged
     {
         get => _druidWildBonusActive;
         set { _druidWildBonusActive = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>When false the weather penalty is not applied to skills (UI toggle).</summary>
+    public bool WeatherEffectsEnabled
+    {
+        get => _weatherEffectsEnabled;
+        set { _weatherEffectsEnabled = value; OnPropertyChanged(); }
     }
 
     // ── Map location tracking ─────────────────────────────────────────

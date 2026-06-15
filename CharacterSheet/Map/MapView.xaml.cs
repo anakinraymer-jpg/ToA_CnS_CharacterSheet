@@ -36,6 +36,12 @@ public partial class MapView : UserControl
     private string _bonusMoveEntityId = "";    // entity ID with unused bonus move, or ""
     private bool   _suppressWeatherEvent;
 
+    /// <summary>Fires whenever the current weather condition changes (empty string = no weather).</summary>
+    public event Action<string>? WeatherChanged;
+
+    /// <summary>The current weather condition string, or empty when none is set.</summary>
+    public string CurrentWeather => _currentWeather;
+
     // The character sheet PC name (for auto-marking IsPlayer on load/add)
     public string PlayerName { get; set; } = "";
 
@@ -165,6 +171,7 @@ public partial class MapView : UserControl
         if (_suppressWeatherEvent) return;
         _currentWeather = WeatherCombo.SelectedIndex <= 0
             ? "" : (string)WeatherCombo.SelectedItem;
+        WeatherChanged?.Invoke(_currentWeather);
     }
 
     private void OnRollWeatherClick(object s, RoutedEventArgs e)
@@ -847,6 +854,7 @@ public partial class MapView : UserControl
                 .FirstOrDefault(t => t.item == _currentWeather).i;
             WeatherCombo.SelectedIndex = Math.Max(0, widx);
             _suppressWeatherEvent = false;
+            WeatherChanged?.Invoke(_currentWeather);
 
             RefreshEntityList();
             RefreshLocationList();

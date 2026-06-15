@@ -34,14 +34,24 @@
                      Fill="#F2E4C0"
                      Stroke="#5A2E0E"
                      StrokeThickness="1.5"/>
-            <!-- Leaf sits behind the number; shown by code when HasBonus is true -->
+            <!-- Rain sits at left-bottom; shown by code when WeatherPenaltyValue < 0 -->
+            <TextBlock x:Name="PART_RainLabel"
+                       Text="☂"
+                       FontFamily="Segoe UI Emoji"
+                       FontSize="9"
+                       HorizontalAlignment="Left"
+                       VerticalAlignment="Bottom"
+                       Margin="2,0,0,1"
+                       Opacity="0.85"
+                       Visibility="Collapsed"/>
+            <!-- Leaf sits at right-bottom; shown by code when HasBonus is true -->
             <TextBlock x:Name="PART_LeafLabel"
                        Text="🍃"
                        FontFamily="Segoe UI Emoji"
                        FontSize="9"
-                       HorizontalAlignment="Center"
+                       HorizontalAlignment="Right"
                        VerticalAlignment="Bottom"
-                       Margin="0,0,0,2"
+                       Margin="0,0,2,1"
                        Opacity="0.85"
                        Visibility="Collapsed"/>
             <TextBlock x:Name="PART_Label"
