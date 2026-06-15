@@ -1,0 +1,269 @@
+<UserControl x:Class="CharacterSheet.Map.MapView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#0A0F08"
+             KeyDown="OnKeyDown"
+             Focusable="True">
+
+  <UserControl.Resources>
+    <!-- ── Map panel colour palette ──────────────────────────────── -->
+    <SolidColorBrush x:Key="MapBg"       Color="#0D1309"/>
+    <SolidColorBrush x:Key="MapPanelBg"  Color="#111810"/>
+    <SolidColorBrush x:Key="MapText"     Color="#B0C8A0"/>
+    <SolidColorBrush x:Key="MapTextDim"  Color="#718A68"/>
+    <SolidColorBrush x:Key="MapAccent"   Color="#7AAF5A"/>
+    <SolidColorBrush x:Key="MapBtnBg"    Color="#1A2E14"/>
+    <SolidColorBrush x:Key="MapBtnBdr"   Color="#3A5A2A"/>
+    <SolidColorBrush x:Key="MapListBg"   Color="#0D1A0B"/>
+    <SolidColorBrush x:Key="MapGroupHdr" Color="#2A4A20"/>
+    <SolidColorBrush x:Key="MapSel"      Color="#2A5A1A"/>
+
+    <!-- Generic button style for the map panel -->
+    <Style x:Key="MapBtn" TargetType="Button">
+      <Setter Property="Background"       Value="{StaticResource MapBtnBg}"/>
+      <Setter Property="Foreground"       Value="{StaticResource MapText}"/>
+      <Setter Property="BorderBrush"      Value="{StaticResource MapBtnBdr}"/>
+      <Setter Property="BorderThickness"  Value="1"/>
+      <Setter Property="Padding"          Value="6,3"/>
+      <Setter Property="FontSize"         Value="11"/>
+      <Setter Property="Cursor"           Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="bd" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="3" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="#2A4A20"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="bd" Property="Background" Value="#3A6A2A"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Opacity" Value="0.4"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- GroupBox for the map panel -->
+    <Style x:Key="MapGroup" TargetType="GroupBox">
+      <Setter Property="Foreground"       Value="{StaticResource MapAccent}"/>
+      <Setter Property="BorderBrush"      Value="{StaticResource MapBtnBdr}"/>
+      <Setter Property="BorderThickness"  Value="1"/>
+      <Setter Property="Margin"           Value="0,0,0,6"/>
+      <Setter Property="Padding"          Value="4,4"/>
+      <Setter Property="Background"       Value="#0A140A"/>
+    </Style>
+
+    <!-- ListBox for the map panel -->
+    <Style x:Key="MapList" TargetType="ListBox">
+      <Setter Property="Background"           Value="{StaticResource MapListBg}"/>
+      <Setter Property="Foreground"           Value="{StaticResource MapText}"/>
+      <Setter Property="BorderBrush"          Value="{StaticResource MapBtnBdr}"/>
+      <Setter Property="BorderThickness"      Value="1"/>
+      <Setter Property="FontSize"             Value="11"/>
+      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+      <Setter Property="ItemContainerStyle">
+        <Setter.Value>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource MapText}"/>
+            <Setter Property="Padding"    Value="4,2"/>
+            <Style.Triggers>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource MapSel}"/>
+              </Trigger>
+            </Style.Triggers>
+          </Style>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </UserControl.Resources>
+
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="300"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- ── Canvas placeholder (HexMapCanvas added in code-behind) ──────── -->
+    <Grid x:Name="CanvasHost" Grid.Column="0" Background="#0A0F08"/>
+
+    <!-- ── Side panel ──────────────────────────────────────────────────── -->
+    <Border Grid.Column="1" Background="{StaticResource MapPanelBg}"
+            BorderBrush="{StaticResource MapBtnBdr}" BorderThickness="1,0,0,0">
+      <ScrollViewer VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="8" Background="Transparent">
+
+          <!-- ── Day ──────────────────────────────────────────────────── -->
+          <GroupBox Header="Day" Style="{StaticResource MapGroup}">
+            <StackPanel>
+              <TextBlock x:Name="DayLabel" Text="Day 1"
+                         FontSize="16" FontWeight="Bold"
+                         Foreground="{StaticResource MapAccent}"/>
+              <TextBlock x:Name="DayProgressLabel" Text="0 / 0 acted"
+                         FontSize="11" Foreground="{StaticResource MapTextDim}"/>
+              <UniformGrid Rows="1" Columns="3">
+                <Button Content="Wait  [W]" Style="{StaticResource MapBtn}"
+                        Margin="0,0,2,0" ToolTip="End selected entity's turn without moving"
+                        Click="OnWaitClick"/>
+                <Button Content="Advance Day" Style="{StaticResource MapBtn}"
+                        Margin="2,0" Click="OnAdvanceDayClick"/>
+                <Button Content="Edit" Style="{StaticResource MapBtn}"
+                        Margin="2,0,0,0" ToolTip="Manually set the current day number"
+                        Click="OnEditDayClick"/>
+              </UniformGrid>
+            </StackPanel>
+          </GroupBox>
+
+          <!-- ── Weather ───────────────────────────────────────────────── -->
+          <GroupBox Header="Weather" Style="{StaticResource MapGroup}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <ComboBox x:Name="WeatherCombo" Grid.Column="0"
+                        Background="{StaticResource MapListBg}"
+                        Foreground="{StaticResource MapText}"
+                        BorderBrush="{StaticResource MapBtnBdr}"
+                        FontSize="11" Margin="0,0,4,0"
+                        SelectionChanged="OnWeatherChanged"/>
+              <Button Content="Roll" Grid.Column="1"
+                      Style="{StaticResource MapBtn}"
+                      ToolTip="Randomly pick a weather condition for today"
+                      Click="OnRollWeatherClick"/>
+            </Grid>
+          </GroupBox>
+
+          <!-- ── Characters & Groups ────────────────────────────────────── -->
+          <GroupBox Header="Characters &amp; Groups" Style="{StaticResource MapGroup}">
+            <StackPanel>
+              <ListBox x:Name="EntityList" Style="{StaticResource MapList}"
+                       MaxHeight="130" SelectionChanged="OnEntityListSelectionChanged"/>
+              <UniformGrid Rows="1" Columns="3">
+                <Button Content="+ Add" Style="{StaticResource MapBtn}"
+                        Margin="0,0,2,0" Click="OnAddEntityClick"/>
+                <Button Content="Edit" Style="{StaticResource MapBtn}"
+                        Margin="2,0" ToolTip="Edit selected character/group"
+                        Click="OnEditEntityClick"/>
+                <Button Content="Remove" Style="{StaticResource MapBtn}"
+                        Margin="2,0,0,0" Click="OnRemoveEntityClick"/>
+              </UniformGrid>
+            </StackPanel>
+          </GroupBox>
+
+          <!-- ── Locations ─────────────────────────────────────────────── -->
+          <GroupBox Header="Locations" Style="{StaticResource MapGroup}">
+            <StackPanel>
+              <ListBox x:Name="LocationList" Style="{StaticResource MapList}"
+                       MaxHeight="115" SelectionChanged="OnLocationListSelectionChanged"/>
+              <UniformGrid Rows="1" Columns="3">
+                <Button Content="+ Add" Style="{StaticResource MapBtn}"
+                        Margin="0,0,2,0" Click="OnAddLocationClick"/>
+                <Button Content="Edit" Style="{StaticResource MapBtn}"
+                        Margin="2,0" Click="OnEditLocationClick"/>
+                <Button Content="Remove" Style="{StaticResource MapBtn}"
+                        Margin="2,0,0,0" Click="OnRemoveLocationClick"/>
+              </UniformGrid>
+            </StackPanel>
+          </GroupBox>
+
+          <!-- ── Selected info ──────────────────────────────────────────── -->
+          <GroupBox Header="Selected" Style="{StaticResource MapGroup}">
+            <TextBlock x:Name="InfoLabel" Text="None"
+                       Foreground="{StaticResource MapText}"
+                       FontSize="11" TextWrapping="Wrap"
+                       MinHeight="88" VerticalAlignment="Top"/>
+          </GroupBox>
+
+          <!-- ── Group Members (hidden when no group selected) ────────────── -->
+          <GroupBox x:Name="MembersGroup" Header="Group Members"
+                    Style="{StaticResource MapGroup}"
+                    Visibility="Collapsed">
+            <ListBox x:Name="MembersList" Style="{StaticResource MapList}"
+                     MaxHeight="90"/>
+          </GroupBox>
+
+          <!-- ── Teleport Mode ──────────────────────────────────────────── -->
+          <CheckBox x:Name="TeleportCheck" Content="Teleport Mode"
+                    Foreground="{StaticResource MapText}" FontSize="11"
+                    Margin="0,0,0,6" Checked="OnTeleportChanged"
+                    Unchecked="OnTeleportChanged"/>
+
+          <!-- ── Grid Overlay ───────────────────────────────────────────── -->
+          <GroupBox Header="Grid Overlay" Style="{StaticResource MapGroup}">
+            <StackPanel>
+              <TextBlock x:Name="OpacityLabel" Text="Opacity: 71%"
+                         Foreground="{StaticResource MapTextDim}" FontSize="11"/>
+              <Slider x:Name="OpacitySlider" Minimum="0" Maximum="255" Value="180"
+                      ValueChanged="OnOpacityChanged"/>
+            </StackPanel>
+          </GroupBox>
+
+          <!-- ── Terrain Paint Shortcut ─────────────────────────────────── -->
+          <GroupBox Header="Terrain Paint" Style="{StaticResource MapGroup}">
+            <StackPanel>
+              <TextBlock Text="Right-click an empty hex to paint terrain."
+                         Foreground="{StaticResource MapTextDim}"
+                         FontSize="10" TextWrapping="Wrap"/>
+              <ComboBox x:Name="TerrainPaintCombo"
+                        Background="{StaticResource MapListBg}"
+                        Foreground="{StaticResource MapText}"
+                        BorderBrush="{StaticResource MapBtnBdr}"
+                        FontSize="11" ToolTip="Terrain type to apply on right-click"/>
+            </StackPanel>
+          </GroupBox>
+
+          <!-- ── Toolbar actions ────────────────────────────────────────── -->
+          <GroupBox Header="Map Tools" Style="{StaticResource MapGroup}">
+            <UniformGrid Columns="2" Rows="2">
+              <Button Content="Open Image…" Style="{StaticResource MapBtn}"
+                      Margin="0,0,2,2" Click="OnOpenMapClick"/>
+              <Button Content="Grid Settings" Style="{StaticResource MapBtn}"
+                      Margin="2,0,0,2" Click="OnGridSettingsClick"/>
+              <Button Content="Set Origin" Style="{StaticResource MapBtn}"
+                      Margin="0,2,2,0" ToolTip="Click a hex centre to snap the grid origin"
+                      Click="OnSetOriginClick"/>
+              <Button Content="Reset Warp" Style="{StaticResource MapBtn}"
+                      Margin="2,2,0,0" Click="OnResetWarpClick"/>
+            </UniformGrid>
+          </GroupBox>
+
+          <!-- ── Fog controls ───────────────────────────────────────────── -->
+          <GroupBox Header="Fog of War" Style="{StaticResource MapGroup}">
+            <StackPanel Orientation="Horizontal">
+              <CheckBox x:Name="FogEnabledCheck" Content="Fog of War"
+                        Foreground="{StaticResource MapText}" FontSize="11"
+                        IsChecked="True" Checked="OnFogChanged" Unchecked="OnFogChanged"/>
+              <Button Content="Reset Fog" Style="{StaticResource MapBtn}"
+                      Click="OnResetFogClick"
+                      ToolTip="Clear revealed hexes; keep entity positions visible"/>
+            </StackPanel>
+          </GroupBox>
+
+          <!-- ── Status bar ──────────────────────────────────────────────── -->
+          <TextBlock x:Name="StatusLabel" Text=""
+                     Foreground="{StaticResource MapTextDim}"
+                     FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+          <!-- ── Hint ────────────────────────────────────────────────────── -->
+          <TextBlock Foreground="{StaticResource MapTextDim}" FontSize="10"
+                     TextWrapping="Wrap" Margin="0,6,0,0">
+            <Bold>Map:</Bold> left-click select/move  ·  right-click edit/paint<LineBreak/>
+            <Bold>Pan/Zoom:</Bold> middle-drag  ·  scroll wheel<LineBreak/>
+            <Bold>Keys:</Bold> W = Wait  ·  Esc = Deselect
+          </TextBlock>
+
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

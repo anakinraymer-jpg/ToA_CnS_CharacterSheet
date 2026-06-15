@@ -141,6 +141,29 @@ public class MapEntityManager
     public IReadOnlyList<MapEntity> AtNode(int node) =>
         [.. TopLevel.Where(e => e.Node == node)];
 
+    /// <summary>
+    /// Creates a new group entity containing all entities in <paramref name="memberIds"/>
+    /// and adds it to the manager. Returns the new group.
+    /// </summary>
+    public MapEntity CreateGroupFromEntities(
+        IEnumerable<string> memberIds, string groupName, string color)
+    {
+        var group = new MapEntity
+        {
+            Name    = groupName,
+            Color   = color,
+            IsGroup = true,
+            Members = [.. memberIds],
+        };
+        // Place group at the first member's node
+        var firstId = group.Members.FirstOrDefault();
+        if (firstId != null && _entities.TryGetValue(firstId, out var first))
+            group.Node = first.Node;
+
+        _entities[group.Id] = group;
+        return group;
+    }
+
     /// <summary>Export all entities for JSON serialization.</summary>
     public List<MapEntity> ToList() => [.. _entities.Values];
 

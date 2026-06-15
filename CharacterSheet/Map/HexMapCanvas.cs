@@ -20,6 +20,8 @@ public class HexMapCanvas : FrameworkElement
     public event Action<MapEntity, int>? MoveRequested;
     public event Action<double, double>? OriginClicked;
     public event Action<MapEntity>?      RightClickedEntity;
+    /// <summary>Fires when the user right-clicks an empty hex (no entity present).</summary>
+    public event Action<int>?            RightClickedHex;
 
     // ── Data sources ───────────────────────────────────────────────────
     private readonly HexGrid            _grid;
@@ -161,6 +163,21 @@ public class HexMapCanvas : FrameworkElement
         InvalidateVisual();
         EntitySelected?.Invoke(entity);
     }
+
+    /// <summary>Currently selected entity (null if none).</summary>
+    public MapEntity? SelectedEntity => _selected;
+
+    /// <summary>Returns true if the entity with the given id has already acted this turn.</summary>
+    public bool HasMoved(string id) => _movedIds.Contains(id);
+
+    /// <summary>
+    /// Returns the number of moved entity ids that appear in <paramref name="ids"/>.
+    /// Used to compute "N / total acted" in the day panel.
+    /// </summary>
+    public int CountMoved(IEnumerable<string> ids) => ids.Count(_movedIds.Contains);
+
+    /// <summary>Removes a single entity's moved-flag without touching the rest.</summary>
+    public void ClearMovedId(string id) { _movedIds.Remove(id); InvalidateVisual(); }
 
     public void SetOriginClickMode(bool enabled)
     {
@@ -453,6 +470,10 @@ public class HexMapCanvas : FrameworkElement
                         e.Handled = true;
                         return;
                     }
+                    // Empty hex — let caller show terrain context menu
+                    RightClickedHex?.Invoke(cell.Number);
+                    e.Handled = true;
+                    return;
                 }
             }
             SetSelected(null);
