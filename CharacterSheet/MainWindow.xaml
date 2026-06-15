@@ -692,19 +692,35 @@
                 </DockPanel>
               </Border>
               <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,0,0,10"/>
-              <TextBlock Text="SPELLS" Style="{StaticResource SectionHeader}"/>
-              <DockPanel Margin="0,4">
-                <TextBlock DockPanel.Dock="Left" Text="①" Width="20" Style="{StaticResource FieldLabel}"/>
-                <TextBox x:Name="TbSpell0" Style="{StaticResource HdrTextBox}"/>
+              <DockPanel Margin="0,0,0,4">
+                <Button DockPanel.Dock="Right" x:Name="BtnAddSpell"
+                        Content="+" Style="{StaticResource AddButton}"
+                        ToolTip="Add spell" Margin="0,0,2,0"/>
+                <TextBlock Text="SPELLS" Style="{StaticResource SectionHeader}" Margin="0"/>
               </DockPanel>
-              <DockPanel Margin="0,4">
-                <TextBlock DockPanel.Dock="Left" Text="②" Width="20" Style="{StaticResource FieldLabel}"/>
-                <TextBox x:Name="TbSpell1" Style="{StaticResource HdrTextBox}"/>
-              </DockPanel>
-              <DockPanel Margin="0,4">
-                <TextBlock DockPanel.Dock="Left" Text="③" Width="20" Style="{StaticResource FieldLabel}"/>
-                <TextBox x:Name="TbSpell2" Style="{StaticResource HdrTextBox}"/>
-              </DockPanel>
+
+              <ItemsControl ItemsSource="{Binding Spells}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <DockPanel Margin="0,3">
+                      <Button DockPanel.Dock="Right" Content="×"
+                              Style="{StaticResource RemoveButton}"
+                              Click="OnRemoveSpellClicked"
+                              ToolTip="Remove spell" Margin="4,0,0,0"/>
+                      <Button DockPanel.Dock="Right" Content="▼"
+                              Style="{StaticResource InvRowButton}"
+                              Click="OnMoveSpellDownClick"
+                              ToolTip="Move down" Margin="2,0,0,0"/>
+                      <Button DockPanel.Dock="Right" Content="▲"
+                              Style="{StaticResource InvRowButton}"
+                              Click="OnMoveSpellUpClick"
+                              ToolTip="Move up" Margin="2,0,0,0"/>
+                      <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                               Style="{StaticResource HdrTextBox}"/>
+                    </DockPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
             </StackPanel>
 
             <!-- ─── INVENTORY ─────────────────────────────────────── -->

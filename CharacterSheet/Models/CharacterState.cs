@@ -155,6 +155,18 @@ public class SkillData : INotifyPropertyChanged
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
+// ── Spell ─────────────────────────────────────────────────────────────────────
+
+public class SpellData : INotifyPropertyChanged
+{
+    private string _name = "";
+    public string Name { get => _name; set { _name = value; OnPropertyChanged(); } }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([CallerMemberName] string? name = null)
+        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+}
+
 // ── Inventory item ────────────────────────────────────────────────────────────
 
 public class InventoryItem : INotifyPropertyChanged
@@ -322,7 +334,7 @@ public class CharacterState : INotifyPropertyChanged
 
     public ObservableCollection<EquipData>         Equipment    { get; set; } = [];
     public ObservableCollection<SkillData>         Skills       { get; set; } = [];
-    public ObservableCollection<string>            Spells       { get; set; } = [];
+    public ObservableCollection<SpellData>         Spells       { get; set; } = [];
     public ObservableCollection<InventoryCategory> Inventory    { get; set; } = [];
     /// <summary>Ordered section IDs as rearranged by the user. Empty = default order.</summary>
     public List<string>                            SectionOrder { get; set; } = [];
@@ -352,10 +364,5 @@ public class CharacterState : INotifyPropertyChanged
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 
-    public static CharacterState CreateDefault()
-    {
-        var s = new CharacterState();
-        s.Spells.Add(""); s.Spells.Add(""); s.Spells.Add("");
-        return s;
-    }
+    public static CharacterState CreateDefault() => new();
 }

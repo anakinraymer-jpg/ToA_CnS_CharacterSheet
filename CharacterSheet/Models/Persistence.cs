@@ -105,7 +105,7 @@ public static class Persistence
                            sk.MinRating, sk.FreeRating, sk.RatingStep,
                            sk.IsAlwaysFree, sk.IsLocked, sk.IsCoreAbilitySkill)).ToList(),
         Rows:      null,   // legacy field — intentionally null in new saves
-        Spells:    [.. s.Spells],
+        Spells:    s.Spells.Select(sp => sp.Name).ToList(),
         Defense:           s.DefenseBase,
         Hit1: s.Hit1, Hit2: s.Hit2, Hit3: s.Hit3, Hit4: s.Hit4, Hit5: s.Hit5,
         HeroPointsMax:     s.HeroPointsMax,
@@ -190,8 +190,9 @@ public static class Persistence
             }
         }
 
-        var sp = d.Spells ?? [];
-        for (int i = 0; i < 3; i++) s.Spells.Add(i < sp.Count ? sp[i] : "");
+        foreach (var sp in d.Spells ?? [])
+            if (!string.IsNullOrWhiteSpace(sp))
+                s.Spells.Add(new SpellData { Name = sp });
 
         s.SectionOrder = d.SectionOrder?.ToList() ?? [];
 

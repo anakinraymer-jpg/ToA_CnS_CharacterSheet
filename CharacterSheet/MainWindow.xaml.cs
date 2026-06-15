@@ -125,15 +125,12 @@ public partial class MainWindow : Window
         BtnLayoutEdit.Checked   += (_, _) => SetLayoutEditMode(true);
         BtnLayoutEdit.Unchecked += (_, _) => SetLayoutEditMode(false);
         BtnAddCategory.Click += (_, _) => OnAddCategoryClicked();
+        BtnAddSpell.Click    += (_, _) => OnAddSpellClicked();
 
         BtnAddEquip.Click += OnAddEquipClicked;
         BtnAddSkill.Click += OnAddSkillClicked;
 
         PortraitBox.MouseLeftButtonDown += OnPortraitClick;
-
-        TbSpell0.TextChanged += OnSpell0Changed;
-        TbSpell1.TextChanged += OnSpell1Changed;
-        TbSpell2.TextChanged += OnSpell2Changed;
     }
 
     // ── Load / Populate ───────────────────────────────────────────────
@@ -151,14 +148,11 @@ public partial class MainWindow : Window
             sk.PropertyChanged -= OnItemChanged;
             sk.PropertyChanged -= OnSkillDataChanged;
         }
+        UnsubscribeSpells(_state);
         UnsubscribeInventory(_state);
 
         _state = state;
         DataContext = _state;
-
-        TbSpell0.Text = state.Spells.Count > 0 ? state.Spells[0] : "";
-        TbSpell1.Text = state.Spells.Count > 1 ? state.Spells[1] : "";
-        TbSpell2.Text = state.Spells.Count > 2 ? state.Spells[2] : "";
 
         if (!string.IsNullOrEmpty(state.Portrait))
             ShowPortrait(state.Portrait);
@@ -175,6 +169,7 @@ public partial class MainWindow : Window
             sk.PropertyChanged += OnItemChanged;
             sk.PropertyChanged += OnSkillDataChanged;
         }
+        SubscribeSpells(_state);
         SubscribeInventory(_state);
         _state.RefreshSelectedSkillNames();
 
@@ -707,14 +702,60 @@ public partial class MainWindow : Window
     }
 
     // ── Spells ────────────────────────────────────────────────────────
-    private void OnSpell0Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
-    { if (!_loading) { _state.Spells[0] = TbSpell0.Text; Save(); } }
 
-    private void OnSpell1Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
-    { if (!_loading) { _state.Spells[1] = TbSpell1.Text; Save(); } }
+    private void SubscribeSpells(CharacterState s)
+    {
+        s.Spells.CollectionChanged += OnSpellsCollectionChanged;
+        foreach (var sp in s.Spells) sp.PropertyChanged += OnSpellDataChanged;
+    }
 
-    private void OnSpell2Changed(object sender, System.Windows.Controls.TextChangedEventArgs e)
-    { if (!_loading) { _state.Spells[2] = TbSpell2.Text; Save(); } }
+    private void UnsubscribeSpells(CharacterState s)
+    {
+        s.Spells.CollectionChanged -= OnSpellsCollectionChanged;
+        foreach (var sp in s.Spells) sp.PropertyChanged -= OnSpellDataChanged;
+    }
+
+    private void OnSpellsCollectionChanged(object? sender,
+        System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+            foreach (SpellData sp in e.NewItems) sp.PropertyChanged += OnSpellDataChanged;
+        if (e.OldItems != null)
+            foreach (SpellData sp in e.OldItems) sp.PropertyChanged -= OnSpellDataChanged;
+        if (!_loading) Save();
+    }
+
+    private void OnSpellDataChanged(object? sender, PropertyChangedEventArgs e)
+    { if (!_loading) Save(); }
+
+    private void OnAddSpellClicked()
+    {
+        _state.Spells.Add(new SpellData());
+        Save();
+    }
+
+    private void OnRemoveSpellClicked(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not SpellData sp) return;
+        _state.Spells.Remove(sp);
+        Save();
+    }
+
+    private void OnMoveSpellUpClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not SpellData sp) return;
+        int idx = _state.Spells.IndexOf(sp);
+        if (idx > 0) _state.Spells.Move(idx, idx - 1);
+        Save();
+    }
+
+    private void OnMoveSpellDownClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is not SpellData sp) return;
+        int idx = _state.Spells.IndexOf(sp);
+        if (idx >= 0 && idx < _state.Spells.Count - 1) _state.Spells.Move(idx, idx + 1);
+        Save();
+    }
 
     // ── Portrait ──────────────────────────────────────────────────────
     private void OnPortraitClick(object sender, MouseButtonEventArgs e)
