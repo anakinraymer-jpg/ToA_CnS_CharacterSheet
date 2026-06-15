@@ -50,15 +50,7 @@ public partial class MainWindow : Window
     private readonly List<SkillData> _coreAbilitySkills = new();
 
     // ── Map integration ───────────────────────────────────────────────
-    private MapHost? _mapHost;
-    private string _mapDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        "Dev", "ToA_Delver_Map");
-    private System.Windows.Threading.DispatcherTimer? _locationTimer;
-    private DateTime _lastLocationFileTime = DateTime.MinValue;
-    private static readonly string LocationFilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "ToA_CnS_CharacterSheet", "player_location.json");
+    private Map.MapView? _mapView;
 
     // ── Legend window (single modeless instance) ──────────────────────
     private LegendWindow? _legendWindow;
@@ -106,7 +98,6 @@ public partial class MainWindow : Window
         _sectionHandles = [SecFlawsHandle, SecCoreAbilityHandle, SecSummaryHandle, SecDefenseHandle, SecEquipSkillsHandle, SecSpellsHandle, SecInventoryHandle];
         WireUiEvents();
         LoadState(Persistence.Load());
-        StartLocationWatcher();
         Loaded += (_, _) => FitToWindow();
         Closing += OnWindowClosing;
     }
@@ -446,6 +437,11 @@ public partial class MainWindow : Window
 
         switch (e.PropertyName)
         {
+            // Keep map's player label in sync with the character name
+            case nameof(CharacterState.Name):
+                if (_mapView != null) _mapView.PlayerName = _state.Name;
+                break;
+
             // Core ability: −15 Available on acquisition, +15 on removal
             case nameof(CharacterState.CoreAbility):
                 ApplyCoreAbilityDelta(ref _prevCoreAbility, _state.CoreAbility);
@@ -1068,126 +1064,55 @@ public partial class MainWindow : Window
         bool isMapTab = MainTabControl.SelectedItem == TabMap;
         SheetOnlyControls.Visibility = isMapTab ? Visibility.Collapsed : Visibility.Visible;
 
-        if (isMapTab && _mapHost == null)
-            StartMap();
+        if (isMapTab && _mapView == null)
+            EmbedMapView();
     }
 
-    private void StartMap()
+    private void EmbedMapView()
     {
-        if (!Directory.Exists(_mapDir))
-        {
-            TbMapStatus.Text = $"Map not found at: {_mapDir}";
-            BtnConfigureMap.Visibility = Visibility.Visible;
-            return;
-        }
-
-        TbMapStatus.Text = "Starting map — this may take a few seconds…";
-
-        _mapHost = new MapHost(_mapDir, _state.Name);
-
-        _mapHost.EmbedReady += () =>
-        {
-            MapPlaceholder.Visibility = Visibility.Collapsed;
-        };
-
-        _mapHost.EmbedFailed += msg =>
-        {
-            TbMapStatus.Text = $"Could not embed map: {msg}";
-            BtnConfigureMap.Visibility = Visibility.Visible;
-            _mapHost.Stop();
-            MapContainer.Children.Remove(_mapHost);
-            _mapHost = null;
-        };
-
-        MapContainer.Children.Add(_mapHost);
-    }
-
-    private void OnConfigureMapClicked(object sender, RoutedEventArgs e)
-    {
-        var dlg = new OpenFolderDialog
-        {
-            Title = "Select the ToA_Delver_Map folder",
-            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-        };
-        if (dlg.ShowDialog() == true)
-        {
-            _mapDir = dlg.FolderName;
-            // Reset and try again
-            if (_mapHost != null)
-            {
-                _mapHost.Stop();
-                MapContainer.Children.Remove(_mapHost);
-                _mapHost = null;
-            }
-            BtnConfigureMap.Visibility = Visibility.Collapsed;
-            MapPlaceholder.Visibility = Visibility.Visible;
-            StartMap();
-        }
+        _mapView = new Map.MapView { PlayerName = _state.Name };
+        _mapView.PlayerLocationChanged += OnPlayerLocationChanged;
+        MapContainer.Children.Add(_mapView);
+        MapPlaceholder.Visibility = Visibility.Collapsed;
     }
 
     private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
-        _mapHost?.Stop();
-        _locationTimer?.Stop();
+        // nothing to stop — map is in-process
     }
 
     // ── Druid Wild Bonus ──────────────────────────────────────────────
 
-    private void StartLocationWatcher()
+    /// <summary>
+    /// Receives in-process player location data directly from MapView —
+    /// replaces the old file-poll approach.
+    /// </summary>
+    private void OnPlayerLocationChanged(int node, string terrain, string locName, string locType)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(LocationFilePath)!);
-        _locationTimer = new System.Windows.Threading.DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(500)
-        };
-        _locationTimer.Tick += (_, _) => PollPlayerLocation();
-        _locationTimer.Start();
-        PollPlayerLocation();
-    }
-
-    private void PollPlayerLocation()
-    {
-        try
-        {
-            if (!File.Exists(LocationFilePath)) return;
-            var mtime = File.GetLastWriteTime(LocationFilePath);
-            if (mtime <= _lastLocationFileTime) return;
-            _lastLocationFileTime = mtime;
-            UpdatePlayerLocation();
-        }
-        catch { }
-    }
-
-    private void UpdatePlayerLocation()
-    {
-        int    node         = -1;
-        string terrain      = "";
-        string locName      = "";
-        string locType      = "";
-
-        try
-        {
-            if (File.Exists(LocationFilePath))
-            {
-                var text = File.ReadAllText(LocationFilePath);
-                using var doc = JsonDocument.Parse(text);
-                var root = doc.RootElement;
-                node    = root.TryGetProperty("node",          out var nProp) ? nProp.GetInt32()    : -1;
-                terrain = root.TryGetProperty("terrain",       out var tProp) ? tProp.GetString() ?? "" : "";
-                locName = root.TryGetProperty("location_name", out var lnProp) ? lnProp.GetString() ?? "" : "";
-                locType = root.TryGetProperty("location_type", out var ltProp) ? ltProp.GetString() ?? "" : "";
-            }
-        }
-        catch { }
-
         _state.PlayerNode         = node;
         _state.PlayerTerrain      = terrain;
         _state.PlayerLocationName = locName;
         _state.PlayerLocationType = locType;
 
-        // Druid wild bonus: active when Druid AND not in a Structure or Cave hex
         bool isDruid = _state.CoreAbility.Equals("Druid", StringComparison.OrdinalIgnoreCase);
-        _state.DruidWildBonusActive = isDruid && node >= 0 && terrain != "Structure" && terrain != "Cave";
+        _state.DruidWildBonusActive =
+            isDruid && node >= 0 && !Map.MapTerrain.IndoorTerrains.Contains(terrain);
+    }
+
+    /// <summary>
+    /// Re-evaluates Druid wild bonus using the latest map state.
+    /// Called when CoreAbility changes so the bonus updates even if the
+    /// player hasn't moved since the last notification.
+    /// </summary>
+    private void UpdatePlayerLocation()
+    {
+        if (_mapView is null)
+        {
+            _state.DruidWildBonusActive = false;
+            return;
+        }
+        var (node, terrain, locName, locType) = _mapView.PlayerLocation;
+        OnPlayerLocationChanged(node, terrain, locName, locType);
     }
 
     // ── Legend ────────────────────────────────────────────────────────

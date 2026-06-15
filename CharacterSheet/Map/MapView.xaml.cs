@@ -1,5 +1,4 @@
 using System.IO;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -824,33 +823,50 @@ public partial class MapView : UserControl
         }
     }
 
-    // ── IPC: write player location ─────────────────────────────────────
+    // ── In-process player location notification ────────────────────────
 
     /// <summary>
-    /// Writes the player's current location to the shared IPC file so the
-    /// character sheet's Druid wild bonus stays current.
+    /// Fires whenever the player entity moves, is added, or the terrain/location
+    /// under the player changes.  The character sheet subscribes to this instead
+    /// of polling a file.
+    /// Signature: (node, terrain, locationName, locationType)
+    /// node = -1 when no player entity exists.
+    /// </summary>
+    public event Action<int, string, string, string>? PlayerLocationChanged;
+
+    /// <summary>
+    /// Computes the player's current node/terrain/location and fires
+    /// <see cref="PlayerLocationChanged"/>.  Call after any map mutation that
+    /// could affect the player's position or surroundings.
     /// </summary>
     public void NotifyPlayerLocation()
     {
         var player = _em.All.FirstOrDefault(e => e.IsPlayer);
-        if (player is null) return;
-        string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        string folder  = Path.Combine(appData, "ToA_CnS_CharacterSheet");
-        Directory.CreateDirectory(folder);
-        string filePath = Path.Combine(folder, "player_location.json");
-        string terrain  = _tm.Get(player.Node) ?? "";
-        var    loc      = _lm.All.FirstOrDefault(l => l.Node == player.Node);
-        try
+        if (player is null)
         {
-            File.WriteAllText(filePath, JsonSerializer.Serialize(new
-            {
-                node          = player.Node,
-                terrain,
-                location_name = loc?.Name ?? "",
-                location_type = loc?.LocationType ?? "",
-            }));
+            PlayerLocationChanged?.Invoke(-1, "", "", "");
+            return;
         }
-        catch { /* ignore write errors */ }
+        string terrain = _tm.Get(player.Node) ?? "";
+        var    loc     = _lm.All.FirstOrDefault(l => l.Node == player.Node);
+        PlayerLocationChanged?.Invoke(
+            player.Node, terrain, loc?.Name ?? "", loc?.LocationType ?? "");
+    }
+
+    /// <summary>
+    /// Snapshot of the player's current location data without firing the event.
+    /// Returns node=-1 when no player entity is on the map.
+    /// </summary>
+    public (int Node, string Terrain, string LocationName, string LocationType) PlayerLocation
+    {
+        get
+        {
+            var player = _em.All.FirstOrDefault(e => e.IsPlayer);
+            if (player is null) return (-1, "", "", "");
+            string terrain = _tm.Get(player.Node) ?? "";
+            var    loc     = _lm.All.FirstOrDefault(l => l.Node == player.Node);
+            return (player.Node, terrain, loc?.Name ?? "", loc?.LocationType ?? "");
+        }
     }
 
     // ── Helpers ────────────────────────────────────────────────────────
