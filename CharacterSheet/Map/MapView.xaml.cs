@@ -32,9 +32,10 @@ public partial class MapView : UserControl
     private readonly MapTerrainMap      _tm;
     private readonly HexMapCanvas       _canvas;
 
-    private int    _day               = 1;
-    private string _currentWeather    = "";
-    private string _bonusMoveEntityId = "";    // entity ID with unused bonus move, or ""
+    private int    _day                      = 1;
+    private string _currentWeather           = "";
+    private string _bonusMoveEntityId        = "";    // entity ID with unused bonus move, or ""
+    private bool   _advanceDayAfterBonusMove = false; // advance the day once the pending bonus move is used
     private bool   _suppressWeatherEvent;
 
     /// <summary>Fires whenever the current weather condition changes (empty string = no weather).</summary>
@@ -116,16 +117,26 @@ public partial class MapView : UserControl
         // Canvas exposes selected entity via public property
         var entity = _canvas.SelectedEntity;
         if (entity is null || _canvas.HasMoved(entity.Id)) return;
+        bool wasAdvanceBonus = _advanceDayAfterBonusMove && entity.Id == _bonusMoveEntityId;
         _bonusMoveEntityId = "";
         _canvas.MarkMoved(entity.Id);
         _canvas.SetSelected(entity);
-        SetStatus($"'{entity.Name}' is waiting.  [{ProgressStr()}]");
-        RefreshEntityList();
-        UpdateDayUi();
-        CheckDayEnd();
+        if (wasAdvanceBonus)
+        {
+            SetStatus($"'{entity.Name}' passed on extra move.");
+            AdvanceDay();
+        }
+        else
+        {
+            SetStatus($"'{entity.Name}' is waiting.  [{ProgressStr()}]");
+            RefreshEntityList();
+            UpdateDayUi();
+            CheckDayEnd();
+        }
     }
 
-    private void OnAdvanceDayClick(object s, RoutedEventArgs e) => AdvanceDay();
+    private void OnAdvanceDayClick(object s, RoutedEventArgs e)
+        => ShowAdvanceDayDialog(allActed: false);
 
     private void OnEditDayClick(object s, RoutedEventArgs e)
     {
@@ -139,6 +150,7 @@ public partial class MapView : UserControl
 
     private void AdvanceDay()
     {
+        _advanceDayAfterBonusMove = false;
         _day++;
         _canvas.ClearMoved();
         _bonusMoveEntityId = "";
@@ -153,16 +165,46 @@ public partial class MapView : UserControl
         var entities = _em.TopLevel;
         if (entities.Count == 0) return;
         if (entities.All(e => _canvas.HasMoved(e.Id)))
-        {
-            var result = MessageBox.Show(
-                Window.GetWindow(this),
-                $"All entities have acted.\n\nAdvance to Day {_day + 1}?",
-                "Advance Day?",
-                MessageBoxButton.YesNo, MessageBoxImage.Question,
-                MessageBoxResult.Yes);
-            if (result == MessageBoxResult.Yes) AdvanceDay();
-            else SetStatus($"Day {_day} held — click Advance Day when ready.");
-        }
+            ShowAdvanceDayDialog(allActed: true);
+    }
+
+    private void ShowAdvanceDayDialog(bool allActed)
+    {
+        string intro = allActed ? "All entities have acted.\n\n" : "";
+        var result = MessageBox.Show(
+            Window.GetWindow(this),
+            $"{intro}Advance to Day {_day + 1}?\n\n" +
+            "Yes       Advance now\n" +
+            "No        Take one extra hex move, then advance\n" +
+            "Cancel    Stay on Day " + _day,
+            "Advance Day?",
+            MessageBoxButton.YesNoCancel, MessageBoxImage.Question,
+            MessageBoxResult.Yes);
+
+        if (result == MessageBoxResult.Yes)
+            AdvanceDay();
+        else if (result == MessageBoxResult.No)
+            GrantExtraMoveBeforeAdvance();
+        else
+            SetStatus($"Day {_day} held — click Advance Day when ready.");
+    }
+
+    private void GrantExtraMoveBeforeAdvance()
+    {
+        var entity = _canvas.SelectedEntity
+            ?? _em.TopLevel.FirstOrDefault(e => e.IsPlayer)
+            ?? _em.TopLevel.FirstOrDefault();
+
+        if (entity is null) { AdvanceDay(); return; }
+
+        _canvas.ClearMovedId(entity.Id);
+        _bonusMoveEntityId        = entity.Id;
+        _advanceDayAfterBonusMove = true;
+        _canvas.SetSelected(entity);
+        RefreshEntityList();
+        UpdateDayUi();
+        SetStatus($"'{entity.Name}' may take one extra hex before Day {_day + 1}.  " +
+                  "Click a target hex or press W to skip.");
     }
 
     // ── Weather panel ──────────────────────────────────────────────────
@@ -435,8 +477,16 @@ public partial class MapView : UserControl
             _bonusMoveEntityId = "";
             _canvas.MarkMoved(entity.Id);
             _canvas.SetSelected(entity);
-            SetStatus($"'{entity.Name}' used bonus move → node {targetNode}.  [{ProgressStr()}]");
-            CheckDayEnd();
+            if (_advanceDayAfterBonusMove)
+            {
+                SetStatus($"'{entity.Name}' took extra move → node {targetNode}.  Advancing day…");
+                AdvanceDay();
+            }
+            else
+            {
+                SetStatus($"'{entity.Name}' used bonus move → node {targetNode}.  [{ProgressStr()}]");
+                CheckDayEnd();
+            }
         }
         else
         {
