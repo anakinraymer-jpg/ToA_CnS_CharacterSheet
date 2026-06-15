@@ -448,7 +448,7 @@ public partial class MainWindow : Window
             // Core ability: −15 Available on acquisition, +15 on removal
             case nameof(CharacterState.CoreAbility):
                 ApplyCoreAbilityDelta(ref _prevCoreAbility, _state.CoreAbility);
-                UpdateDruidWildBonus();
+                UpdatePlayerLocation();
                 break;
 
             // Flaws: ±5 both Total and Available
@@ -1142,31 +1142,42 @@ public partial class MainWindow : Window
             EnableRaisingEvents = true,
         };
         _locationWatcher.Changed += (_, _) => Task.Delay(100).ContinueWith(
-            _ => Dispatcher.Invoke(UpdateDruidWildBonus), TaskScheduler.Default);
+            _ => Dispatcher.Invoke(UpdatePlayerLocation), TaskScheduler.Default);
         _locationWatcher.Created += (_, _) => Task.Delay(100).ContinueWith(
-            _ => Dispatcher.Invoke(UpdateDruidWildBonus), TaskScheduler.Default);
-        UpdateDruidWildBonus();
+            _ => Dispatcher.Invoke(UpdatePlayerLocation), TaskScheduler.Default);
+        UpdatePlayerLocation();
     }
 
-    private void UpdateDruidWildBonus()
+    private void UpdatePlayerLocation()
     {
-        bool isDruid = _state.CoreAbility.Equals("Druid", StringComparison.OrdinalIgnoreCase);
-        if (!isDruid) { _state.DruidWildBonusActive = false; return; }
+        int    node         = -1;
+        string terrain      = "";
+        string locName      = "";
+        string locType      = "";
 
-        string terrain = "";
         try
         {
             if (File.Exists(LocationFilePath))
             {
                 var text = File.ReadAllText(LocationFilePath);
                 using var doc = JsonDocument.Parse(text);
-                terrain = doc.RootElement.GetProperty("terrain").GetString() ?? "";
+                var root = doc.RootElement;
+                node    = root.TryGetProperty("node",          out var nProp) ? nProp.GetInt32()    : -1;
+                terrain = root.TryGetProperty("terrain",       out var tProp) ? tProp.GetString() ?? "" : "";
+                locName = root.TryGetProperty("location_name", out var lnProp) ? lnProp.GetString() ?? "" : "";
+                locType = root.TryGetProperty("location_type", out var ltProp) ? ltProp.GetString() ?? "" : "";
             }
         }
         catch { }
 
-        // Unknown/empty terrain = out in the wild → bonus active
-        _state.DruidWildBonusActive = terrain != "Structure" && terrain != "Cave";
+        _state.PlayerNode         = node;
+        _state.PlayerTerrain      = terrain;
+        _state.PlayerLocationName = locName;
+        _state.PlayerLocationType = locType;
+
+        // Druid wild bonus: active when Druid AND not in a Structure or Cave hex
+        bool isDruid = _state.CoreAbility.Equals("Druid", StringComparison.OrdinalIgnoreCase);
+        _state.DruidWildBonusActive = isDruid && node >= 0 && terrain != "Structure" && terrain != "Cave";
     }
 
     // ── Legend ────────────────────────────────────────────────────────

@@ -184,7 +184,11 @@ public class CharacterState : INotifyPropertyChanged
     private bool   _hit1, _hit2, _hit3, _hit4, _hit5;
     private int    _heroPointsMax     = 50;
     private int    _heroPointsCurrent = 50;
-    private bool   _druidWildBonusActive = false;
+    private bool   _druidWildBonusActive  = false;
+    private int    _playerNode            = -1;
+    private string _playerTerrain         = "";
+    private string _playerLocationName    = "";
+    private string _playerLocationType    = "";
 
     public string Name        { get => _name;        set { _name        = value; OnPropertyChanged(); } }
     public string Lineage     { get => _lineage;     set { _lineage     = value; OnPropertyChanged(); } }
@@ -226,6 +230,61 @@ public class CharacterState : INotifyPropertyChanged
     {
         get => _druidWildBonusActive;
         set { _druidWildBonusActive = value; OnPropertyChanged(); }
+    }
+
+    // ── Map location tracking ─────────────────────────────────────────
+
+    /// <summary>Hex node the player entity is currently on, or -1 when the map is not connected.</summary>
+    public int PlayerNode
+    {
+        get => _playerNode;
+        set
+        {
+            _playerNode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PlayerLocationVisible));
+            OnPropertyChanged(nameof(PlayerLocationSummary));
+        }
+    }
+
+    /// <summary>Terrain type painted on the player's current hex (empty = unpainted).</summary>
+    public string PlayerTerrain
+    {
+        get => _playerTerrain;
+        set { _playerTerrain = value; OnPropertyChanged(); OnPropertyChanged(nameof(PlayerLocationSummary)); }
+    }
+
+    /// <summary>Name of any named location on the player's current hex, or empty.</summary>
+    public string PlayerLocationName
+    {
+        get => _playerLocationName;
+        set { _playerLocationName = value; OnPropertyChanged(); OnPropertyChanged(nameof(PlayerLocationSummary)); }
+    }
+
+    /// <summary>Type tag of the named location on the player's hex (e.g. "City", "Ruin"), or empty.</summary>
+    public string PlayerLocationType
+    {
+        get => _playerLocationType;
+        set { _playerLocationType = value; OnPropertyChanged(); OnPropertyChanged(nameof(PlayerLocationSummary)); }
+    }
+
+    /// <summary>True when the player's map position is known (map is connected).</summary>
+    public bool PlayerLocationVisible => _playerNode >= 0;
+
+    /// <summary>Human-readable summary of the player's current map position for display in the UI.</summary>
+    public string PlayerLocationSummary
+    {
+        get
+        {
+            if (_playerNode < 0) return "";
+            string locPart = string.IsNullOrWhiteSpace(_playerLocationName) ? "" :
+                (string.IsNullOrWhiteSpace(_playerLocationType)
+                    ? _playerLocationName
+                    : $"{_playerLocationName}  [{_playerLocationType}]");
+            return "⬡  " + string.Join("  ·  ",
+                new[] { locPart, _playerTerrain, $"Hex {_playerNode}" }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
+        }
     }
 
     /// <summary>True when there is at least one Available Point left to spend on a skill rating increase.</summary>

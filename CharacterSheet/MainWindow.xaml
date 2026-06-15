@@ -164,6 +164,25 @@
       </StackPanel>
     </WrapPanel>
 
+    <!-- ══ MAP LOCATION STRIP ═══════════════════════════════════════ -->
+    <Border DockPanel.Dock="Top" Padding="16,5"
+            Background="#091409" BorderBrush="#1A3A14" BorderThickness="0,1,0,1">
+      <Border.Style>
+        <Style TargetType="Border">
+          <Setter Property="Visibility" Value="Collapsed"/>
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding PlayerLocationVisible}" Value="True">
+              <Setter Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Border.Style>
+      <TextBlock Text="{Binding PlayerLocationSummary}"
+                 FontFamily="Palatino Linotype" FontSize="12"
+                 Foreground="#7AAF5A" HorizontalAlignment="Center"
+                 ToolTip="Player character's current location on the Delver Map"/>
+    </Border>
+
     <!-- ══ TABS ════════════════════════════════════════════════════ -->
     <TabControl x:Name="MainTabControl"
                 SelectionChanged="OnMainTabChanged"
