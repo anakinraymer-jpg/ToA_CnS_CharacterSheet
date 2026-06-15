@@ -730,6 +730,7 @@ public partial class MapView : UserControl
 
     private void OnFogChanged(object s, RoutedEventArgs e)
     {
+        if (_canvas is null) return;   // fires during XAML init
         _canvas.FogEnabled = FogEnabledCheck.IsChecked == true;
         _canvas.Refresh();
     }
@@ -753,7 +754,10 @@ public partial class MapView : UserControl
     }
 
     private void OnTeleportChanged(object s, RoutedEventArgs e)
-        => _canvas.SetTeleport(TeleportCheck.IsChecked == true);
+    {
+        if (_canvas is null) return;
+        _canvas.SetTeleport(TeleportCheck.IsChecked == true);
+    }
 
     // ── Keyboard shortcuts ─────────────────────────────────────────────
 
