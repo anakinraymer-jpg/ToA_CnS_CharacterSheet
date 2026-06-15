@@ -7,15 +7,15 @@ using System.Windows.Media.Imaging;
 namespace CharacterSheet.Map;
 
 /// <summary>
-/// WPF rendering canvas for the hex map. Ported from HexMapCanvas (canvas.py).
+/// WPF rendering canvas for the hex map.
 ///
-/// All map layers are drawn onto DrawingContext in OnRender inside the current
-/// view Matrix (pan + zoom). Mouse input handles selection, movement, panning
-/// (middle-drag), zoom (wheel), and corner-handle warp-dragging.
+/// Uses a DrawingVisual layer tree instead of FrameworkElement.OnRender so that
+/// pan/zoom is a pure compositor transform — zero draw calls.  Individual layers
+/// are redrawn only when their data actually changes.
 /// </summary>
 public class HexMapCanvas : FrameworkElement
 {
-    // ── Events (replacing Qt signals) ──────────────────────────────────
+    // ── Events ──────────────────────────────────────────────────────────
     public event Action<MapEntity?>?     EntitySelected;
     public event Action<MapEntity, int>? MoveRequested;
     public event Action<double, double>? OriginClicked;
@@ -23,33 +23,33 @@ public class HexMapCanvas : FrameworkElement
     /// <summary>Fires when the user right-clicks an empty hex (no entity present).</summary>
     public event Action<int>?            RightClickedHex;
 
-    // ── Data sources ───────────────────────────────────────────────────
+    // ── Data sources ─────────────────────────────────────────────────
     private readonly HexGrid            _grid;
     private readonly MapEntityManager   _em;
     private readonly MapLocationManager _lm;
     private readonly MapTerrainMap      _tm;
 
-    // ── View state ─────────────────────────────────────────────────────
-    private Matrix       _viewMatrix   = Matrix.Identity;
+    // ── View state ───────────────────────────────────────────────────
+    private Matrix       _viewMatrix = Matrix.Identity;
     private ImageSource? _bgImage;
-    private double       _ppd          = 1.0;   // pixels-per-dip for FormattedText
+    private double       _ppd        = 1.0;   // pixels-per-dip for FormattedText
 
-    // ── Selection & targeting ──────────────────────────────────────────
+    // ── Selection & targeting ────────────────────────────────────────
     private MapEntity?   _selected;
     private HashSet<int> _validTargets = [];
 
-    // ── Public flags ───────────────────────────────────────────────────
-    public bool       FogEnabled  { get; set; }
+    // ── Public flags ─────────────────────────────────────────────────
+    public bool         FogEnabled  { get; set; }
     public HashSet<int> FogRevealed { get; } = [];
-    public int        GridOpacity { get; set; } = 180;
+    public int          GridOpacity { get; set; } = 180;
 
-    // ── Internal flags ─────────────────────────────────────────────────
+    // ── Internal flags ───────────────────────────────────────────────
     private bool            _teleport;
     private bool            _originMode;
     private int             _highlightLoc = -1;
     private HashSet<string> _movedIds     = [];
 
-    // ── Render caches (rebuilt only when grid layout changes) ──────────
+    // ── Render caches (rebuilt only when grid layout changes) ────────
     private StreamGeometry[]?        _geoCache;
     private (double X, double Y)[]?  _centerCache;
     private FormattedText[]?         _numTextCache;
@@ -57,29 +57,44 @@ public class HexMapCanvas : FrameworkElement
     private static readonly Typeface EntityBoldTf  = new(
         new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
 
-    // ── Pan / corner-drag state ────────────────────────────────────────
-    private Point?                _panStart;
-    private int                   _dragCorner  = -1;
-    private Point?                _dragStart;             // screen
-    private (double X, double Y)? _dragOrigin;            // scene
+    // ── Visual layer tree ────────────────────────────────────────────
+    // _root carries the view transform.  Updating _root.Transform (pan/zoom)
+    // is a pure compositor operation — no OnRender, no draw calls at all.
+    private readonly VisualCollection _visuals;
+    private readonly ContainerVisual  _root;
+    private readonly DrawingVisual    _bgLayer;
+    private readonly DrawingVisual    _terrainLayer;
+    private readonly DrawingVisual    _gridLayer;
+    private readonly DrawingVisual    _locationLayer;
+    private readonly DrawingVisual    _entityLayer;
+    private readonly DrawingVisual    _fogLayer;
+    private readonly DrawingVisual    _handleLayer;
 
-    // ── Corner warp visuals ────────────────────────────────────────────
+    protected override int    VisualChildrenCount        => _visuals.Count;
+    protected override Visual GetVisualChild(int index) => _visuals[index];
+
+    // ── Pan / corner-drag state ──────────────────────────────────────
+    private Point?                _panStart;
+    private int                   _dragCorner = -1;
+    private Point?                _dragStart;
+    private (double X, double Y)? _dragOrigin;
+
+    // ── Corner warp visuals ──────────────────────────────────────────
     private static readonly Color[] CornerColors =
     [
-        Color.FromRgb(0, 229, 255),   // TL cyan
-        Color.FromRgb(255, 64, 255),  // TR magenta
-        Color.FromRgb(255, 255, 0),   // BL yellow
-        Color.FromRgb(0, 255, 128),   // BR lime
+        Color.FromRgb(0, 229, 255),
+        Color.FromRgb(255, 64, 255),
+        Color.FromRgb(255, 255, 0),
+        Color.FromRgb(0, 255, 128),
     ];
     private static readonly string[] CornerLabels = ["TL", "TR", "BL", "BR"];
     private const double HandleR = 10;
     private const double HitR    = 16;
 
-    // Static background brush (dark grey matching Python 30,30,30)
     private static readonly Brush BgBrush =
         new SolidColorBrush(Color.FromRgb(30, 30, 30));
 
-    // ── Constructor ────────────────────────────────────────────────────
+    // ── Constructor ──────────────────────────────────────────────────
 
     public HexMapCanvas(
         HexGrid grid, MapEntityManager em,
@@ -88,9 +103,31 @@ public class HexMapCanvas : FrameworkElement
         _grid = grid; _em = em; _lm = lm; _tm = tm;
         Focusable    = true;
         ClipToBounds = true;
+
+        _bgLayer       = new DrawingVisual();
+        _terrainLayer  = new DrawingVisual();
+        _gridLayer     = new DrawingVisual();
+        _locationLayer = new DrawingVisual();
+        _entityLayer   = new DrawingVisual();
+        _fogLayer      = new DrawingVisual();
+        _handleLayer   = new DrawingVisual();
+
+        _root = new ContainerVisual();
+        _root.Children.Add(_bgLayer);
+        _root.Children.Add(_terrainLayer);
+        _root.Children.Add(_gridLayer);
+        _root.Children.Add(_locationLayer);
+        _root.Children.Add(_entityLayer);
+        _root.Children.Add(_fogLayer);
+        _root.Children.Add(_handleLayer);
+
+        _visuals = new VisualCollection(this) { _root };
+
+        // Populate layers once the visual is connected to a window (DPI available)
+        Loaded += (_, _) => UpdateAllLayers();
     }
 
-    // ── Public API ─────────────────────────────────────────────────────
+    // ── Public API ───────────────────────────────────────────────────
 
     public void LoadImage(string path)
     {
@@ -101,10 +138,9 @@ public class HexMapCanvas : FrameworkElement
         bi.EndInit();
         bi.Freeze();
         _bgImage = bi;
-        // Fit once we have layout; do it immediately if already laid out
         if (ActualWidth > 0) FitView();
         else SizeChanged += OnFirstSizeChanged;
-        InvalidateVisual();
+        UpdateBgLayer();
     }
 
     private void OnFirstSizeChanged(object s, SizeChangedEventArgs e)
@@ -122,22 +158,25 @@ public class HexMapCanvas : FrameworkElement
         double ox = (ActualWidth  - _bgImage.Width  * sc) / 2;
         double oy = (ActualHeight - _bgImage.Height * sc) / 2;
         _viewMatrix = new Matrix(sc, 0, 0, sc, ox, oy);
-        InvalidateVisual();
+        ApplyViewTransform();
     }
 
-    public void Refresh() => InvalidateVisual();
+    public void Refresh() => UpdateAllLayers();
 
-    public void MarkMoved(string id)  { _movedIds.Add(id);    InvalidateVisual(); }
-    public void ClearMoved()          { _movedIds.Clear();     InvalidateVisual(); }
-    public void RevealHex(int node)   { FogRevealed.Add(node); InvalidateVisual(); }
-    public void SetFogEnabled(bool v) { FogEnabled = v;        InvalidateVisual(); }
-    public void SetGridOpacity(int v) { GridOpacity = Math.Clamp(v, 0, 255); InvalidateVisual(); }
+    public void MarkMoved(string id)  { _movedIds.Add(id);    UpdateEntityLayer(); }
+    public void ClearMoved()          { _movedIds.Clear();     UpdateEntityLayer(); }
+    public void RevealHex(int node)   { FogRevealed.Add(node); UpdateFogLayer(); UpdateLocationLayer(); }
+    public void SetFogEnabled(bool v) { FogEnabled = v;        UpdateFogLayer(); }
 
-    public void SetHighlightedLocation(int node)
+    public void SetGridOpacity(int v)
     {
-        _highlightLoc = node;
-        InvalidateVisual();
+        GridOpacity   = Math.Clamp(v, 0, 255);
+        _numTextCache = null;   // opacity-sensitive text colours need rebuilding
+        UpdateGridLayer();
+        UpdateFogLayer();
     }
+
+    public void SetHighlightedLocation(int node) { _highlightLoc = node; UpdateGridLayer(); }
 
     public void SetTeleport(bool enabled)
     {
@@ -168,24 +207,19 @@ public class HexMapCanvas : FrameworkElement
                     MapTerrain.WaterTerrains.Contains(_tm.Get(n) ?? ""));
         }
 
-        InvalidateVisual();
+        UpdateGridLayer();
+        UpdateEntityLayer();
+        UpdateFogLayer();
         EntitySelected?.Invoke(entity);
     }
 
-    /// <summary>Currently selected entity (null if none).</summary>
     public MapEntity? SelectedEntity => _selected;
 
-    /// <summary>Returns true if the entity with the given id has already acted this turn.</summary>
     public bool HasMoved(string id) => _movedIds.Contains(id);
 
-    /// <summary>
-    /// Returns the number of moved entity ids that appear in <paramref name="ids"/>.
-    /// Used to compute "N / total acted" in the day panel.
-    /// </summary>
     public int CountMoved(IEnumerable<string> ids) => ids.Count(_movedIds.Contains);
 
-    /// <summary>Removes a single entity's moved-flag without touching the rest.</summary>
-    public void ClearMovedId(string id) { _movedIds.Remove(id); InvalidateVisual(); }
+    public void ClearMovedId(string id) { _movedIds.Remove(id); UpdateEntityLayer(); }
 
     public void SetOriginClickMode(bool enabled)
     {
@@ -193,10 +227,7 @@ public class HexMapCanvas : FrameworkElement
         Cursor = enabled ? Cursors.Cross : Cursors.Arrow;
     }
 
-    /// <summary>
-    /// Clears the geometry and text caches. Must be called whenever the grid layout
-    /// changes (reconfigure, warp corners, origin). Pan/zoom does NOT invalidate the cache.
-    /// </summary>
+    /// <summary>Clears geometry and text caches. Call when grid layout changes.</summary>
     public void InvalidateGeoCache()
     {
         _geoCache     = null;
@@ -205,7 +236,50 @@ public class HexMapCanvas : FrameworkElement
         _numTextSize  = -1;
     }
 
-    // ── Rendering ─────────────────────────────────────────────────────
+    // ── Layer management ─────────────────────────────────────────────
+
+    private void ApplyViewTransform()
+        => _root.Transform = new MatrixTransform(_viewMatrix);
+
+    private void UpdateAllLayers()
+    {
+        RefreshPpd();
+        UpdateBgLayer();
+        UpdateTerrainLayer();
+        UpdateGridLayer();
+        UpdateLocationLayer();
+        UpdateEntityLayer();
+        UpdateFogLayer();
+        UpdateHandleLayer();
+    }
+
+    private void RefreshPpd()
+    {
+        try { _ppd = VisualTreeHelper.GetDpi(this).PixelsPerDip; }
+        catch { _ppd = 1.0; }
+    }
+
+    private void UpdateBgLayer()
+    {
+        using var dc = _bgLayer.RenderOpen();
+        if (_bgImage != null)
+            dc.DrawImage(_bgImage, new Rect(0, 0, _bgImage.Width, _bgImage.Height));
+    }
+
+    private void UpdateTerrainLayer()  { using var dc = _terrainLayer.RenderOpen();  DrawTerrain(dc); }
+    private void UpdateGridLayer()     { using var dc = _gridLayer.RenderOpen();     DrawGrid(dc); }
+    private void UpdateLocationLayer() { using var dc = _locationLayer.RenderOpen(); DrawLocations(dc); }
+    private void UpdateEntityLayer()   { using var dc = _entityLayer.RenderOpen();   DrawEntities(dc); }
+    private void UpdateFogLayer()      { using var dc = _fogLayer.RenderOpen();      DrawFog(dc); }
+    private void UpdateHandleLayer()   { using var dc = _handleLayer.RenderOpen();   DrawCornerHandles(dc); }
+
+    // ── Background (OnRender — only called on layout/resize) ─────────
+    // Draws just the dark fill.  All map content lives in the DrawingVisual
+    // layer tree above, so pan/zoom never triggers this method.
+    protected override void OnRender(DrawingContext dc)
+        => dc.DrawRectangle(BgBrush, null, new Rect(RenderSize));
+
+    // ── Geometry / text caches ───────────────────────────────────────
 
     private void EnsureGeoCache()
     {
@@ -214,7 +288,7 @@ public class HexMapCanvas : FrameworkElement
         int n        = cells.Count;
         _geoCache    = new StreamGeometry[n];
         _centerCache = new (double, double)[n];
-        _numTextCache = null;   // size may have changed too
+        _numTextCache = null;
         for (int i = 0; i < n; i++)
         {
             var c   = cells[i];
@@ -239,31 +313,7 @@ public class HexMapCanvas : FrameworkElement
         _numTextSize = fSz;
     }
 
-    protected override void OnRender(DrawingContext dc)
-    {
-        try { _ppd = VisualTreeHelper.GetDpi(this).PixelsPerDip; }
-        catch { _ppd = 1.0; }
-
-        // Dark background
-        dc.DrawRectangle(BgBrush, null, new Rect(RenderSize));
-
-        // All map content drawn in scene coordinates
-        dc.PushTransform(new MatrixTransform(_viewMatrix));
-        DrawBackground(dc);
-        DrawTerrain(dc);
-        DrawGrid(dc);
-        DrawLocations(dc);
-        DrawEntities(dc);
-        DrawFog(dc);
-        DrawCornerHandles(dc);
-        dc.Pop();
-    }
-
-    private void DrawBackground(DrawingContext dc)
-    {
-        if (_bgImage == null) return;
-        dc.DrawImage(_bgImage, new Rect(0, 0, _bgImage.Width, _bgImage.Height));
-    }
+    // ── Draw methods ─────────────────────────────────────────────────
 
     // z-order 0.5 fill · 0.8 abbr
     private void DrawTerrain(DrawingContext dc)
@@ -293,8 +343,8 @@ public class HexMapCanvas : FrameworkElement
     private void DrawGrid(DrawingContext dc)
     {
         int  op   = GridOpacity;
-        byte opB  = B(op),       opP   = B(op + 60);
-        byte opD3 = B(op / 3),   opD4  = B(op / 4);
+        byte opB  = B(op),     opP   = B(op + 60);
+        byte opD3 = B(op / 3), opD4  = B(op / 4);
         byte txtA = B((int)(op * 1.2));
 
         var pNorm  = Pen(Color.FromArgb(opB,  80,  80,  80), 1);
@@ -338,7 +388,7 @@ public class HexMapCanvas : FrameworkElement
     // z-order 3 diamonds · 4 names
     private void DrawLocations(DrawingContext dc)
     {
-        double nameSz  = Math.Max(5, _grid.Size * 0.14);
+        double nameSz   = Math.Max(5, _grid.Size * 0.14);
         var    whitePen = Pen(Colors.White, 1.2);
 
         foreach (var loc in _lm.All)
@@ -383,9 +433,9 @@ public class HexMapCanvas : FrameworkElement
             if (isMov) fillC.A = 110;
 
             System.Windows.Media.Pen border;
-            if      (isSel) border = Pen(Colors.Yellow,                    3);
-            else if (isMov) border = Pen(Color.FromRgb(90, 90, 90),       1);
-            else            border = Pen(Colors.White,                     2);
+            if      (isSel) border = Pen(Colors.Yellow,              3);
+            else if (isMov) border = Pen(Color.FromRgb(90, 90, 90), 1);
+            else            border = Pen(Colors.White,               2);
 
             dc.DrawEllipse(new SolidColorBrush(fillC), border, new Point(cx, cy), r, r);
 
@@ -419,8 +469,8 @@ public class HexMapCanvas : FrameworkElement
         if (!FogEnabled) return;
 
         EnsureGeoCache();
-        int  op   = GridOpacity;
-        byte opP  = B(op + 60), opD3 = B(op / 3), txtA = B((int)(op * 1.2));
+        int  op    = GridOpacity;
+        byte opP   = B(op + 60), opD3 = B(op / 3), txtA = B((int)(op * 1.2));
         double fSz = Math.Max(6, _grid.Size * 0.28);
 
         Brush fogFill  = new SolidColorBrush(Color.FromArgb(245, 0, 0, 0));
@@ -469,7 +519,7 @@ public class HexMapCanvas : FrameworkElement
         }
     }
 
-    // ── Mouse handling ─────────────────────────────────────────────────
+    // ── Mouse handling ───────────────────────────────────────────────
 
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
@@ -526,7 +576,6 @@ public class HexMapCanvas : FrameworkElement
                         e.Handled = true;
                         return;
                     }
-                    // Empty hex — let caller show terrain context menu
                     RightClickedHex?.Invoke(cell.Number);
                     e.Handled = true;
                     return;
@@ -571,10 +620,10 @@ public class HexMapCanvas : FrameworkElement
 
         if (_dragCorner >= 0 && _dragStart.HasValue && _dragOrigin.HasValue)
         {
-            var sp0 = ToScene(_dragStart.Value);
-            var sp1 = ToScene(screen);
+            var sp0      = ToScene(_dragStart.Value);
+            var sp1      = ToScene(screen);
             var (ox, oy) = _dragOrigin.Value;
-            var newPt = (ox + sp1.X - sp0.X, oy + sp1.Y - sp0.Y);
+            var newPt    = (ox + sp1.X - sp0.X, oy + sp1.Y - sp0.Y);
 
             var cur = _grid.GetWarpCorners();
             _grid.SetWarpCorners(_dragCorner switch
@@ -585,20 +634,24 @@ public class HexMapCanvas : FrameworkElement
                 3 => cur with { BR = newPt },
                 _ => cur,
             });
+            // Grid layout changed — rebuild caches, redraw geo-dependent layers
             InvalidateGeoCache();
-            InvalidateVisual();
+            UpdateTerrainLayer();
+            UpdateGridLayer();
+            UpdateFogLayer();
+            UpdateHandleLayer();
             e.Handled = true;
             return;
         }
 
         if (_panStart.HasValue && e.MiddleButton == MouseButtonState.Pressed)
         {
-            var delta = screen - _panStart.Value;
-            _panStart = screen;
-            var m = _viewMatrix;
+            var delta   = screen - _panStart.Value;
+            _panStart   = screen;
+            var m       = _viewMatrix;
             m.Translate(delta.X, delta.Y);
             _viewMatrix = m;
-            InvalidateVisual();
+            ApplyViewTransform();   // zero draw calls — compositor repositions layer tree
             e.Handled = true;
         }
     }
@@ -646,11 +699,11 @@ public class HexMapCanvas : FrameworkElement
         m.Translate(offset.X, offset.Y);
         _viewMatrix = m;
 
-        InvalidateVisual();
+        ApplyViewTransform();   // zero draw calls
         e.Handled = true;
     }
 
-    // ── Helpers ────────────────────────────────────────────────────────
+    // ── Helpers ──────────────────────────────────────────────────────
 
     private Point ToScene(Point screen)
     {
@@ -695,6 +748,5 @@ public class HexMapCanvas : FrameworkElement
         catch { return Colors.Gray; }
     }
 
-    // Clamp to 0–255 and return as byte
     private static byte B(int v) => (byte)Math.Clamp(v, 0, 255);
 }
