@@ -159,8 +159,14 @@ public class SkillData : INotifyPropertyChanged
 
 public class SpellData : INotifyPropertyChanged
 {
-    private string _name = "";
-    public string Name { get => _name; set { _name = value; OnPropertyChanged(); } }
+    private string _name        = "";
+    private string _description = "";
+    private bool   _isEditing   = false;
+
+    public string Name        { get => _name;        set { _name        = value; OnPropertyChanged(); } }
+    public string Description { get => _description; set { _description = value; OnPropertyChanged(); } }
+    /// <summary>UI-only flag — not persisted. True while the description TextBox is expanded.</summary>
+    public bool   IsEditing   { get => _isEditing;   set { _isEditing   = value; OnPropertyChanged(); } }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null)

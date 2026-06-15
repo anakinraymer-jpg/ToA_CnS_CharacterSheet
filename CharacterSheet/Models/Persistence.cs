@@ -10,6 +10,8 @@ public record EquipDto(string EquipName, string EquipSub, bool EquipUsed, int Ar
 public record InventoryItemDto(string Name, string Description = "");
 public record InventoryCategoryDto(string Name, List<InventoryItemDto> Items);
 
+public record SpellDto(string Name, string Description = "");
+
 public record SkillDto(
     string SkillName, string SkillSub, bool SkillAdv, int SkillRating,
     // Added for core-ability skills — defaults keep old saves valid
@@ -39,7 +41,7 @@ public record CharacterDto(
     List<EquipDto>?  Equipment,   // new format
     List<SkillDto>?  Skills,      // new format
     List<RowDto>?    Rows,        // legacy — null in new saves, populated in old saves
-    List<string>     Spells,
+    List<string>?    Spells     = null,   // legacy string list (read-only for migration)
     // Added later — default values keep old saves valid
     int  Defense          = 6,    // kept as "Defense" in JSON for backward compatibility
     bool Hit1             = false,
@@ -50,7 +52,8 @@ public record CharacterDto(
     int  HeroPointsMax     = 50,
     int  HeroPointsCurrent = 50,
     List<InventoryCategoryDto>? Inventory    = null,
-    List<string>?               SectionOrder = null);
+    List<string>?               SectionOrder = null,
+    List<SpellDto>?             SpellsData   = null);
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
@@ -105,7 +108,7 @@ public static class Persistence
                            sk.MinRating, sk.FreeRating, sk.RatingStep,
                            sk.IsAlwaysFree, sk.IsLocked, sk.IsCoreAbilitySkill)).ToList(),
         Rows:      null,   // legacy field — intentionally null in new saves
-        Spells:    s.Spells.Select(sp => sp.Name).ToList(),
+        Spells:    null,   // legacy field — superseded by SpellsData
         Defense:           s.DefenseBase,
         Hit1: s.Hit1, Hit2: s.Hit2, Hit3: s.Hit3, Hit4: s.Hit4, Hit5: s.Hit5,
         HeroPointsMax:     s.HeroPointsMax,
@@ -114,7 +117,8 @@ public static class Persistence
             c.Name,
             c.Items.Select(i => new InventoryItemDto(i.Name, i.Description)).ToList()
         )).ToList(),
-        SectionOrder: s.SectionOrder.Count > 0 ? [.. s.SectionOrder] : null);
+        SectionOrder: s.SectionOrder.Count > 0 ? [.. s.SectionOrder] : null,
+        SpellsData:   s.Spells.Select(sp => new SpellDto(sp.Name, sp.Description)).ToList());
 
     // ── Deserialise ───────────────────────────────────────────────────────────
 
@@ -190,9 +194,18 @@ public static class Persistence
             }
         }
 
-        foreach (var sp in d.Spells ?? [])
-            if (!string.IsNullOrWhiteSpace(sp))
-                s.Spells.Add(new SpellData { Name = sp });
+        if (d.SpellsData != null)
+        {
+            foreach (var sd in d.SpellsData)
+                if (!string.IsNullOrWhiteSpace(sd.Name))
+                    s.Spells.Add(new SpellData { Name = sd.Name, Description = sd.Description ?? "" });
+        }
+        else
+        {
+            foreach (var sp in d.Spells ?? [])
+                if (!string.IsNullOrWhiteSpace(sp))
+                    s.Spells.Add(new SpellData { Name = sp });
+        }
 
         s.SectionOrder = d.SectionOrder?.ToList() ?? [];
 

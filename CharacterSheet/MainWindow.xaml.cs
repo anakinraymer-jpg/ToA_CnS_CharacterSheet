@@ -726,7 +726,17 @@ public partial class MainWindow : Window
     }
 
     private void OnSpellDataChanged(object? sender, PropertyChangedEventArgs e)
-    { if (!_loading) Save(); }
+    {
+        if (_loading) return;
+        if (e.PropertyName == nameof(SpellData.IsEditing)) return; // UI state, not data
+        Save();
+    }
+
+    private void OnToggleSpellEditClick(object sender, RoutedEventArgs e)
+    {
+        if (((Button)sender).DataContext is SpellData sp)
+            sp.IsEditing = !sp.IsEditing;
+    }
 
     private void OnAddSpellClicked()
     {
