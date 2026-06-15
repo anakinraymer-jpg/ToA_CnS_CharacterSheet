@@ -21,7 +21,8 @@ public partial class MapView : UserControl
     private static readonly string[] WeatherConditions =
     [
         "Misty", "Heavy Mist", "Dry and Sunny", "Sunny with Rain Showers",
-        "Rainy", "Heavy Rain", "Tropical Storm", "Extremely Warm", "Monsoon Shift",
+        "Rainy", "Heavy Rain", "Tropical Storm", "Extremely Warm",
+        "Extremely Warm and Rainy", "Extremely Warm and Dry", "Monsoon Shift",
     ];
 
     // ── Map state ──────────────────────────────────────────────────────

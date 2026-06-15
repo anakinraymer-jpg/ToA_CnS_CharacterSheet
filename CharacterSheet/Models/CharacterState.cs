@@ -144,8 +144,11 @@ public class SkillData : INotifyPropertyChanged
     public int WeatherPenalty
     {
         get => _weatherPenalty;
-        set { _weatherPenalty = value; OnPropertyChanged(); }
+        set { _weatherPenalty = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasWeatherPenalty)); }
     }
+
+    /// <summary>True when a weather penalty is currently active on this skill.</summary>
+    public bool HasWeatherPenalty => _weatherPenalty < 0;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null)

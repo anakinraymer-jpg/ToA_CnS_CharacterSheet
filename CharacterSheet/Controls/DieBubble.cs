@@ -153,7 +153,6 @@ public class DieBubble : Control
     private Ellipse?   _ellipse;
     private TextBlock? _label;
     private TextBlock? _leafLabel;
-    private TextBlock? _rainLabel;
 
     public override void OnApplyTemplate()
     {
@@ -161,7 +160,6 @@ public class DieBubble : Control
         _ellipse   = GetTemplateChild("PART_Ellipse")   as Ellipse;
         _label     = GetTemplateChild("PART_Label")     as TextBlock;
         _leafLabel = GetTemplateChild("PART_LeafLabel") as TextBlock;
-        _rainLabel = GetTemplateChild("PART_RainLabel") as TextBlock;
         UpdateVisual(hover: false);
     }
 
@@ -226,10 +224,6 @@ public class DieBubble : Control
 
         if (_leafLabel != null)
             _leafLabel.Visibility = HasSkill && HasBonus
-                ? Visibility.Visible : Visibility.Collapsed;
-
-        if (_rainLabel != null)
-            _rainLabel.Visibility = HasSkill && WeatherPenaltyValue < 0
                 ? Visibility.Visible : Visibility.Collapsed;
     }
 }

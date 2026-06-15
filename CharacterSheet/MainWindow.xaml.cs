@@ -1186,11 +1186,13 @@ public partial class MainWindow : Window
 
     private static int WeatherPenaltyFor(string weather) => weather switch
     {
-        "Misty"       => -2,
-        "Heavy Mist"  => -3,
-        "Rainy"       => -4,
-        "Heavy Rain"  => -5,
-        _             => 0,
+        "Misty"                    => -2,
+        "Heavy Mist"               => -3,
+        "Rainy"                    => -4,
+        "Extremely Warm and Rainy" => -4,
+        "Heavy Rain"               => -5,
+        "Tropical Storm"           => -10,
+        _                          => 0,
     };
 
     private void OnMapWeatherChanged(string weather)
