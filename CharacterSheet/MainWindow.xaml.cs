@@ -1474,26 +1474,31 @@ public partial class MainWindow : Window
     }
 
 
-    // Drizzle state: a rolling water droplet leaving a teardrop trail + lingering wet mark.
+    // Drizzle state: a rolling water droplet + wet trail that moves with it.
+    // The drizzle trail (teardrop) is a SHORT MOVING SEGMENT of water.
+    // The wet trail (thin amber stroke) is the damp paper mark immediately above it.
+    // Both scroll down together as one unit; the wet trail fades from the top after landing.
     private sealed class DrizzleState
     {
-        public required Canvas                      Container;    // teardrop layers
-        public required Canvas                      TrailCanvas;  // wet-trail stroke (sibling on canvas)
+        public required Canvas                      Container;    // WetPath / WaterPath / GlintPath
+        public required Canvas                      TrailCanvas;  // WetTrailPath (sibling on canvas)
         public required System.Windows.Shapes.Path WetPath;
         public required System.Windows.Shapes.Path WaterPath;
         public required System.Windows.Shapes.Path GlintPath;
-        public required System.Windows.Shapes.Path WetTrailPath; // thin damp mark on paper
+        public required System.Windows.Shapes.Path WetTrailPath;
         public double OriginY;
         public double TotalDist;
         public double LeanX;
         public double PeakX;
         public bool   IsArc;
-        public double Progress;   // 0 to 1 while moving
+        public double Progress;    // 0 to 1
         public double Speed;
         public double MaxHW;
         public double BotExt;
-        public bool   IsFading;      // true once droplet reaches its endpoint
-        public double FadeProgress;  // 0 to 1 during fade (clips trail from the tail)
+        public double TrailLen;    // drizzle segment length (progress units, e.g. 0.30)
+        public double LandingPTail; // pTail frozen at landing, used during fade
+        public bool   IsFading;
+        public double FadeProgress;
         public double FadeSpeed;
     }
 
@@ -1520,7 +1525,8 @@ public partial class MainWindow : Window
         double totalDist = 130 + rng.NextDouble() * 130;
         double speed     = 0.25 + rng.NextDouble() * 0.18;
         double maxHW     = 7 + rng.NextDouble() * 5;
-        double botExt    = maxHW * (0.65 + rng.NextDouble() * 0.3);
+        double botExt    = maxHW * (0.65 + rng.NextDouble() * 0.30);
+        double trailLen  = 0.28 + rng.NextDouble() * 0.15;
 
         double sign  = rng.NextDouble() < 0.5 ? -1 : 1;
         bool   isArc = pathType == 2;
@@ -1580,19 +1586,18 @@ public partial class MainWindow : Window
             IsHitTestVisible = false,
         };
 
-        // Thin amber stroke: the damp paper mark the water leaves behind.
-        double trailThick = 2.5 + maxHW * 0.22;
+        // Thin amber stroke: damp paper where the water has already been.
         var wetTrailPath = new System.Windows.Shapes.Path
         {
-            Stroke             = new SolidColorBrush(Color.FromArgb(90, 90, 58, 18)),
-            StrokeThickness    = trailThick,
+            Stroke             = new SolidColorBrush(Color.FromArgb(95, 90, 58, 18)),
+            StrokeThickness    = 2.5 + maxHW * 0.22,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap   = PenLineCap.Round,
             StrokeLineJoin     = PenLineJoin.Round,
             IsHitTestVisible   = false,
         };
 
-        var container = new Canvas { IsHitTestVisible = false, Opacity = 0 };
+        var container   = new Canvas { IsHitTestVisible = false, Opacity = 0 };
         container.Children.Add(wetPath);
         container.Children.Add(waterPath);
         container.Children.Add(glintPath);
@@ -1606,7 +1611,7 @@ public partial class MainWindow : Window
         Canvas.SetTop (trailCanvas, startY);
         Canvas.SetLeft(container,   startX);
         Canvas.SetTop (container,   startY);
-        canvas.Children.Add(trailCanvas);   // behind teardrop
+        canvas.Children.Add(trailCanvas);   // add trail first so it renders behind teardrop
         canvas.Children.Add(container);
 
         _activeDrizzles.Add(new DrizzleState
@@ -1626,11 +1631,12 @@ public partial class MainWindow : Window
             Speed        = speed,
             MaxHW        = maxHW,
             BotExt       = botExt,
-            FadeSpeed    = 0.42 + rng.NextDouble() * 0.22,
+            TrailLen     = trailLen,
+            FadeSpeed    = 0.40 + rng.NextDouble() * 0.22,
         });
     }
 
-    // Spawns a wet-paper spread at (cx, cy) on WeatherCanvas when a drizzle lands.
+    // Spawns a spreading wet-paper mark on the canvas at (cx, cy) when a drizzle lands.
     private void SpawnWetSpot(double cx, double cy, double hw)
     {
         var canvas = WeatherCanvas;
@@ -1662,7 +1668,7 @@ public partial class MainWindow : Window
             RenderTransform       = new ScaleTransform(1.0, 1.0),
         };
         Canvas.SetLeft(spot, cx - sw / 2);
-        Canvas.SetTop (spot, cy - sh * 0.2);  // sit just below the trail endpoint
+        Canvas.SetTop (spot, cy - sh * 0.2);
         canvas.Children.Add(spot);
 
         double spread  = 1.28 + rng.NextDouble() * 0.24;
@@ -1697,20 +1703,21 @@ public partial class MainWindow : Window
         {
             var d = _activeDrizzles[i];
 
-            // Build a smooth bezier stroke from p=pStart to p=pEnd along the path curve.
-            StreamGeometry TrailStroke(double pStart, double pEnd)
+            // Smooth bezier stroke from clipStart to clipEnd along the path curve.
+            StreamGeometry TrailStroke(double clipStart, double clipEnd)
             {
-                const int segs = 10;
                 var geo = new StreamGeometry();
+                if (clipEnd - clipStart < 0.005) { geo.Freeze(); return geo; }
+                const int segs = 10;
                 using (var ctx = geo.Open())
                 {
-                    ctx.BeginFigure(PathPt(d, pStart), isFilled: false, isClosed: false);
-                    var pts   = new Point[segs * 2];
-                    double rng2 = pEnd - pStart;
+                    ctx.BeginFigure(PathPt(d, clipStart), isFilled: false, isClosed: false);
+                    var pts = new Point[segs * 2];
+                    double span = clipEnd - clipStart;
                     for (int j = 0; j < segs; j++)
                     {
-                        pts[j * 2]     = PathPt(d, pStart + rng2 * (j + 0.5) / segs);
-                        pts[j * 2 + 1] = PathPt(d, pStart + rng2 * (j + 1.0) / segs);
+                        pts[j * 2]     = PathPt(d, clipStart + span * (j + 0.5) / segs);
+                        pts[j * 2 + 1] = PathPt(d, clipStart + span * (j + 1.0) / segs);
                     }
                     ctx.PolyQuadraticBezierTo(pts, isStroked: true, isSmoothJoin: true);
                 }
@@ -1718,7 +1725,7 @@ public partial class MainWindow : Window
                 return geo;
             }
 
-            // ── Fading phase: wet trail clips from the tail, then disappears ─────
+            // ── Fading phase: wet trail clips from the tail downward, then disappears ─
             if (d.IsFading)
             {
                 d.FadeProgress += d.FadeSpeed * dt;
@@ -1729,48 +1736,53 @@ public partial class MainWindow : Window
                     continue;
                 }
                 d.TrailCanvas.Opacity = Math.Max(0, 1.0 - d.FadeProgress);
-                d.WetTrailPath.Data   = TrailStroke(d.FadeProgress, 1.0);
+                double clipStart = d.FadeProgress * d.LandingPTail;
+                d.WetTrailPath.Data = TrailStroke(clipStart, d.LandingPTail);
                 continue;
             }
 
-            // ── Moving phase ──────────────────────────────────────────────────────
+            // ── Moving phase ──────────────────────────────────────────────────────────
             d.Progress += d.Speed * dt;
             var head = PathPt(d, Math.Min(d.Progress, 1.0));
 
             if (d.Progress >= 1.0 || d.OriginY + head.Y + d.BotExt > ch)
             {
-                // Landing: spawn wet spot, remove teardrop, start trail fade.
+                // Landing: wet spot at endpoint, teardrop removed, wet trail fades from top.
                 SpawnWetSpot(Canvas.GetLeft(d.Container) + head.X,
                              Canvas.GetTop (d.Container) + head.Y,
                              d.MaxHW);
                 canvas.Children.Remove(d.Container);
-                d.IsFading          = true;
-                d.FadeProgress      = 0;
-                d.WetTrailPath.Data = TrailStroke(0.0, 1.0);
+                d.IsFading      = true;
+                d.FadeProgress  = 0;
+                d.LandingPTail  = Math.Max(0.0, Math.Min(d.Progress, 1.0) - d.TrailLen);
+                d.WetTrailPath.Data = TrailStroke(0.0, d.LandingPTail);
                 continue;
             }
 
-            double op = d.Progress < 0.08 ? d.Progress / 0.08
-                      : d.Progress > 0.82 ? Math.Max(0, (1.0 - d.Progress) / 0.18)
-                      : 1.0;
-            d.Container.Opacity   = op;
-            d.TrailCanvas.Opacity = op * 0.80;  // trail slightly subtler than teardrop
+            // pTail is the upper boundary of the drizzle segment / lower boundary of wet trail.
+            // While Progress < TrailLen the drizzle is still growing in; pTail stays at 0.
+            double pTail = Math.Max(0.0, d.Progress - d.TrailLen);
 
-            // Teardrop geometry (same as before).
+            double op = d.Progress < 0.08 ? d.Progress / 0.08 : 1.0;
+            d.Container.Opacity   = op;
+            d.TrailCanvas.Opacity = op * 0.82;
+
+            // Teardrop drawn from pTail to Progress (a fixed-length moving window).
             StreamGeometry MakeTeardrop(double hw, double xOff, double ext)
             {
                 const int n    = 12;
                 const int arcN =  9;
+                double seg = d.Progress - pTail;
                 var geo = new StreamGeometry();
                 using (var ctx = geo.Open())
                 {
-                    var tail = PathPt(d, 0);
+                    var tail = PathPt(d, pTail);
                     ctx.BeginFigure(new Point(tail.X + xOff, tail.Y), isFilled: true, isClosed: true);
 
                     var right = new Point[n];
                     for (int j = 1; j <= n; j++)
                     {
-                        double p = d.Progress * j / n;
+                        double p = pTail + seg * j / n;
                         var  c = PathPt(d, p);
                         right[j - 1] = new Point(c.X + xOff + hw * Math.Pow((double)j / n, 0.35), c.Y);
                     }
@@ -1788,7 +1800,7 @@ public partial class MainWindow : Window
                     var left = new Point[n + 1];
                     for (int j = n; j >= 0; j--)
                     {
-                        double p = d.Progress * j / n;
+                        double p = pTail + seg * j / n;
                         var  c = PathPt(d, p);
                         left[n - j] = new Point(c.X + xOff - hw * Math.Pow((double)j / n, 0.35), c.Y);
                     }
@@ -1802,7 +1814,7 @@ public partial class MainWindow : Window
             d.WetPath.Data      = MakeTeardrop(hw2 + 5,           0,               d.BotExt + 3);
             d.WaterPath.Data    = MakeTeardrop(hw2,                0,               d.BotExt);
             d.GlintPath.Data    = MakeTeardrop(hw2 * 0.32, -hw2 * 0.25, d.BotExt * 0.55);
-            d.WetTrailPath.Data = TrailStroke(0.0, d.Progress);
+            d.WetTrailPath.Data = TrailStroke(0.0, pTail);
         }
     }
 
