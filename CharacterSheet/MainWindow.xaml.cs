@@ -1293,7 +1293,6 @@ public partial class MainWindow : Window
     private void SpawnDrop(int density)
     {
         var canvas = WeatherCanvas;
-
         double cw = canvas.ActualWidth  > 10 ? canvas.ActualWidth  : SheetContent.ActualWidth;
         double ch = canvas.ActualHeight > 10 ? canvas.ActualHeight : SheetContent.ActualHeight;
         if (cw < 10) return;
@@ -1301,121 +1300,141 @@ public partial class MainWindow : Window
         int maxDrops = density * 6 + 4;
         if (canvas.Children.Count >= maxDrops) return;
 
-        var    rng = _particleRng;
-        double dw  = rng.NextDouble() * 16 + 12;            // 12–28 px wide
-        double dh  = dw * (rng.NextDouble() * 0.30 + 1.05); // 1.05–1.35× tall
+        var    rng    = _particleRng;
+        double dw     = rng.NextDouble() * 16 + 12;             // 12–28 px wide
+        double dh     = dw * (rng.NextDouble() * 0.30 + 1.05);  // 1.05–1.35× tall
+        double sw     = dw * (rng.NextDouble() * 0.40 + 1.45);  // wet spot 1.45–1.85× drop width
+        double sh     = dh * (rng.NextDouble() * 0.30 + 1.22);  // wet spot 1.22–1.52× drop height
+        double spread = 1.28 + rng.NextDouble() * 0.22;          // spread factor during absorption
 
-        // ── Wet-paper patch: larger ellipse drawn behind the drop ─────────────
-        // Slightly bigger than the drop, darker warm-amber gradient that fades
-        // to transparent at the edge — simulates parchment soaked by the drop.
-        double sw = dw * (rng.NextDouble() * 0.40 + 1.45); // 1.45–1.85× drop width
-        double sh = dh * (rng.NextDouble() * 0.30 + 1.22); // 1.22–1.52× drop height
-
+        // ── Wet-paper patch ───────────────────────────────────────────────────
         var wetFill = new RadialGradientBrush
-        {
-            GradientOrigin = new Point(0.50, 0.50),
-            Center         = new Point(0.50, 0.50),
-            RadiusX        = 0.50,
-            RadiusY        = 0.50,
-        };
-        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb(210,  82, 54, 16), 0.00)); // dark wet core
-        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb(145, 108, 74, 26), 0.38)); // mid amber
-        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb( 65, 132, 96, 40), 0.70)); // lighter fringe
-        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb(  0, 152, 116, 52), 1.00)); // transparent edge
+            { GradientOrigin = new Point(0.5,0.5), Center = new Point(0.5,0.5), RadiusX = 0.5, RadiusY = 0.5 };
+        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb(210,  82, 54, 16), 0.00));
+        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb(145, 108, 74, 26), 0.38));
+        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb( 65, 132, 96, 40), 0.70));
+        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb(  0, 152,116, 52), 1.00));
 
         var wetSpot = new System.Windows.Shapes.Ellipse
         {
-            Width            = sw,
-            Height           = sh,
-            Fill             = wetFill,
-            IsHitTestVisible = false,
+            Width = sw, Height = sh, Fill = wetFill, Opacity = 0,
+            IsHitTestVisible      = false,
+            RenderTransformOrigin = new Point(0.5, 0.5),
+            RenderTransform       = new ScaleTransform(1.0, 1.0),
         };
 
-        // ── Drop body: radial gradient mimicking a glass water bead ──────────
+        // ── Drop body ─────────────────────────────────────────────────────────
         var bodyFill = new RadialGradientBrush
-        {
-            GradientOrigin = new Point(0.32, 0.27),
-            Center         = new Point(0.50, 0.50),
-            RadiusX        = 0.55,
-            RadiusY        = 0.55,
-        };
-        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(215, 245, 252, 255), 0.00)); // white reflection
-        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(110, 185, 222, 245), 0.28)); // light blue body
-        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(140, 125, 178, 220), 0.65)); // mid blue
-        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(210,  72, 122, 192), 0.90)); // dark rim
-        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(180,  50,  95, 165), 1.00)); // meniscus edge
+            { GradientOrigin = new Point(0.32,0.27), Center = new Point(0.5,0.5), RadiusX = 0.55, RadiusY = 0.55 };
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(215, 245, 252, 255), 0.00));
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(110, 185, 222, 245), 0.28));
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(140, 125, 178, 220), 0.65));
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(210,  72, 122, 192), 0.90));
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(180,  50,  95, 165), 1.00));
 
         var body = new System.Windows.Shapes.Ellipse
         {
-            Width  = dw,
-            Height = dh,
-            Fill   = bodyFill,
+            Width = dw, Height = dh, Fill = bodyFill,
             Effect = new DropShadowEffect
-            {
-                Color       = Color.FromRgb(55, 35, 15),
-                Direction   = 295,
-                ShadowDepth = 2.5,
-                BlurRadius  = 5.0,
-                Opacity     = 0.28,
-            },
+                { Color = Color.FromRgb(55,35,15), Direction = 295, ShadowDepth = 2.5, BlurRadius = 5.0, Opacity = 0.28 },
         };
 
-        // ── Specular highlight ────────────────────────────────────────────────
         var highlight = new System.Windows.Shapes.Ellipse
         {
-            Width               = dw * 0.38,
-            Height              = dh * 0.25,
-            Fill                = new SolidColorBrush(Color.FromArgb(195, 255, 255, 255)),
+            Width = dw * 0.38, Height = dh * 0.25,
+            Fill  = new SolidColorBrush(Color.FromArgb(195, 255, 255, 255)),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment   = VerticalAlignment.Top,
             Margin              = new Thickness(dw * 0.13, dh * 0.09, 0, 0),
             IsHitTestVisible    = false,
         };
 
-        // ── Inner grid: body + highlight, centred inside the outer grid ───────
-        var inner = new Grid { Width = dw, Height = dh, IsHitTestVisible = false };
+        // inner grid: body + highlight, centred in root
+        var inner = new Grid
+        {
+            Width = dw, Height = dh, Opacity = 0,
+            HorizontalAlignment   = HorizontalAlignment.Center,
+            VerticalAlignment     = VerticalAlignment.Center,
+            IsHitTestVisible      = false,
+            RenderTransformOrigin = new Point(0.5, 0.5),
+            RenderTransform       = new ScaleTransform(1.0, 1.0),
+        };
         inner.Children.Add(body);
         inner.Children.Add(highlight);
 
-        // ── Outer (root) grid: wet spot (stretched) + drop (centred) ─────────
-        // Sized to the wet spot so the patch extends beyond the drop edge.
-        // One Opacity animation on root drives wet spot + drop together.
-        var root = new Grid
-        {
-            Width            = sw,
-            Height           = sh,
-            Opacity          = 0,
-            IsHitTestVisible = false,
-        };
-        root.Children.Add(wetSpot); // rendered first → behind the drop
-        root.Children.Add(inner);   // centred on top by Grid's default alignment
+        // root: wet spot fills it, drop is centred inside
+        var root = new Grid { Width = sw, Height = sh, IsHitTestVisible = false };
+        root.Children.Add(wetSpot);
+        root.Children.Add(inner);
 
-        // Position root so the drop itself lands at the random coordinate
         double dropX = rng.NextDouble() * Math.Max(1, cw - dw);
         double dropY = rng.NextDouble() * Math.Max(1, ch - dh);
         Canvas.SetLeft(root, dropX - (sw - dw) / 2.0);
         Canvas.SetTop (root, dropY - (sh - dh) / 2.0);
         canvas.Children.Add(root);
 
-        // ── Appear → hold → vanish (no position change — no dribbling) ───────
-        double peak    = 0.42 + density * 0.04 + rng.NextDouble() * 0.08;
-        double fadeIn  = 0.40 + rng.NextDouble() * 0.35;
-        double holdDur = 1.00 + rng.NextDouble() * 0.90;
-        double fadeOut = 0.50 + rng.NextDouble() * 0.35;
-        double total   = fadeIn + holdDur + fadeOut;
+        // ── Timeline ──────────────────────────────────────────────────────────
+        // t0──fadeIn──t1──holdDur──t2──absorbDur──t3──dryDur──t4
+        //   drop/wet appear   hold     drop shrinks     wet fades
+        //                              wet spreads
+        double fadeIn    = 0.30 + rng.NextDouble() * 0.20;
+        double holdDur   = 0.35 + rng.NextDouble() * 0.35;
+        double absorbDur = 0.50 + rng.NextDouble() * 0.30;
+        double dryDur    = 0.75 + rng.NextDouble() * 0.40;
+        double t1 = fadeIn;
+        double t2 = t1 + holdDur;
+        double t3 = t2 + absorbDur;
+        double t4 = t3 + dryDur;
 
-        var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
-        var anim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
-        anim.KeyFrames.Add(new EasingDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.Zero)));
-        anim.KeyFrames.Add(new EasingDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(fadeIn)),          ease));
-        anim.KeyFrames.Add(new EasingDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(fadeIn + holdDur))));
-        anim.KeyFrames.Add(new EasingDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.FromSeconds(total)),           ease));
-        anim.Completed += (_, _) =>
+        double dropPeak = 0.42 + density * 0.04 + rng.NextDouble() * 0.08;
+        double wetPeak  = 0.50 + density * 0.04 + rng.NextDouble() * 0.08;
+
+        // Local helpers — create fresh easing instances each call to avoid freeze conflicts
+        DoubleAnimationUsingKeyFrames WetScale()
         {
-            canvas.Children.Remove(root);
-            root.BeginAnimation(UIElement.OpacityProperty, null);
-        };
-        root.BeginAnimation(UIElement.OpacityProperty, anim);
+            var a = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.HoldEnd };
+            var e = new SineEase { EasingMode = EasingMode.EaseInOut };
+            a.KeyFrames.Add(new LinearDoubleKeyFrame(1.0,    KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            a.KeyFrames.Add(new LinearDoubleKeyFrame(1.0,    KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t2))));
+            a.KeyFrames.Add(new EasingDoubleKeyFrame(spread, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t3)), e));
+            return a;
+        }
+        DoubleAnimationUsingKeyFrames DropScale()
+        {
+            var a = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+            var e = new CubicEase { EasingMode = EasingMode.EaseIn };
+            a.KeyFrames.Add(new LinearDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            a.KeyFrames.Add(new LinearDoubleKeyFrame(1.0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t2))));
+            a.KeyFrames.Add(new EasingDoubleKeyFrame(0.0, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t3)), e));
+            return a;
+        }
+
+        // ── Drop: fade in → hold → shrink to zero (absorbed into paper) ───────
+        var dropOp = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        dropOp.KeyFrames.Add(new EasingDoubleKeyFrame(0,        KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        dropOp.KeyFrames.Add(new EasingDoubleKeyFrame(dropPeak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t1)),
+                             new SineEase { EasingMode = EasingMode.EaseInOut }));
+        dropOp.KeyFrames.Add(new EasingDoubleKeyFrame(dropPeak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t3))));
+        inner.BeginAnimation(UIElement.OpacityProperty, dropOp);
+
+        var dst = (ScaleTransform)inner.RenderTransform;
+        dst.BeginAnimation(ScaleTransform.ScaleXProperty, DropScale());
+        dst.BeginAnimation(ScaleTransform.ScaleYProperty, DropScale());
+
+        // ── Wet spot: appear → hold → spread outward → fade (paper dries) ─────
+        var wetOp = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+        wetOp.KeyFrames.Add(new EasingDoubleKeyFrame(0,       KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        wetOp.KeyFrames.Add(new EasingDoubleKeyFrame(wetPeak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t1)),
+                            new SineEase { EasingMode = EasingMode.EaseInOut }));
+        wetOp.KeyFrames.Add(new EasingDoubleKeyFrame(wetPeak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t3))));
+        wetOp.KeyFrames.Add(new EasingDoubleKeyFrame(0,       KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t4)),
+                            new SineEase { EasingMode = EasingMode.EaseInOut }));
+        wetOp.Completed += (_, _) => canvas.Children.Remove(root);
+        wetSpot.BeginAnimation(UIElement.OpacityProperty, wetOp);
+
+        var wst = (ScaleTransform)wetSpot.RenderTransform;
+        wst.BeginAnimation(ScaleTransform.ScaleXProperty, WetScale());
+        wst.BeginAnimation(ScaleTransform.ScaleYProperty, WetScale());
     }
 
     private void ApplyWeatherPenalties()
