@@ -302,27 +302,7 @@ public partial class SkillPickerBox : UserControl
             return;
         }
 
-        _input.ToolTip = new ToolTip
-        {
-            Content = new TextBlock
-            {
-                Text            = desc,
-                TextWrapping    = TextWrapping.Wrap,
-                MaxWidth        = 300,
-                FontFamily      = new System.Windows.Media.FontFamily("Palatino Linotype"),
-                FontSize        = 11,
-                Foreground      = System.Windows.Media.Brushes.WhiteSmoke,
-            },
-            Background      = new System.Windows.Media.SolidColorBrush(
-                                  (System.Windows.Media.Color)
-                                  System.Windows.Media.ColorConverter.ConvertFromString("#CC1A0D02")),
-            BorderBrush     = new System.Windows.Media.SolidColorBrush(
-                                  (System.Windows.Media.Color)
-                                  System.Windows.Media.ColorConverter.ConvertFromString("#5A2E0E")),
-            BorderThickness = new Thickness(1),
-            Padding         = new Thickness(8, 6, 8, 6),
-            HasDropShadow   = true,
-        };
+        _input.ToolTip = desc;
     }
 
     // ── Popup open / close ───────────────────────────────────────────────

@@ -721,9 +721,18 @@
                                 Click="OnToggleSpellEditClick"
                                 ToolTip="Edit description" Margin="4,0,0,0"
                                 FontSize="11"/>
-                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                                 Style="{StaticResource HdrTextBox}"
-                                 ToolTip="{Binding Description}"/>
+                        <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}">
+                          <TextBox.Style>
+                            <Style TargetType="TextBox" BasedOn="{StaticResource HdrTextBox}">
+                              <Setter Property="ToolTip" Value="{Binding Description}"/>
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding Description}" Value="">
+                                  <Setter Property="ToolTip" Value="{x:Null}"/>
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </TextBox.Style>
+                        </TextBox>
                       </DockPanel>
                       <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
                                TextWrapping="Wrap" AcceptsReturn="True"
@@ -828,9 +837,18 @@
                                         ToolTip="Edit description" Margin="4,0,0,0"
                                         FontSize="11"/>
                                 <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                                         Style="{StaticResource RowNameTextBox}"
-                                         ToolTip="{Binding Description}"
-                                         FontSize="14"/>
+                                         FontSize="14">
+                                  <TextBox.Style>
+                                    <Style TargetType="TextBox" BasedOn="{StaticResource RowNameTextBox}">
+                                      <Setter Property="ToolTip" Value="{Binding Description}"/>
+                                      <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Description}" Value="">
+                                          <Setter Property="ToolTip" Value="{x:Null}"/>
+                                        </DataTrigger>
+                                      </Style.Triggers>
+                                    </Style>
+                                  </TextBox.Style>
+                                </TextBox>
                               </DockPanel>
                               <TextBox Text="{Binding Description, UpdateSourceTrigger=PropertyChanged}"
                                        TextWrapping="Wrap" AcceptsReturn="True"
