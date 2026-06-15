@@ -593,6 +593,7 @@ public partial class MapView : UserControl
     private void OnOriginClicked(double x, double y)
     {
         _grid.Reconfigure(origin: (x, y));
+        _canvas.InvalidateGeoCache();
         _canvas.Refresh();
         SetStatus($"Origin set to ({x:0}, {y:0})  —  use Grid Settings to fine-tune size.");
     }
@@ -701,6 +702,7 @@ public partial class MapView : UserControl
         dlg.SettingsChanged += v =>
         {
             _grid.Reconfigure(v.Size, v.Origin, v.Orientation, v.Cols, v.Rows);
+            _canvas.InvalidateGeoCache();
             _canvas.Refresh();
         };
         var orig = (Size: _grid.Size, Origin: _grid.Origin,
@@ -710,6 +712,7 @@ public partial class MapView : UserControl
         else
         {
             _grid.Reconfigure(orig.Size, orig.Origin, orig.Orientation, orig.Cols, orig.Rows);
+            _canvas.InvalidateGeoCache();
             _canvas.Refresh();
             SetStatus("Grid settings cancelled — reverted.");
         }
@@ -724,6 +727,7 @@ public partial class MapView : UserControl
     private void OnResetWarpClick(object s, RoutedEventArgs e)
     {
         _grid.ResetWarp();
+        _canvas.InvalidateGeoCache();
         _canvas.Refresh();
         SetStatus("Warp reset — grid restored to parametric layout.");
     }
@@ -840,6 +844,7 @@ public partial class MapView : UserControl
             RefreshEntityList();
             RefreshLocationList();
             UpdateDayUi();
+            _canvas.InvalidateGeoCache();
             _canvas.Refresh();
             NotifyPlayerLocation();
             SetStatus($"Loaded: {path}");

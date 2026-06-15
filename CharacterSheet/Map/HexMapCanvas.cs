@@ -49,6 +49,14 @@ public class HexMapCanvas : FrameworkElement
     private int             _highlightLoc = -1;
     private HashSet<string> _movedIds     = [];
 
+    // ── Render caches (rebuilt only when grid layout changes) ──────────
+    private StreamGeometry[]?        _geoCache;
+    private (double X, double Y)[]?  _centerCache;
+    private FormattedText[]?         _numTextCache;
+    private double                   _numTextSize  = -1;
+    private static readonly Typeface EntityBoldTf  = new(
+        new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+
     // ── Pan / corner-drag state ────────────────────────────────────────
     private Point?                _panStart;
     private int                   _dragCorner  = -1;
@@ -185,7 +193,51 @@ public class HexMapCanvas : FrameworkElement
         Cursor = enabled ? Cursors.Cross : Cursors.Arrow;
     }
 
+    /// <summary>
+    /// Clears the geometry and text caches. Must be called whenever the grid layout
+    /// changes (reconfigure, warp corners, origin). Pan/zoom does NOT invalidate the cache.
+    /// </summary>
+    public void InvalidateGeoCache()
+    {
+        _geoCache     = null;
+        _centerCache  = null;
+        _numTextCache = null;
+        _numTextSize  = -1;
+    }
+
     // ── Rendering ─────────────────────────────────────────────────────
+
+    private void EnsureGeoCache()
+    {
+        var cells = _grid.AllCells;
+        if (_geoCache?.Length == cells.Count) return;
+        int n        = cells.Count;
+        _geoCache    = new StreamGeometry[n];
+        _centerCache = new (double, double)[n];
+        _numTextCache = null;   // size may have changed too
+        for (int i = 0; i < n; i++)
+        {
+            var c   = cells[i];
+            var geo = MakePoly(_grid.Corners(c.Q, c.R));
+            geo.Freeze();
+            _geoCache[i]    = geo;
+            _centerCache[i] = _grid.HexToPixel(c.Q, c.R);
+        }
+    }
+
+    private void EnsureNumTextCache(double fSz)
+    {
+        if (_numTextCache != null && Math.Abs(_numTextSize - fSz) < 0.01) return;
+        var cells = _grid.AllCells;
+        int n     = cells.Count;
+        _numTextCache = new FormattedText[n];
+        for (int i = 0; i < n; i++)
+            _numTextCache[i] = new FormattedText(
+                cells[i].Number.ToString(),
+                CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+                new Typeface("Segoe UI"), fSz, Brushes.White, _ppd);
+        _numTextSize = fSz;
+    }
 
     protected override void OnRender(DrawingContext dc)
     {
@@ -216,66 +268,69 @@ public class HexMapCanvas : FrameworkElement
     // z-order 0.5 fill · 0.8 abbr
     private void DrawTerrain(DrawingContext dc)
     {
+        EnsureGeoCache();
         double abbrSz = Math.Max(5, _grid.Size * 0.16);
+        var    cells  = _grid.AllCells;
 
-        foreach (var cell in _grid.AllCells)
+        for (int i = 0; i < cells.Count; i++)
         {
-            var t = _tm.Get(cell.Number);
+            var cell = cells[i];
+            var t    = _tm.Get(cell.Number);
             if (t is null) continue;
 
-            var fill    = ParseColor(MapTerrain.GetColor(t));
-            fill.A      = MapTerrain.GetAlpha(t);
-            dc.DrawGeometry(new SolidColorBrush(fill), null,
-                            MakePoly(_grid.Corners(cell.Q, cell.R)));
+            var fill = ParseColor(MapTerrain.GetColor(t));
+            fill.A   = MapTerrain.GetAlpha(t);
+            dc.DrawGeometry(new SolidColorBrush(fill), null, _geoCache![i]);
 
-            var (cx, cy) = _grid.HexToPixel(cell.Q, cell.R);
+            var (cx, cy) = _centerCache![i];
             var ft = MakeText(MapTerrain.GetAbbr(t), abbrSz,
                               new SolidColorBrush(Color.FromArgb(130, 255, 255, 255)));
-            dc.DrawText(ft, new Point(cx - ft.Width / 2,
-                                      cy - _grid.Size * 0.48));
+            dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - _grid.Size * 0.48));
         }
     }
 
     // z-order 1 grid · 2 numbers
     private void DrawGrid(DrawingContext dc)
     {
-        int  op    = GridOpacity;
-        byte opB   = B(op);
-        byte opP   = B(op + 60);
-        byte opD3  = B(op / 3);
-        byte opD4  = B(op / 4);
-        byte txtA  = B((int)(op * 1.2));
+        int  op   = GridOpacity;
+        byte opB  = B(op),       opP   = B(op + 60);
+        byte opD3 = B(op / 3),   opD4  = B(op / 4);
+        byte txtA = B((int)(op * 1.2));
 
-        var pNorm   = Pen(Color.FromArgb(opB,  80,  80,  80),  1);
-        var pTgt    = Pen(Color.FromArgb(opP,  80,  200, 80),  2);
-        var pSel    = Pen(Color.FromArgb(opP,  255, 200, 0),   3);
-        var pLoc    = Pen(Color.FromArgb(opP,  180, 100, 255), 2);
-        Brush bTgt  = new SolidColorBrush(Color.FromArgb(opD3, 80,  200, 80));
-        Brush bSel  = new SolidColorBrush(Color.FromArgb(opD3, 255, 200, 0));
-        Brush bLoc  = new SolidColorBrush(Color.FromArgb(opD4, 180, 100, 255));
-        Brush bTxt  = new SolidColorBrush(Color.FromArgb(txtA, 210, 210, 210));
-        double fSz  = Math.Max(6, _grid.Size * 0.28);
-        int?   sel  = _selected?.Node;
+        var pNorm  = Pen(Color.FromArgb(opB,  80,  80,  80), 1);
+        var pTgt   = Pen(Color.FromArgb(opP,  80, 200,  80), 2);
+        var pSel   = Pen(Color.FromArgb(opP, 255, 200,   0), 3);
+        var pLoc   = Pen(Color.FromArgb(opP, 180, 100, 255), 2);
+        Brush bTgt = new SolidColorBrush(Color.FromArgb(opD3,  80, 200,  80));
+        Brush bSel = new SolidColorBrush(Color.FromArgb(opD3, 255, 200,   0));
+        Brush bLoc = new SolidColorBrush(Color.FromArgb(opD4, 180, 100, 255));
+        Brush bTxt = new SolidColorBrush(Color.FromArgb(txtA, 210, 210, 210));
+        double fSz = Math.Max(6, _grid.Size * 0.28);
+        int?   sel = _selected?.Node;
 
-        foreach (var cell in _grid.AllCells)
+        EnsureGeoCache();
+        EnsureNumTextCache(fSz);
+        var cells = _grid.AllCells;
+
+        for (int i = 0; i < cells.Count; i++)
         {
-            var geo      = MakePoly(_grid.Corners(cell.Q, cell.R));
-            var (cx, cy) = _grid.HexToPixel(cell.Q, cell.R);
-
+            var cell = cells[i];
             bool isSel = cell.Number == sel;
             bool isTgt = _validTargets.Contains(cell.Number);
             bool isLoc = cell.Number == _highlightLoc;
 
-            System.Windows.Media.Pen   pen;
+            System.Windows.Media.Pen pen;
             Brush? fill;
-            if      (isSel) { pen = pSel;  fill = bSel;  }
-            else if (isTgt) { pen = pTgt;  fill = bTgt;  }
-            else if (isLoc) { pen = pLoc;  fill = bLoc;  }
-            else            { pen = pNorm; fill = null;   }
+            if      (isSel) { pen = pSel;  fill = bSel; }
+            else if (isTgt) { pen = pTgt;  fill = bTgt; }
+            else if (isLoc) { pen = pLoc;  fill = bLoc; }
+            else            { pen = pNorm; fill = null;  }
 
-            dc.DrawGeometry(fill, pen, geo);
+            dc.DrawGeometry(fill, pen, _geoCache![i]);
 
-            var ft = MakeText(cell.Number.ToString(), fSz, bTxt);
+            var ft = _numTextCache![i];
+            ft.SetForegroundBrush(bTxt);
+            var (cx, cy) = _centerCache![i];
             dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - ft.Height / 2));
         }
     }
@@ -314,8 +369,6 @@ public class HexMapCanvas : FrameworkElement
         double lblSz  = Math.Max(7, _grid.Size * 0.28);
         double tickSz = Math.Max(5, _grid.Size * 0.18);
         double starSz = Math.Max(6, _grid.Size * 0.24);
-        var    boldTf = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal,
-                                     FontWeights.Bold, FontStretches.Normal);
 
         foreach (var entity in _em.TopLevel)
         {
@@ -339,7 +392,7 @@ public class HexMapCanvas : FrameworkElement
             var lblC = isMov ? Color.FromRgb(160, 160, 160) : Colors.White;
             var ft   = new FormattedText(entity.Label,
                            CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-                           boldTf, lblSz, new SolidColorBrush(lblC), _ppd);
+                           EntityBoldTf, lblSz, new SolidColorBrush(lblC), _ppd);
             dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - ft.Height / 2));
 
             if (isMov)
@@ -365,32 +418,35 @@ public class HexMapCanvas : FrameworkElement
     {
         if (!FogEnabled) return;
 
+        EnsureGeoCache();
         int  op   = GridOpacity;
-        byte opP  = B(op + 60);
-        byte opD3 = B(op / 3);
-        byte txtA = B((int)(op * 1.2));
+        byte opP  = B(op + 60), opD3 = B(op / 3), txtA = B((int)(op * 1.2));
+        double fSz = Math.Max(6, _grid.Size * 0.28);
 
         Brush fogFill  = new SolidColorBrush(Color.FromArgb(245, 0, 0, 0));
         Brush tgtFill  = new SolidColorBrush(Color.FromArgb(opD3, 80, 200, 80));
         var   pWhite   = Pen(Color.FromArgb(opP, 255, 255, 255), 1);
         var   pTgt     = Pen(Color.FromArgb(opP, 80,  200, 80),  2);
         Brush txtBrush = new SolidColorBrush(Color.FromArgb(txtA, 255, 255, 255));
-        double fSz     = Math.Max(6, _grid.Size * 0.28);
 
-        foreach (var cell in _grid.AllCells)
+        EnsureNumTextCache(fSz);
+        var cells = _grid.AllCells;
+
+        for (int i = 0; i < cells.Count; i++)
         {
+            var cell = cells[i];
             if (FogRevealed.Contains(cell.Number)) continue;
 
-            var geo      = MakePoly(_grid.Corners(cell.Q, cell.R));
-            var (cx, cy) = _grid.HexToPixel(cell.Q, cell.R);
-            bool isTgt   = _validTargets.Contains(cell.Number);
+            var geo    = _geoCache![i];
+            bool isTgt = _validTargets.Contains(cell.Number);
 
             dc.DrawGeometry(fogFill, null, geo);
+            if (isTgt) dc.DrawGeometry(tgtFill, pTgt,  geo);
+            else       dc.DrawGeometry(null,    pWhite, geo);
 
-            if (isTgt) dc.DrawGeometry(tgtFill, pTgt,   geo);
-            else       dc.DrawGeometry(null,    pWhite,  geo);
-
-            var ft = MakeText(cell.Number.ToString(), fSz, txtBrush);
+            var ft = _numTextCache![i];
+            ft.SetForegroundBrush(txtBrush);
+            var (cx, cy) = _centerCache![i];
             dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - ft.Height / 2));
         }
     }
@@ -529,6 +585,7 @@ public class HexMapCanvas : FrameworkElement
                 3 => cur with { BR = newPt },
                 _ => cur,
             });
+            InvalidateGeoCache();
             InvalidateVisual();
             e.Handled = true;
             return;
