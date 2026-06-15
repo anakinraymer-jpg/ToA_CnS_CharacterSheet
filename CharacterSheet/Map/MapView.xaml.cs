@@ -746,6 +746,7 @@ public partial class MapView : UserControl
 
     private void OnOpacityChanged(object s, RoutedPropertyChangedEventArgs<double> e)
     {
+        if (OpacityLabel is null || _canvas is null) return;   // fires during XAML init
         int pct = (int)Math.Round(OpacitySlider.Value / 255 * 100);
         OpacityLabel.Text = $"Opacity: {pct}%";
         _canvas.SetGridOpacity((int)OpacitySlider.Value);
