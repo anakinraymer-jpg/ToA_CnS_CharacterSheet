@@ -1302,46 +1302,69 @@ public partial class MainWindow : Window
         if (canvas.Children.Count >= maxDrops) return;
 
         var    rng = _particleRng;
-        double dw  = rng.NextDouble() * 16 + 12;            // 12 – 28 px wide
-        double dh  = dw * (rng.NextDouble() * 0.30 + 1.05); // 1.05 – 1.35× tall
+        double dw  = rng.NextDouble() * 16 + 12;            // 12–28 px wide
+        double dh  = dw * (rng.NextDouble() * 0.30 + 1.05); // 1.05–1.35× tall
 
-        // ── Body: radial gradient that mimics a glass water drop ─────────────
-        //   bright off-centre reflection → semi-transparent blue body → dark rim
-        var fill = new RadialGradientBrush
+        // ── Wet-paper patch: larger ellipse drawn behind the drop ─────────────
+        // Slightly bigger than the drop, darker warm-amber gradient that fades
+        // to transparent at the edge — simulates parchment soaked by the drop.
+        double sw = dw * (rng.NextDouble() * 0.40 + 1.45); // 1.45–1.85× drop width
+        double sh = dh * (rng.NextDouble() * 0.30 + 1.22); // 1.22–1.52× drop height
+
+        var wetFill = new RadialGradientBrush
+        {
+            GradientOrigin = new Point(0.50, 0.50),
+            Center         = new Point(0.50, 0.50),
+            RadiusX        = 0.50,
+            RadiusY        = 0.50,
+        };
+        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb(210,  82, 54, 16), 0.00)); // dark wet core
+        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb(145, 108, 74, 26), 0.38)); // mid amber
+        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb( 65, 132, 96, 40), 0.70)); // lighter fringe
+        wetFill.GradientStops.Add(new GradientStop(Color.FromArgb(  0, 152, 116, 52), 1.00)); // transparent edge
+
+        var wetSpot = new System.Windows.Shapes.Ellipse
+        {
+            Width            = sw,
+            Height           = sh,
+            Fill             = wetFill,
+            IsHitTestVisible = false,
+        };
+
+        // ── Drop body: radial gradient mimicking a glass water bead ──────────
+        var bodyFill = new RadialGradientBrush
         {
             GradientOrigin = new Point(0.32, 0.27),
             Center         = new Point(0.50, 0.50),
             RadiusX        = 0.55,
             RadiusY        = 0.55,
         };
-        fill.GradientStops.Add(new GradientStop(Color.FromArgb(215, 245, 252, 255), 0.00)); // white reflection
-        fill.GradientStops.Add(new GradientStop(Color.FromArgb(110, 185, 222, 245), 0.28)); // light blue body
-        fill.GradientStops.Add(new GradientStop(Color.FromArgb(140, 125, 178, 220), 0.65)); // mid blue
-        fill.GradientStops.Add(new GradientStop(Color.FromArgb(210,  72, 122, 192), 0.90)); // dark rim
-        fill.GradientStops.Add(new GradientStop(Color.FromArgb(180,  50,  95, 165), 1.00)); // meniscus edge
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(215, 245, 252, 255), 0.00)); // white reflection
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(110, 185, 222, 245), 0.28)); // light blue body
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(140, 125, 178, 220), 0.65)); // mid blue
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(210,  72, 122, 192), 0.90)); // dark rim
+        bodyFill.GradientStops.Add(new GradientStop(Color.FromArgb(180,  50,  95, 165), 1.00)); // meniscus edge
 
         var body = new System.Windows.Shapes.Ellipse
         {
             Width  = dw,
             Height = dh,
-            Fill   = fill,
+            Fill   = bodyFill,
             Effect = new DropShadowEffect
             {
-                Color       = Color.FromRgb(55, 35, 15),  // warm brown shadow on parchment
-                Direction   = 295,                         // slightly to the right and down
+                Color       = Color.FromRgb(55, 35, 15),
+                Direction   = 295,
                 ShadowDepth = 2.5,
                 BlurRadius  = 5.0,
                 Opacity     = 0.28,
             },
         };
 
-        // ── Specular highlight: small bright ellipse in the upper-left of body ──
-        double hw = dw * 0.38;
-        double hh = dh * 0.25;
+        // ── Specular highlight ────────────────────────────────────────────────
         var highlight = new System.Windows.Shapes.Ellipse
         {
-            Width               = hw,
-            Height              = hh,
+            Width               = dw * 0.38,
+            Height              = dh * 0.25,
             Fill                = new SolidColorBrush(Color.FromArgb(195, 255, 255, 255)),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment   = VerticalAlignment.Top,
@@ -1349,23 +1372,33 @@ public partial class MainWindow : Window
             IsHitTestVisible    = false,
         };
 
-        // ── Pack body + highlight into a Grid so one Opacity drives both ──────
-        var dropGrid = new Grid
+        // ── Inner grid: body + highlight, centred inside the outer grid ───────
+        var inner = new Grid { Width = dw, Height = dh, IsHitTestVisible = false };
+        inner.Children.Add(body);
+        inner.Children.Add(highlight);
+
+        // ── Outer (root) grid: wet spot (stretched) + drop (centred) ─────────
+        // Sized to the wet spot so the patch extends beyond the drop edge.
+        // One Opacity animation on root drives wet spot + drop together.
+        var root = new Grid
         {
-            Width            = dw,
-            Height           = dh,
+            Width            = sw,
+            Height           = sh,
             Opacity          = 0,
             IsHitTestVisible = false,
         };
-        dropGrid.Children.Add(body);
-        dropGrid.Children.Add(highlight);
+        root.Children.Add(wetSpot); // rendered first → behind the drop
+        root.Children.Add(inner);   // centred on top by Grid's default alignment
 
-        Canvas.SetLeft(dropGrid, rng.NextDouble() * Math.Max(1, cw - dw));
-        Canvas.SetTop (dropGrid, rng.NextDouble() * Math.Max(1, ch - dh));
-        canvas.Children.Add(dropGrid);
+        // Position root so the drop itself lands at the random coordinate
+        double dropX = rng.NextDouble() * Math.Max(1, cw - dw);
+        double dropY = rng.NextDouble() * Math.Max(1, ch - dh);
+        Canvas.SetLeft(root, dropX - (sw - dw) / 2.0);
+        Canvas.SetTop (root, dropY - (sh - dh) / 2.0);
+        canvas.Children.Add(root);
 
-        // ── Appear → hold → vanish (position never changes — no dribbling) ────
-        double peak    = 0.42 + density * 0.04 + rng.NextDouble() * 0.08; // 0.46–0.66
+        // ── Appear → hold → vanish (no position change — no dribbling) ───────
+        double peak    = 0.42 + density * 0.04 + rng.NextDouble() * 0.08;
         double fadeIn  = 0.40 + rng.NextDouble() * 0.35;
         double holdDur = 1.00 + rng.NextDouble() * 0.90;
         double fadeOut = 0.50 + rng.NextDouble() * 0.35;
@@ -1379,10 +1412,10 @@ public partial class MainWindow : Window
         anim.KeyFrames.Add(new EasingDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.FromSeconds(total)),           ease));
         anim.Completed += (_, _) =>
         {
-            canvas.Children.Remove(dropGrid);
-            dropGrid.BeginAnimation(UIElement.OpacityProperty, null);
+            canvas.Children.Remove(root);
+            root.BeginAnimation(UIElement.OpacityProperty, null);
         };
-        dropGrid.BeginAnimation(UIElement.OpacityProperty, anim);
+        root.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
     private void ApplyWeatherPenalties()
