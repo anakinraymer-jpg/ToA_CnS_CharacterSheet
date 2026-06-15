@@ -12,6 +12,14 @@ namespace CharacterSheet.Map;
 /// Uses a DrawingVisual layer tree instead of FrameworkElement.OnRender so that
 /// pan/zoom is a pure compositor transform — zero draw calls.  Individual layers
 /// are redrawn only when their data actually changes.
+///
+/// Layer split:
+///   _staticGridLayer   — all 1287 cells with normal border+number (rebuilt on grid/opacity change)
+///   _gridOverlayLayer  — only selected/target/location cells (rebuilt on selection change, ~6 cells)
+///   _fogLayer          — all unrevealed cells with combined fill+border (rebuilt on fog change)
+///   _fogHighlightLayer — only valid-target cells in fog (rebuilt on selection change, ~6 cells)
+///
+/// This means clicking an entity only redraws ~12 cells total instead of ~5,000 draw commands.
 /// </summary>
 public class HexMapCanvas : FrameworkElement
 {
@@ -53,21 +61,25 @@ public class HexMapCanvas : FrameworkElement
     private StreamGeometry[]?        _geoCache;
     private (double X, double Y)[]?  _centerCache;
     private FormattedText[]?         _numTextCache;
-    private double                   _numTextSize  = -1;
-    private static readonly Typeface EntityBoldTf  = new(
+    private double                   _numTextSize = -1;
+    private Dictionary<int, int>?    _nodeIndex;   // cell.Number → array index for O(1) lookup
+    private static readonly Typeface EntityBoldTf = new(
         new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
 
     // ── Visual layer tree ────────────────────────────────────────────
-    // _root carries the view transform.  Updating _root.Transform (pan/zoom)
-    // is a pure compositor operation — no OnRender, no draw calls at all.
+    // _root carries the view transform via _rootTransform.  Setting .Matrix
+    // is a pure compositor operation — zero draw calls on pan/zoom.
+    private readonly MatrixTransform  _rootTransform = new();
     private readonly VisualCollection _visuals;
     private readonly ContainerVisual  _root;
     private readonly DrawingVisual    _bgLayer;
     private readonly DrawingVisual    _terrainLayer;
-    private readonly DrawingVisual    _gridLayer;
+    private readonly DrawingVisual    _staticGridLayer;    // borders + numbers, all cells
+    private readonly DrawingVisual    _gridOverlayLayer;   // fills + borders, highlighted cells only
     private readonly DrawingVisual    _locationLayer;
     private readonly DrawingVisual    _entityLayer;
-    private readonly DrawingVisual    _fogLayer;
+    private readonly DrawingVisual    _fogLayer;           // fog fill+border, all unrevealed cells
+    private readonly DrawingVisual    _fogHighlightLayer;  // green tint, valid-target cells in fog
     private readonly DrawingVisual    _handleLayer;
 
     protected override int    VisualChildrenCount        => _visuals.Count;
@@ -104,21 +116,26 @@ public class HexMapCanvas : FrameworkElement
         Focusable    = true;
         ClipToBounds = true;
 
-        _bgLayer       = new DrawingVisual();
-        _terrainLayer  = new DrawingVisual();
-        _gridLayer     = new DrawingVisual();
-        _locationLayer = new DrawingVisual();
-        _entityLayer   = new DrawingVisual();
-        _fogLayer      = new DrawingVisual();
-        _handleLayer   = new DrawingVisual();
+        _bgLayer           = new DrawingVisual();
+        _terrainLayer      = new DrawingVisual();
+        _staticGridLayer   = new DrawingVisual();
+        _gridOverlayLayer  = new DrawingVisual();
+        _locationLayer     = new DrawingVisual();
+        _entityLayer       = new DrawingVisual();
+        _fogLayer          = new DrawingVisual();
+        _fogHighlightLayer = new DrawingVisual();
+        _handleLayer       = new DrawingVisual();
 
         _root = new ContainerVisual();
+        _root.Transform = _rootTransform;
         _root.Children.Add(_bgLayer);
         _root.Children.Add(_terrainLayer);
-        _root.Children.Add(_gridLayer);
+        _root.Children.Add(_staticGridLayer);
+        _root.Children.Add(_gridOverlayLayer);
         _root.Children.Add(_locationLayer);
         _root.Children.Add(_entityLayer);
         _root.Children.Add(_fogLayer);
+        _root.Children.Add(_fogHighlightLayer);
         _root.Children.Add(_handleLayer);
 
         _visuals = new VisualCollection(this) { _root };
@@ -165,18 +182,37 @@ public class HexMapCanvas : FrameworkElement
 
     public void MarkMoved(string id)  { _movedIds.Add(id);    UpdateEntityLayer(); }
     public void ClearMoved()          { _movedIds.Clear();     UpdateEntityLayer(); }
-    public void RevealHex(int node)   { FogRevealed.Add(node); UpdateFogLayer(); UpdateLocationLayer(); }
-    public void SetFogEnabled(bool v) { FogEnabled = v;        UpdateFogLayer(); }
+
+    public void RevealHex(int node)
+    {
+        FogRevealed.Add(node);
+        UpdateFogLayer();
+        UpdateFogHighlightLayer();
+        UpdateLocationLayer();
+    }
+
+    public void SetFogEnabled(bool v)
+    {
+        FogEnabled = v;
+        UpdateFogLayer();
+        UpdateFogHighlightLayer();
+    }
 
     public void SetGridOpacity(int v)
     {
-        GridOpacity   = Math.Clamp(v, 0, 255);
-        _numTextCache = null;   // opacity-sensitive text colours need rebuilding
-        UpdateGridLayer();
+        GridOpacity = Math.Clamp(v, 0, 255);
+        UpdateStaticGridLayer();
+        UpdateGridOverlayLayer();
         UpdateFogLayer();
+        UpdateFogHighlightLayer();
     }
 
-    public void SetHighlightedLocation(int node) { _highlightLoc = node; UpdateGridLayer(); }
+    /// <summary>Highlight a location hex on the grid — rebuilds only the tiny overlay layer.</summary>
+    public void SetHighlightedLocation(int node)
+    {
+        _highlightLoc = node;
+        UpdateGridOverlayLayer();
+    }
 
     public void SetTeleport(bool enabled)
     {
@@ -207,9 +243,11 @@ public class HexMapCanvas : FrameworkElement
                     MapTerrain.WaterTerrains.Contains(_tm.Get(n) ?? ""));
         }
 
-        UpdateGridLayer();
+        // Only rebuild the overlay layers — the large static grid/fog layers are unchanged.
+        // In normal (non-teleport) mode this processes ~6 cells instead of 1,287.
+        UpdateGridOverlayLayer();
         UpdateEntityLayer();
-        UpdateFogLayer();
+        UpdateFogHighlightLayer();
         EntitySelected?.Invoke(entity);
     }
 
@@ -234,22 +272,25 @@ public class HexMapCanvas : FrameworkElement
         _centerCache  = null;
         _numTextCache = null;
         _numTextSize  = -1;
+        _nodeIndex    = null;
     }
 
     // ── Layer management ─────────────────────────────────────────────
 
     private void ApplyViewTransform()
-        => _root.Transform = new MatrixTransform(_viewMatrix);
+        => _rootTransform.Matrix = _viewMatrix;   // reuses existing MatrixTransform object
 
     private void UpdateAllLayers()
     {
         RefreshPpd();
         UpdateBgLayer();
         UpdateTerrainLayer();
-        UpdateGridLayer();
+        UpdateStaticGridLayer();
+        UpdateGridOverlayLayer();
         UpdateLocationLayer();
         UpdateEntityLayer();
         UpdateFogLayer();
+        UpdateFogHighlightLayer();
         UpdateHandleLayer();
     }
 
@@ -266,16 +307,17 @@ public class HexMapCanvas : FrameworkElement
             dc.DrawImage(_bgImage, new Rect(0, 0, _bgImage.Width, _bgImage.Height));
     }
 
-    private void UpdateTerrainLayer()  { using var dc = _terrainLayer.RenderOpen();  DrawTerrain(dc); }
-    private void UpdateGridLayer()     { using var dc = _gridLayer.RenderOpen();     DrawGrid(dc); }
-    private void UpdateLocationLayer() { using var dc = _locationLayer.RenderOpen(); DrawLocations(dc); }
-    private void UpdateEntityLayer()   { using var dc = _entityLayer.RenderOpen();   DrawEntities(dc); }
-    private void UpdateFogLayer()      { using var dc = _fogLayer.RenderOpen();      DrawFog(dc); }
-    private void UpdateHandleLayer()   { using var dc = _handleLayer.RenderOpen();   DrawCornerHandles(dc); }
+    private void UpdateTerrainLayer()      { using var dc = _terrainLayer.RenderOpen();      DrawTerrain(dc); }
+    private void UpdateStaticGridLayer()   { using var dc = _staticGridLayer.RenderOpen();   DrawStaticGrid(dc); }
+    private void UpdateGridOverlayLayer()  { using var dc = _gridOverlayLayer.RenderOpen();  DrawGridOverlay(dc); }
+    private void UpdateLocationLayer()     { using var dc = _locationLayer.RenderOpen();     DrawLocations(dc); }
+    private void UpdateEntityLayer()       { using var dc = _entityLayer.RenderOpen();       DrawEntities(dc); }
+    private void UpdateFogLayer()          { using var dc = _fogLayer.RenderOpen();          DrawFog(dc); }
+    private void UpdateFogHighlightLayer() { using var dc = _fogHighlightLayer.RenderOpen(); DrawFogHighlights(dc); }
+    private void UpdateHandleLayer()       { using var dc = _handleLayer.RenderOpen();       DrawCornerHandles(dc); }
 
-    // ── Background (OnRender — only called on layout/resize) ─────────
-    // Draws just the dark fill.  All map content lives in the DrawingVisual
-    // layer tree above, so pan/zoom never triggers this method.
+    // OnRender draws only the dark background fill.  All map content lives in the
+    // DrawingVisual layer tree above, so pan/zoom never triggers this method.
     protected override void OnRender(DrawingContext dc)
         => dc.DrawRectangle(BgBrush, null, new Rect(RenderSize));
 
@@ -285,17 +327,19 @@ public class HexMapCanvas : FrameworkElement
     {
         var cells = _grid.AllCells;
         if (_geoCache?.Length == cells.Count) return;
-        int n        = cells.Count;
-        _geoCache    = new StreamGeometry[n];
-        _centerCache = new (double, double)[n];
+        int n         = cells.Count;
+        _geoCache     = new StreamGeometry[n];
+        _centerCache  = new (double, double)[n];
+        _nodeIndex    = new Dictionary<int, int>(n);
         _numTextCache = null;
         for (int i = 0; i < n; i++)
         {
             var c   = cells[i];
             var geo = MakePoly(_grid.Corners(c.Q, c.R));
             geo.Freeze();
-            _geoCache[i]    = geo;
-            _centerCache[i] = _grid.HexToPixel(c.Q, c.R);
+            _geoCache[i]        = geo;
+            _centerCache[i]     = _grid.HexToPixel(c.Q, c.R);
+            _nodeIndex[c.Number] = i;
         }
     }
 
@@ -313,9 +357,11 @@ public class HexMapCanvas : FrameworkElement
         _numTextSize = fSz;
     }
 
+    private int IndexOfNode(int node)
+        => _nodeIndex != null && _nodeIndex.TryGetValue(node, out int idx) ? idx : -1;
+
     // ── Draw methods ─────────────────────────────────────────────────
 
-    // z-order 0.5 fill · 0.8 abbr
     private void DrawTerrain(DrawingContext dc)
     {
         EnsureGeoCache();
@@ -339,24 +385,17 @@ public class HexMapCanvas : FrameworkElement
         }
     }
 
-    // z-order 1 grid · 2 numbers
-    private void DrawGrid(DrawingContext dc)
+    // Static grid: all cells with normal border + number.  No selection highlights.
+    // Rebuilt only when the grid layout or opacity changes.
+    private void DrawStaticGrid(DrawingContext dc)
     {
         int  op   = GridOpacity;
-        byte opB  = B(op),     opP   = B(op + 60);
-        byte opD3 = B(op / 3), opD4  = B(op / 4);
+        byte opB  = B(op);
         byte txtA = B((int)(op * 1.2));
 
-        var pNorm  = Pen(Color.FromArgb(opB,  80,  80,  80), 1);
-        var pTgt   = Pen(Color.FromArgb(opP,  80, 200,  80), 2);
-        var pSel   = Pen(Color.FromArgb(opP, 255, 200,   0), 3);
-        var pLoc   = Pen(Color.FromArgb(opP, 180, 100, 255), 2);
-        Brush bTgt = new SolidColorBrush(Color.FromArgb(opD3,  80, 200,  80));
-        Brush bSel = new SolidColorBrush(Color.FromArgb(opD3, 255, 200,   0));
-        Brush bLoc = new SolidColorBrush(Color.FromArgb(opD4, 180, 100, 255));
-        Brush bTxt = new SolidColorBrush(Color.FromArgb(txtA, 210, 210, 210));
-        double fSz = Math.Max(6, _grid.Size * 0.28);
-        int?   sel = _selected?.Node;
+        var   pNorm = Pen(Color.FromArgb(opB, 80, 80, 80), 1);
+        Brush bTxt  = new SolidColorBrush(Color.FromArgb(txtA, 210, 210, 210));
+        double fSz  = Math.Max(6, _grid.Size * 0.28);
 
         EnsureGeoCache();
         EnsureNumTextCache(fSz);
@@ -364,20 +403,7 @@ public class HexMapCanvas : FrameworkElement
 
         for (int i = 0; i < cells.Count; i++)
         {
-            var cell = cells[i];
-            bool isSel = cell.Number == sel;
-            bool isTgt = _validTargets.Contains(cell.Number);
-            bool isLoc = cell.Number == _highlightLoc;
-
-            System.Windows.Media.Pen pen;
-            Brush? fill;
-            if      (isSel) { pen = pSel;  fill = bSel; }
-            else if (isTgt) { pen = pTgt;  fill = bTgt; }
-            else if (isLoc) { pen = pLoc;  fill = bLoc; }
-            else            { pen = pNorm; fill = null;  }
-
-            dc.DrawGeometry(fill, pen, _geoCache![i]);
-
+            dc.DrawGeometry(null, pNorm, _geoCache![i]);
             var ft = _numTextCache![i];
             ft.SetForegroundBrush(bTxt);
             var (cx, cy) = _centerCache![i];
@@ -385,7 +411,50 @@ public class HexMapCanvas : FrameworkElement
         }
     }
 
-    // z-order 3 diamonds · 4 names
+    // Overlay: only highlighted cells (selected / valid-target / location).
+    // Drawn on top of the static grid.  In normal play processes ~6 cells.
+    private void DrawGridOverlay(DrawingContext dc)
+    {
+        int  op   = GridOpacity;
+        byte opP  = B(op + 60);
+        byte opD3 = B(op / 3), opD4 = B(op / 4);
+        byte txtA = B((int)(op * 1.2));
+
+        var   pTgt  = Pen(Color.FromArgb(opP,  80, 200,  80), 2);
+        var   pSel  = Pen(Color.FromArgb(opP, 255, 200,   0), 3);
+        var   pLoc  = Pen(Color.FromArgb(opP, 180, 100, 255), 2);
+        Brush bTgt  = new SolidColorBrush(Color.FromArgb(opD3,  80, 200,  80));
+        Brush bSel  = new SolidColorBrush(Color.FromArgb(opD3, 255, 200,   0));
+        Brush bLoc  = new SolidColorBrush(Color.FromArgb(opD4, 180, 100, 255));
+        Brush bTxt  = new SolidColorBrush(Color.FromArgb(txtA, 210, 210, 210));
+        double fSz  = Math.Max(6, _grid.Size * 0.28);
+
+        EnsureGeoCache();
+        EnsureNumTextCache(fSz);
+
+        // Draw: fill + brighter border + number on top (number must be last so fill doesn't cover it)
+        void Draw(int node, Brush fill, System.Windows.Media.Pen pen)
+        {
+            int i = IndexOfNode(node);
+            if (i < 0) return;
+            dc.DrawGeometry(fill, pen, _geoCache![i]);
+            var ft = _numTextCache![i];
+            ft.SetForegroundBrush(bTxt);
+            var (cx, cy) = _centerCache![i];
+            dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - ft.Height / 2));
+        }
+
+        // Priority order: targets (lowest), location, selected (highest — drawn last)
+        foreach (var node in _validTargets)
+            Draw(node, bTgt, pTgt);
+
+        if (_highlightLoc >= 0)
+            Draw(_highlightLoc, bLoc, pLoc);
+
+        if (_selected != null)
+            Draw(_selected.Node, bSel, pSel);
+    }
+
     private void DrawLocations(DrawingContext dc)
     {
         double nameSz   = Math.Max(5, _grid.Size * 0.14);
@@ -413,7 +482,6 @@ public class HexMapCanvas : FrameworkElement
         }
     }
 
-    // z-order 5 circle · 6 label · 7 tick · 8 star
     private void DrawEntities(DrawingContext dc)
     {
         double lblSz  = Math.Max(7, _grid.Size * 0.28);
@@ -463,20 +531,20 @@ public class HexMapCanvas : FrameworkElement
         }
     }
 
-    // z-order 8 fog · 9 border/tint · 9.5 number
+    // Static fog: all unrevealed cells with combined fill+border in a single DrawGeometry call.
+    // Rebuilt only when FogRevealed changes, fog is toggled, or opacity changes.
     private void DrawFog(DrawingContext dc)
     {
         if (!FogEnabled) return;
 
         EnsureGeoCache();
-        int  op    = GridOpacity;
-        byte opP   = B(op + 60), opD3 = B(op / 3), txtA = B((int)(op * 1.2));
+        int  op   = GridOpacity;
+        byte opP  = B(op + 60);
+        byte txtA = B((int)(op * 1.2));
         double fSz = Math.Max(6, _grid.Size * 0.28);
 
         Brush fogFill  = new SolidColorBrush(Color.FromArgb(245, 0, 0, 0));
-        Brush tgtFill  = new SolidColorBrush(Color.FromArgb(opD3, 80, 200, 80));
         var   pWhite   = Pen(Color.FromArgb(opP, 255, 255, 255), 1);
-        var   pTgt     = Pen(Color.FromArgb(opP, 80,  200, 80),  2);
         Brush txtBrush = new SolidColorBrush(Color.FromArgb(txtA, 255, 255, 255));
 
         EnsureNumTextCache(fSz);
@@ -484,16 +552,8 @@ public class HexMapCanvas : FrameworkElement
 
         for (int i = 0; i < cells.Count; i++)
         {
-            var cell = cells[i];
-            if (FogRevealed.Contains(cell.Number)) continue;
-
-            var geo    = _geoCache![i];
-            bool isTgt = _validTargets.Contains(cell.Number);
-
-            dc.DrawGeometry(fogFill, null, geo);
-            if (isTgt) dc.DrawGeometry(tgtFill, pTgt,  geo);
-            else       dc.DrawGeometry(null,    pWhite, geo);
-
+            if (FogRevealed.Contains(cells[i].Number)) continue;
+            dc.DrawGeometry(fogFill, pWhite, _geoCache![i]);   // fill+border combined
             var ft = _numTextCache![i];
             ft.SetForegroundBrush(txtBrush);
             var (cx, cy) = _centerCache![i];
@@ -501,7 +561,29 @@ public class HexMapCanvas : FrameworkElement
         }
     }
 
-    // z-order 10 handles · 11 labels
+    // Fog highlights: green tint over valid-target cells still covered by fog.
+    // Only processes _validTargets (typically 6 cells in normal mode) — nearly instant.
+    private void DrawFogHighlights(DrawingContext dc)
+    {
+        if (!FogEnabled || _validTargets.Count == 0) return;
+
+        EnsureGeoCache();
+        int  op   = GridOpacity;
+        byte opP  = B(op + 60);
+        byte opD3 = B(op / 3);
+
+        Brush tgtFill = new SolidColorBrush(Color.FromArgb(opD3, 80, 200, 80));
+        var   pTgt    = Pen(Color.FromArgb(opP, 80, 200, 80), 2);
+
+        foreach (var node in _validTargets)
+        {
+            if (FogRevealed.Contains(node)) continue;
+            int i = IndexOfNode(node);
+            if (i < 0) continue;
+            dc.DrawGeometry(tgtFill, pTgt, _geoCache![i]);
+        }
+    }
+
     private void DrawCornerHandles(DrawingContext dc)
     {
         var  c    = _grid.GetWarpCorners();
@@ -634,11 +716,13 @@ public class HexMapCanvas : FrameworkElement
                 3 => cur with { BR = newPt },
                 _ => cur,
             });
-            // Grid layout changed — rebuild caches, redraw geo-dependent layers
+            // Grid layout changed — rebuild caches and redraw all geo-dependent layers
             InvalidateGeoCache();
             UpdateTerrainLayer();
-            UpdateGridLayer();
+            UpdateStaticGridLayer();
+            UpdateGridOverlayLayer();
             UpdateFogLayer();
+            UpdateFogHighlightLayer();
             UpdateHandleLayer();
             e.Handled = true;
             return;

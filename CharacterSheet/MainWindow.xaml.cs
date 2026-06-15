@@ -765,8 +765,9 @@ public partial class MainWindow : Window
     {
         var dlg = new OpenFileDialog
         {
-            Filter = "Character Sheet files|*.json",
-            Title  = "Open Character Sheet",
+            Filter           = "Character Sheet files|*.json",
+            Title            = "Open Character Sheet",
+            InitialDirectory = AppFolders.Sheets,
         };
         if (dlg.ShowDialog() != true) return;
         try
@@ -793,10 +794,11 @@ public partial class MainWindow : Window
             var safe = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
             var saveDlg = new SaveFileDialog
             {
-                FileName   = $"{safe}_cs_sheet.json",
-                DefaultExt = ".json",
-                Filter     = "Character Sheet files|*.json",
-                Title      = "Save Character Sheet",
+                FileName         = $"{safe}_cs_sheet.json",
+                DefaultExt       = ".json",
+                Filter           = "Character Sheet files|*.json",
+                Title            = "Save Character Sheet",
+                InitialDirectory = AppFolders.Sheets,
             };
             if (saveDlg.ShowDialog() != true) return;
             SetCurrentFilePath(saveDlg.FileName);
@@ -811,9 +813,10 @@ public partial class MainWindow : Window
 
         var dlg = new SaveFileDialog
         {
-            FileName   = $"{safe}_cs_sheet.json",
-            DefaultExt = ".json",
-            Filter     = "JSON files|*.json",
+            FileName         = $"{safe}_cs_sheet.json",
+            DefaultExt       = ".json",
+            Filter           = "JSON files|*.json",
+            InitialDirectory = AppFolders.Sheets,
         };
         if (dlg.ShowDialog() != true) return;
         File.WriteAllText(dlg.FileName, Persistence.ExportJson(_state));
@@ -823,8 +826,9 @@ public partial class MainWindow : Window
     {
         var dlg = new OpenFileDialog
         {
-            Filter = "JSON files|*.json",
-            Title  = "Import Character",
+            Filter           = "JSON files|*.json",
+            Title            = "Import Character",
+            InitialDirectory = AppFolders.Sheets,
         };
         if (dlg.ShowDialog() != true) return;
         try

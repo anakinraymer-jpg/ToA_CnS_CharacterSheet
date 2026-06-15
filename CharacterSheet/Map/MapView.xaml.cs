@@ -741,10 +741,11 @@ public partial class MapView : UserControl
     {
         var dlg = new SaveFileDialog
         {
-            Filter      = "Map save files|*.json",
-            DefaultExt  = ".json",
-            FileName    = "chult_map.json",
-            Title       = "Save Map",
+            Filter           = "Map save files|*.json",
+            DefaultExt       = ".json",
+            FileName         = "chult_map.json",
+            Title            = "Save Map",
+            InitialDirectory = AppFolders.Maps,
         };
         if (dlg.ShowDialog() == true)
             SaveState(dlg.FileName);
@@ -754,8 +755,9 @@ public partial class MapView : UserControl
     {
         var dlg = new OpenFileDialog
         {
-            Filter = "Map save files|*.json",
-            Title  = "Load Map",
+            Filter           = "Map save files|*.json",
+            Title            = "Load Map",
+            InitialDirectory = AppFolders.Maps,
         };
         if (dlg.ShowDialog() == true)
             LoadState(dlg.FileName, PlayerName);
