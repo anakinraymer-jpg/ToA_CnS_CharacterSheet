@@ -98,10 +98,12 @@ public static class Persistence
         s.Summary,
         s.Portrait,
         Equipment: s.Equipment.Select(e  => new EquipDto(e.EquipName, e.EquipSub, e.EquipUsed, e.ArmorValue)).ToList(),
-        Skills:    s.Skills.Select(sk => new SkillDto(
-                       sk.SkillName, sk.SkillSub, sk.SkillAdv, sk.SkillRating,
-                       sk.MinRating, sk.FreeRating, sk.RatingStep,
-                       sk.IsAlwaysFree, sk.IsLocked, sk.IsCoreAbilitySkill)).ToList(),
+        Skills:    s.Skills
+                       .Where(sk => !sk.IsConditionalBonus)   // conditional terrain bonuses are never persisted
+                       .Select(sk => new SkillDto(
+                           sk.SkillName, sk.SkillSub, sk.SkillAdv, sk.SkillRating,
+                           sk.MinRating, sk.FreeRating, sk.RatingStep,
+                           sk.IsAlwaysFree, sk.IsLocked, sk.IsCoreAbilitySkill)).ToList(),
         Rows:      null,   // legacy field — intentionally null in new saves
         Spells:    [.. s.Spells],
         Defense:           s.DefenseBase,

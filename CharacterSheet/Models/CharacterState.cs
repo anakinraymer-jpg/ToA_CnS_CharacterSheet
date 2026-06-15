@@ -128,6 +128,17 @@ public class SkillData : INotifyPropertyChanged
         set { _isCoreAbilitySkill = value; OnPropertyChanged(); }
     }
 
+    private bool _isConditionalBonus = false;
+    /// <summary>
+    /// True for skills granted conditionally by location/terrain (e.g. Mountaineer Scout at 15).
+    /// These are excluded from the 10-skill maximum and never persisted to disk.
+    /// </summary>
+    public bool IsConditionalBonus
+    {
+        get => _isConditionalBonus;
+        set { _isConditionalBonus = value; OnPropertyChanged(); }
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

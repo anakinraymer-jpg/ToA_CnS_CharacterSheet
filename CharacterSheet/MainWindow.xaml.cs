@@ -49,6 +49,9 @@ public partial class MainWindow : Window
     /// <summary>Skills automatically added by the current Core Ability (Druid, Empath, etc.).</summary>
     private readonly List<SkillData> _coreAbilitySkills = new();
 
+    /// <summary>The conditional Scout skill granted to Mountaineer characters on Mountains/Cave terrain, or null.</summary>
+    private SkillData? _mountaineerScoutSkill;
+
     // ── Map integration ───────────────────────────────────────────────
     private Map.MapView? _mapView;
 
@@ -87,6 +90,9 @@ public partial class MainWindow : Window
 
     private bool IsLoremasterActive
         => _state.CoreAbility.Equals("Loremaster", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsMountaineerActive
+        => _state.CoreAbility.Equals("Mountaineer", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsKnowledgeSkill(SkillData sk)
         => sk.SkillName.StartsWith("Knowledge", StringComparison.OrdinalIgnoreCase);
@@ -302,8 +308,9 @@ public partial class MainWindow : Window
 
     private void UpdateAddButtonStates()
     {
+        int regularSkillCount = _state.Skills.Count(sk => !sk.IsConditionalBonus);
         BtnAddEquip.IsEnabled = _state.Equipment.Count < 10;
-        BtnAddSkill.IsEnabled = _state.Skills.Count < 10 && _state.HeroPointsCurrent >= 3;
+        BtnAddSkill.IsEnabled = regularSkillCount < 10 && _state.HeroPointsCurrent >= 3;
     }
 
     // ── Armor bonus ───────────────────────────────────────────────────
@@ -1104,22 +1111,59 @@ public partial class MainWindow : Window
         // is considered indoors/civilised and removes the bonus.
         _state.DruidWildBonusActive =
             isDruid && node >= 0 && string.IsNullOrEmpty(locType);
+
+        UpdateMountaineerScoutBonus(terrain);
     }
 
     /// <summary>
-    /// Re-evaluates Druid wild bonus using the latest map state.
-    /// Called when CoreAbility changes so the bonus updates even if the
-    /// player hasn't moved since the last notification.
+    /// Re-evaluates Druid wild bonus and Mountaineer Scout bonus using the latest map state.
+    /// Called when CoreAbility changes so bonuses update even if the player hasn't moved.
     /// </summary>
     private void UpdatePlayerLocation()
     {
         if (_mapView is null)
         {
             _state.DruidWildBonusActive = false;
+            UpdateMountaineerScoutBonus(""); // no map → terrain unknown → remove bonus
             return;
         }
         var (node, terrain, locName, locType) = _mapView.PlayerLocation;
         OnPlayerLocationChanged(node, terrain, locName, locType);
+    }
+
+    // ── Mountaineer Scout Bonus ───────────────────────────────────────
+
+    /// <summary>
+    /// Adds or removes the Mountaineer conditional Scout-15 skill based on the
+    /// player's current terrain.  The skill is locked, free, and excluded from
+    /// the 10-skill count and from persistence.
+    /// </summary>
+    private void UpdateMountaineerScoutBonus(string terrain)
+    {
+        bool wantsScout = IsMountaineerActive &&
+                          (terrain == "Mountains" || terrain == "Cave");
+
+        if (wantsScout && _mountaineerScoutSkill == null)
+        {
+            var sk = new SkillData
+            {
+                MinRating          = 15,
+                IsAlwaysFree       = true,
+                IsLocked           = true,
+                IsConditionalBonus = true,
+                SkillName          = "Scout",  // triggers auto-promote → clamped to MinRating 15
+            };
+            sk.PropertyChanged += OnItemChanged;
+            _mountaineerScoutSkill = sk;
+            _state.Skills.Add(sk);
+        }
+        else if (!wantsScout && _mountaineerScoutSkill != null)
+        {
+            var sk = _mountaineerScoutSkill;
+            _mountaineerScoutSkill = null;
+            sk.PropertyChanged -= OnItemChanged;
+            _state.Skills.Remove(sk);
+        }
     }
 
     // ── Legend ────────────────────────────────────────────────────────
