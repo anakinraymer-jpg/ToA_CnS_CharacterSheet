@@ -1266,7 +1266,7 @@ public partial class MainWindow : Window
     private static int MistDensityFor(string weather) => weather switch
     {
         "Misty"                    => 1,
-        "Heavy Mist"               => 2,
+        "Heavy Mist"               => 3,
         "Rainy"                    => 3,
         "Extremely Warm and Rainy" => 3,
         "Heavy Rain"               => 4,
