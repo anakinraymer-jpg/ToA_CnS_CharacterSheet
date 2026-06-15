@@ -1282,12 +1282,9 @@ public partial class MainWindow : Window
         int density = MistDensityFor(weather);
         if (density == 0) return;
 
-        // density 1 → 900 ms, density 6 → 200 ms between spawns
-        int intervalMs = Math.Max(200, 950 - density * 125);
-        _mistTimer = new DispatcherTimer(DispatcherPriority.Background)
-        {
-            Interval = TimeSpan.FromMilliseconds(intervalMs)
-        };
+        // Misty → ~480 ms per drop, Tropical Storm → ~130 ms
+        int intervalMs = Math.Max(130, 550 - density * 70);
+        _mistTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(intervalMs) };
         _mistTimer.Tick += (_, _) => SpawnDrop(density);
         _mistTimer.Start();
     }
@@ -1295,43 +1292,48 @@ public partial class MainWindow : Window
     private void SpawnDrop(int density)
     {
         var canvas = WeatherCanvas;
-        if (canvas.ActualWidth < 10 || canvas.ActualHeight < 10) return;
 
-        // Keep the canvas sparse — cap live drops relative to density
-        int maxDrops = density * 4;
+        // WeatherCanvas is inside SheetContent — fall back to its fixed width/height
+        // when the character-sheet tab hasn't been shown yet and layout is pending.
+        double cw = canvas.ActualWidth  > 10 ? canvas.ActualWidth  : SheetContent.ActualWidth;
+        double ch = canvas.ActualHeight > 10 ? canvas.ActualHeight : SheetContent.ActualHeight;
+        if (cw < 10) return;
+
+        // Cap live drops: 10 for Misty, 40 for Tropical Storm
+        int maxDrops = density * 6 + 4;
         if (canvas.Children.Count >= maxDrops) return;
 
-        var rng  = _particleRng;
-        double w = rng.NextDouble() * 3 + 2;   // 2–5 px wide
-        double h = rng.NextDouble() * 4 + 2;   // 2–6 px tall
+        var    rng = _particleRng;
+        double dw  = rng.NextDouble() * 14 + 10;            // 10 – 24 px wide
+        double dh  = dw * (rng.NextDouble() * 0.35 + 1.0); // 1.0 – 1.35× tall
 
+        // Full-alpha fill — transparency is driven solely by Ellipse.Opacity animation
         var drop = new System.Windows.Shapes.Ellipse
         {
-            Width  = w,
-            Height = h,
-            Fill   = new SolidColorBrush(Color.FromArgb(210, 170, 210, 235)),
+            Width  = dw,
+            Height = dh,
+            Fill   = new SolidColorBrush(Color.FromArgb(255, 150, 195, 225)),
             Opacity = 0,
             IsHitTestVisible = false,
         };
 
-        Canvas.SetLeft(drop, rng.NextDouble() * Math.Max(1, canvas.ActualWidth  - w));
-        Canvas.SetTop (drop, rng.NextDouble() * Math.Max(1, canvas.ActualHeight - h));
+        Canvas.SetLeft(drop, rng.NextDouble() * Math.Max(1, cw - dw));
+        Canvas.SetTop (drop, rng.NextDouble() * Math.Max(1, ch - dh));
         canvas.Children.Add(drop);
 
-        // max opacity scales with density (misty = subtle, storm = opaque)
-        double peak = 0.10 + density * 0.04;   // 0.14 – 0.34
-        peak *= rng.NextDouble() * 0.5 + 0.75; // ±25% variation
+        // Misty → peak ~0.45, Storm → peak ~0.65, ±jitter
+        double peak    = 0.40 + density * 0.04 + rng.NextDouble() * 0.10;
+        double fadeIn  = 0.45 + rng.NextDouble() * 0.30;
+        double holdDur = 1.00 + rng.NextDouble() * 0.80;
+        double fadeOut = 0.55 + rng.NextDouble() * 0.30;
+        double total   = fadeIn + holdDur + fadeOut;
 
-        // Appear → hold → vanish — position never changes (no dribbling)
-        double fadeSec  = 0.6 + rng.NextDouble() * 0.4;
-        double holdSec  = 0.8 + rng.NextDouble() * 0.8;
-        double totalSec = fadeSec + holdSec + fadeSec;
-
+        var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
         var anim = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
-        anim.KeyFrames.Add(new LinearDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.Zero)));
-        anim.KeyFrames.Add(new LinearDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(fadeSec))));
-        anim.KeyFrames.Add(new LinearDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(fadeSec + holdSec))));
-        anim.KeyFrames.Add(new LinearDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.FromSeconds(totalSec))));
+        anim.KeyFrames.Add(new EasingDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.Zero)));
+        anim.KeyFrames.Add(new EasingDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(fadeIn)),          ease));
+        anim.KeyFrames.Add(new EasingDoubleKeyFrame(peak, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(fadeIn + holdDur))));
+        anim.KeyFrames.Add(new EasingDoubleKeyFrame(0,    KeyTime.FromTimeSpan(TimeSpan.FromSeconds(total)),           ease));
         anim.Completed += (_, _) =>
         {
             canvas.Children.Remove(drop);
