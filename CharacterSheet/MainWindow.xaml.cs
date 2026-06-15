@@ -1465,30 +1465,37 @@ public partial class MainWindow : Window
         wst.BeginAnimation(ScaleTransform.ScaleYProperty, WetScale());
     }
 
-    // ── Drizzle state: one instance per live drizzle trail ────────────
+    // Drizzle state: a rolling water droplet and the wet trail it leaves.
+    // The droplet travels from Progress=0 to Progress=1 along a parametric path.
+    // The trail grows each frame as the droplet moves -- it is not a fixed shape.
     private sealed class DrizzleState
     {
-        public required Canvas Container;
-        public required System.Windows.Shapes.Path WetPath;
-        public required System.Windows.Shapes.Path BodyPath;
-        public required System.Windows.Shapes.Path HighPath;
-        public double StartX;
-        public double HeadY;
-        public double TrailLen;
-        public double Speed;
-        public double Age;
-        public double LifeTime;
-        public double PeakOpacity;
-        // Lateral drift — defines the curved movement path of the container:
-        //   oscillating: X = StartX + DriftAmp * sin(2π*age/DriftPeriod + DriftPhase)
-        //   diagonal:    X = StartX + DriftVelX * age
-        public double DriftAmp;
-        public double DriftPeriod;  // seconds; 0 means constant-angle diagonal
-        public double DriftPhase;
-        public double DriftVelX;
+        public required Canvas                         Container;
+        public required System.Windows.Shapes.Path    WetPath;
+        public required System.Windows.Shapes.Path    BodyPath;
+        public required System.Windows.Shapes.Path    HighPath;
+        public required System.Windows.Shapes.Ellipse Droplet;
+        public double OriginY;    // canvas Y of the starting point (container top)
+        public double TotalDist;  // total vertical distance the droplet travels (px)
+        public double LeanX;      // total lateral offset at end for angled paths
+        public double PeakX;      // peak lateral offset for arc paths
+        public bool   IsArc;      // true = sin-arc path; false = straight or angled
+        public double Progress;   // 0 to 1 as droplet moves from origin to end
+        public double Speed;      // progress units per second
+        public double DropW;
+        public double DropH;
     }
 
-    // ── Spawn one new drizzle trail ────────────────────────────────────
+    // Returns the droplet position at parameter p in local (container) coordinates.
+    // p=0 is the origin, p=1 is the end. Y always increases downward.
+    private static Point PathPt(DrizzleState d, double p)
+    {
+        double y = p * d.TotalDist;
+        double x = d.IsArc ? d.PeakX * Math.Sin(Math.PI * p) : d.LeanX * p;
+        return new Point(x, y);
+    }
+
+    // Spawn one droplet with a growing trail.
     private void SpawnDrizzle(int density)
     {
         var canvas = WeatherCanvas;
@@ -1499,31 +1506,20 @@ public partial class MainWindow : Window
         int maxDrizzles = density * 2 + 2;
         if (_activeDrizzles.Count >= maxDrizzles) return;
 
-        var    rng       = _particleRng;
-        bool   osc       = (_drizzleWaveToggle++ & 1) == 0;  // alternates oscillating vs diagonal
-        double trailLen  = 55 + rng.NextDouble() * 65;
+        var rng = _particleRng;
+
+        // Cycle through three path shapes: straight, angled, arc
+        int    pathType  = _drizzleWaveToggle++ % 3;
+        double totalDist = 100 + rng.NextDouble() * 120;
+        double speed     = 0.32 + rng.NextDouble() * 0.22;
         double bodyWidth = 3.5 + rng.NextDouble() * 1.5;
-        double speed     = 32 + rng.NextDouble() * 28;
-        double lifeTime  = (100 + rng.NextDouble() * 160) / speed;
+        double dropW     = 7 + rng.NextDouble() * 4;
+        double dropH     = dropW * (1.15 + rng.NextDouble() * 0.35);
 
-        // Drift determines the movement path.  The trail shape itself is nearly straight;
-        // the visual curve comes from how the container travels across the canvas.
-        double driftAmp    = osc ? 18 + rng.NextDouble() * 18 : 0;     // 18–36 px oscillation
-        double driftPeriod = osc ? lifeTime * (0.35 + rng.NextDouble() * 0.4) : 0;
-        double driftPhase  = rng.NextDouble() * 2 * Math.PI;
-        double sign        = rng.NextDouble() < 0.5 ? -1 : 1;
-        double driftVelX   = osc ? 0 : sign * (12 + rng.NextDouble() * 12); // ±12–24 px/s
-
-        // Tiny natural wiggle in local shape (1–2 px) prevents a degenerate zero-width
-        // bounding box so the LinearGradientBrush renders correctly.
-        double shapeAmp   = 1.0 + rng.NextDouble();
-        double shapePhase = rng.NextDouble() * 2 * Math.PI;
-        Point TrailPt(double t)
-        {
-            double localY = t * trailLen;
-            double localX = shapeAmp * Math.Sin(2 * Math.PI * localY / trailLen + shapePhase);
-            return new Point(localX, localY);
-        }
+        double sign  = rng.NextDouble() < 0.5 ? -1 : 1;
+        bool   isArc = pathType == 2;
+        double leanX = pathType == 1 ? sign * (15 + rng.NextDouble() * 25) : 0;
+        double peakX = pathType == 2 ? sign * (18 + rng.NextDouble() * 22) : 0;
 
         static LinearGradientBrush MakeGradient(params (double offset, byte a, byte r, byte g, byte b)[] stops)
         {
@@ -1538,15 +1534,14 @@ public partial class MainWindow : Window
             return brush;
         }
 
-        // ── Layer A: wet parchment darkening ──────────────────────────────
         var wetPath = new System.Windows.Shapes.Path
         {
             Stroke             = MakeGradient(
                 (0.00,  0, 88, 60, 25),
-                (0.18, 38, 88, 60, 25),
-                (0.58, 62, 98, 70, 30),
-                (0.84, 52, 88, 60, 25),
-                (1.00, 18, 88, 60, 25)),
+                (0.18, 32, 88, 60, 25),
+                (0.55, 55, 98, 70, 30),
+                (0.85, 42, 88, 60, 25),
+                (1.00,  0, 88, 60, 25)),
             StrokeThickness    = bodyWidth + 7,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap   = PenLineCap.Round,
@@ -1554,15 +1549,14 @@ public partial class MainWindow : Window
             IsHitTestVisible   = false,
         };
 
-        // ── Layer B: water body ────────────────────────────────────────────
         var bodyPath = new System.Windows.Shapes.Path
         {
             Stroke             = MakeGradient(
                 (0.00,   0, 192, 215, 232),
-                (0.18,  48, 192, 215, 232),
-                (0.55,  92, 198, 220, 238),
-                (0.82, 112, 205, 228, 244),
-                (1.00,  58, 210, 232, 248)),
+                (0.18,  42, 192, 215, 232),
+                (0.55,  88, 198, 220, 238),
+                (0.85, 105, 205, 228, 244),
+                (1.00,   0, 210, 232, 248)),
             StrokeThickness    = bodyWidth,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap   = PenLineCap.Round,
@@ -1570,15 +1564,14 @@ public partial class MainWindow : Window
             IsHitTestVisible   = false,
         };
 
-        // ── Layer C: specular highlight ────────────────────────────────────
         var highPath = new System.Windows.Shapes.Path
         {
             Stroke             = MakeGradient(
                 (0.00,   0, 255, 255, 255),
-                (0.22, 125, 248, 252, 255),
-                (0.55, 205, 255, 255, 255),
-                (0.82, 178, 255, 255, 255),
-                (1.00,  75, 240, 250, 255)),
+                (0.20, 110, 248, 252, 255),
+                (0.55, 195, 255, 255, 255),
+                (0.85, 155, 255, 255, 255),
+                (1.00,   0, 240, 250, 255)),
             StrokeThickness    = 1.0 + rng.NextDouble() * 0.5,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap   = PenLineCap.Round,
@@ -1587,57 +1580,66 @@ public partial class MainWindow : Window
             RenderTransform    = new TranslateTransform(-1.5, -2.0),
         };
 
-        // Trail shape geometry — built once; only the container position changes each frame.
-        const int segs = 11;
-        var geo = new StreamGeometry();
-        using (var ctx = geo.Open())
+        var dropBrush = new RadialGradientBrush
         {
-            ctx.BeginFigure(TrailPt(0), isFilled: false, isClosed: false);
-            var pts = new Point[segs * 2];
-            for (int j = 0; j < segs; j++)
+            Center         = new Point(0.5, 0.62),
+            GradientOrigin = new Point(0.3, 0.28),
+            RadiusX = 0.55, RadiusY = 0.55,
+        };
+        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(250, 255, 255, 255), 0.00));
+        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(210, 228, 242, 252), 0.28));
+        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(165, 192, 218, 242), 0.62));
+        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(120, 158, 198, 235), 1.00));
+        var droplet = new System.Windows.Shapes.Ellipse
+        {
+            Width            = dropW,
+            Height           = dropH,
+            Fill             = dropBrush,
+            IsHitTestVisible = false,
+            Effect = new DropShadowEffect
             {
-                pts[j * 2]     = TrailPt((j + 0.5) / segs);
-                pts[j * 2 + 1] = TrailPt((j + 1.0) / segs);
-            }
-            ctx.PolyQuadraticBezierTo(pts, isStroked: true, isSmoothJoin: false);
-        }
-        geo.Freeze();
-        wetPath.Data  = geo;
-        bodyPath.Data = geo;
-        highPath.Data = geo;
+                Color       = Color.FromRgb(90, 150, 210),
+                ShadowDepth = 1.5,
+                BlurRadius  = 3.5,
+                Opacity     = 0.35,
+            },
+        };
 
         var container = new Canvas { IsHitTestVisible = false, Opacity = 0 };
         container.Children.Add(wetPath);
         container.Children.Add(bodyPath);
         container.Children.Add(highPath);
+        container.Children.Add(droplet);
 
         double startX = rng.NextDouble() * cw;
-        double startY = rng.NextDouble() * ch * 0.72;
+        double startY = rng.NextDouble() * ch * 0.65;
         Canvas.SetLeft(container, startX);
         Canvas.SetTop (container, startY);
         canvas.Children.Add(container);
 
+        Canvas.SetLeft(droplet, -dropW / 2);
+        Canvas.SetTop (droplet, -dropH / 2);
+
         _activeDrizzles.Add(new DrizzleState
         {
-            Container   = container,
-            WetPath     = wetPath,
-            BodyPath    = bodyPath,
-            HighPath    = highPath,
-            StartX      = startX,
-            HeadY       = startY + trailLen,
-            TrailLen    = trailLen,
-            Speed       = speed,
-            Age         = 0,
-            LifeTime    = lifeTime,
-            PeakOpacity = 0.90 + rng.NextDouble() * 0.08,
-            DriftAmp    = driftAmp,
-            DriftPeriod = driftPeriod,
-            DriftPhase  = driftPhase,
-            DriftVelX   = driftVelX,
+            Container = container,
+            WetPath   = wetPath,
+            BodyPath  = bodyPath,
+            HighPath  = highPath,
+            Droplet   = droplet,
+            OriginY   = startY,
+            TotalDist = totalDist,
+            LeanX     = leanX,
+            PeakX     = peakX,
+            IsArc     = isArc,
+            Progress  = 0,
+            Speed     = speed,
+            DropW     = dropW,
+            DropH     = dropH,
         });
     }
 
-    // ── Per-frame update: advance position along the curved path ───────
+    // Advance the droplet and grow the trail behind it each frame.
     private void UpdateDrizzles()
     {
         const double dt = 1.0 / 30.0;
@@ -1647,28 +1649,44 @@ public partial class MainWindow : Window
         for (int i = _activeDrizzles.Count - 1; i >= 0; i--)
         {
             var d = _activeDrizzles[i];
-            d.Age   += dt;
-            d.HeadY += d.Speed * dt;
+            d.Progress += d.Speed * dt;
 
-            if (d.Age >= d.LifeTime || d.HeadY > ch + d.TrailLen)
+            var head = PathPt(d, Math.Min(d.Progress, 1.0));
+
+            if (d.Progress >= 1.0 || d.OriginY + head.Y > ch + d.DropH)
             {
                 canvas.Children.Remove(d.Container);
                 _activeDrizzles.RemoveAt(i);
                 continue;
             }
 
-            double f  = d.Age / d.LifeTime;
-            double op = f < 0.12 ? d.PeakOpacity * (f / 0.12)
-                      : f > 0.80 ? d.PeakOpacity * Math.Max(0, (1.0 - f) / 0.20)
-                      : d.PeakOpacity;
+            double op = d.Progress < 0.08 ? d.Progress / 0.08
+                      : d.Progress > 0.82 ? Math.Max(0, (1.0 - d.Progress) / 0.18)
+                      : 1.0;
             d.Container.Opacity = op;
 
-            // Lateral position follows the curved movement path
-            double x = d.DriftPeriod > 0
-                ? d.StartX + d.DriftAmp * Math.Sin(2 * Math.PI * d.Age / d.DriftPeriod + d.DriftPhase)
-                : d.StartX + d.DriftVelX * d.Age;
-            Canvas.SetLeft(d.Container, x);
-            Canvas.SetTop (d.Container, d.HeadY - d.TrailLen);
+            // Rebuild trail geometry from origin to the current head position.
+            // Sample range grows each frame so the trail literally extends behind the droplet.
+            const int segs = 10;
+            var geo = new StreamGeometry();
+            using (var ctx = geo.Open())
+            {
+                ctx.BeginFigure(PathPt(d, 0), isFilled: false, isClosed: false);
+                var pts = new Point[segs * 2];
+                for (int j = 0; j < segs; j++)
+                {
+                    pts[j * 2]     = PathPt(d, d.Progress * (j + 0.5) / segs);
+                    pts[j * 2 + 1] = PathPt(d, d.Progress * (j + 1.0) / segs);
+                }
+                ctx.PolyQuadraticBezierTo(pts, isStroked: true, isSmoothJoin: false);
+            }
+            geo.Freeze();
+            d.WetPath.Data  = geo;
+            d.BodyPath.Data = geo;
+            d.HighPath.Data = geo;
+
+            Canvas.SetLeft(d.Droplet, head.X - d.DropW / 2);
+            Canvas.SetTop (d.Droplet, head.Y - d.DropH / 2);
         }
     }
 
