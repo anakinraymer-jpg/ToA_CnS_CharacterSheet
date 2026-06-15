@@ -47,6 +47,21 @@ public class DieBubble : Control
         set => SetValue(HasSkillProperty, value);
     }
 
+    public static readonly DependencyProperty HasBonusProperty =
+        DependencyProperty.Register(nameof(HasBonus), typeof(bool), typeof(DieBubble),
+            new FrameworkPropertyMetadata(false, OnVisualChanged));
+
+    /// <summary>
+    /// When true a +3 bonus is applied to the displayed value (capped at 18)
+    /// and a leaf indicator is shown inside the bubble.
+    /// The underlying Value property is not modified — the bonus is display-only.
+    /// </summary>
+    public bool HasBonus
+    {
+        get => (bool)GetValue(HasBonusProperty);
+        set => SetValue(HasBonusProperty, value);
+    }
+
     public static readonly DependencyProperty CanIncreaseProperty =
         DependencyProperty.Register(nameof(CanIncrease), typeof(bool), typeof(DieBubble),
             new FrameworkPropertyMetadata(true));
@@ -106,6 +121,7 @@ public class DieBubble : Control
     private static readonly SolidColorBrush ActiveFill     = Frozen("#F2E4C0");
     private static readonly SolidColorBrush ActiveFillHov  = Frozen("#E8D4A8");
     private static readonly SolidColorBrush ActiveText     = Frozen("#1A0D02");
+    private static readonly SolidColorBrush BonusText      = Frozen("#1A4A10");  // dark green for bonus value
     private static readonly SolidColorBrush InactiveStroke = Frozen("#885A2E0E");
     private static readonly SolidColorBrush InactiveFill   = Frozen("#E8E2D8");
     private static readonly SolidColorBrush InactiveText   = Frozen("#885A2E0E");
@@ -121,12 +137,14 @@ public class DieBubble : Control
 
     private Ellipse?   _ellipse;
     private TextBlock? _label;
+    private TextBlock? _leafLabel;
 
     public override void OnApplyTemplate()
     {
         base.OnApplyTemplate();
-        _ellipse = GetTemplateChild("PART_Ellipse") as Ellipse;
-        _label   = GetTemplateChild("PART_Label")   as TextBlock;
+        _ellipse   = GetTemplateChild("PART_Ellipse")   as Ellipse;
+        _label     = GetTemplateChild("PART_Label")     as TextBlock;
+        _leafLabel = GetTemplateChild("PART_LeafLabel") as TextBlock;
         UpdateVisual(hover: false);
     }
 
@@ -171,17 +189,31 @@ public class DieBubble : Control
 
         if (HasSkill)
         {
-            _ellipse.Stroke    = ActiveStroke;
-            _ellipse.Fill      = hover ? ActiveFillHov : ActiveFill;
-            _label.Text        = Value.ToString();
-            _label.Foreground  = ActiveText;
+            _ellipse.Stroke = ActiveStroke;
+            _ellipse.Fill   = hover ? ActiveFillHov : ActiveFill;
+
+            if (HasBonus)
+            {
+                _label.Text       = Math.Min(18, Value + 3).ToString();
+                _label.Foreground = BonusText;
+            }
+            else
+            {
+                _label.Text       = Value.ToString();
+                _label.Foreground = ActiveText;
+            }
         }
         else
         {
-            _ellipse.Stroke    = InactiveStroke;
-            _ellipse.Fill      = InactiveFill;
-            _label.Text        = "0";
-            _label.Foreground  = InactiveText;
+            _ellipse.Stroke   = InactiveStroke;
+            _ellipse.Fill     = InactiveFill;
+            _label.Text       = "0";
+            _label.Foreground = InactiveText;
         }
+
+        if (_leafLabel != null)
+            _leafLabel.Visibility = HasSkill && HasBonus
+                ? Visibility.Visible
+                : Visibility.Collapsed;
     }
 }

@@ -34,6 +34,16 @@
                      Fill="#F2E4C0"
                      Stroke="#5A2E0E"
                      StrokeThickness="1.5"/>
+            <!-- Leaf sits behind the number; shown by code when HasBonus is true -->
+            <TextBlock x:Name="PART_LeafLabel"
+                       Text="🍃"
+                       FontFamily="Segoe UI Emoji"
+                       FontSize="9"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Bottom"
+                       Margin="0,0,0,2"
+                       Opacity="0.85"
+                       Visibility="Collapsed"/>
             <TextBlock x:Name="PART_Label"
                        Text="d6"
                        FontFamily="Palatino Linotype"

@@ -633,7 +633,9 @@
                                             Step="{Binding RatingStep}"
                                             IsLocked="{Binding IsLocked}"
                                             CanIncrease="{Binding DataContext.CanSpendPoint,
-                                                          RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                          RelativeSource={RelativeSource AncestorType=Window}}"
+                                            HasBonus="{Binding DataContext.DruidWildBonusActive,
+                                                       RelativeSource={RelativeSource AncestorType=Window}}"/>
 
                             <Button Grid.Column="3" Content="×"
                                     Style="{StaticResource RemoveButton}"
