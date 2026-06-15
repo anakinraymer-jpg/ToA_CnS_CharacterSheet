@@ -1510,16 +1510,16 @@ public partial class MainWindow : Window
 
         // Cycle through three path shapes: straight, angled, arc
         int    pathType  = _drizzleWaveToggle++ % 3;
-        double totalDist = 100 + rng.NextDouble() * 120;
-        double speed     = 0.32 + rng.NextDouble() * 0.22;
-        double bodyWidth = 3.5 + rng.NextDouble() * 1.5;
-        double dropW     = 7 + rng.NextDouble() * 4;
-        double dropH     = dropW * (1.15 + rng.NextDouble() * 0.35);
+        double totalDist = 130 + rng.NextDouble() * 130;       // 130-260 px
+        double speed     = 0.25 + rng.NextDouble() * 0.18;     // 0.25-0.43 progress/s
+        double bodyWidth = 6.0 + rng.NextDouble() * 3.0;       // 6-9 px
+        double dropW     = 13 + rng.NextDouble() * 7;          // 13-20 px wide
+        double dropH     = dropW * (1.2 + rng.NextDouble() * 0.35);
 
         double sign  = rng.NextDouble() < 0.5 ? -1 : 1;
         bool   isArc = pathType == 2;
-        double leanX = pathType == 1 ? sign * (15 + rng.NextDouble() * 25) : 0;
-        double peakX = pathType == 2 ? sign * (18 + rng.NextDouble() * 22) : 0;
+        double leanX = pathType == 1 ? sign * (22 + rng.NextDouble() * 30) : 0;
+        double peakX = pathType == 2 ? sign * (28 + rng.NextDouble() * 28) : 0;
 
         static LinearGradientBrush MakeGradient(params (double offset, byte a, byte r, byte g, byte b)[] stops)
         {
@@ -1538,11 +1538,11 @@ public partial class MainWindow : Window
         {
             Stroke             = MakeGradient(
                 (0.00,  0, 88, 60, 25),
-                (0.18, 32, 88, 60, 25),
-                (0.55, 55, 98, 70, 30),
-                (0.85, 42, 88, 60, 25),
+                (0.18, 45, 88, 60, 25),
+                (0.55, 75, 98, 70, 30),
+                (0.85, 58, 88, 60, 25),
                 (1.00,  0, 88, 60, 25)),
-            StrokeThickness    = bodyWidth + 7,
+            StrokeThickness    = bodyWidth + 10,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap   = PenLineCap.Round,
             StrokeLineJoin     = PenLineJoin.Round,
@@ -1553,9 +1553,9 @@ public partial class MainWindow : Window
         {
             Stroke             = MakeGradient(
                 (0.00,   0, 192, 215, 232),
-                (0.18,  42, 192, 215, 232),
-                (0.55,  88, 198, 220, 238),
-                (0.85, 105, 205, 228, 244),
+                (0.18,  70, 192, 215, 232),
+                (0.55, 128, 198, 220, 238),
+                (0.85, 150, 205, 228, 244),
                 (1.00,   0, 210, 232, 248)),
             StrokeThickness    = bodyWidth,
             StrokeStartLineCap = PenLineCap.Round,
@@ -1568,11 +1568,11 @@ public partial class MainWindow : Window
         {
             Stroke             = MakeGradient(
                 (0.00,   0, 255, 255, 255),
-                (0.20, 110, 248, 252, 255),
-                (0.55, 195, 255, 255, 255),
-                (0.85, 155, 255, 255, 255),
+                (0.18, 145, 248, 252, 255),
+                (0.55, 225, 255, 255, 255),
+                (0.85, 185, 255, 255, 255),
                 (1.00,   0, 240, 250, 255)),
-            StrokeThickness    = 1.0 + rng.NextDouble() * 0.5,
+            StrokeThickness    = 2.0 + rng.NextDouble() * 1.0,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap   = PenLineCap.Round,
             StrokeLineJoin     = PenLineJoin.Round,
@@ -1586,10 +1586,11 @@ public partial class MainWindow : Window
             GradientOrigin = new Point(0.3, 0.28),
             RadiusX = 0.55, RadiusY = 0.55,
         };
-        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(250, 255, 255, 255), 0.00));
-        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(210, 228, 242, 252), 0.28));
-        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(165, 192, 218, 242), 0.62));
-        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(120, 158, 198, 235), 1.00));
+        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(255, 255, 255, 255), 0.00));
+        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(230, 225, 242, 255), 0.25));
+        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(195, 185, 218, 248), 0.58));
+        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(210, 140, 190, 235), 0.88));
+        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(180, 100, 160, 220), 1.00));
         var droplet = new System.Windows.Shapes.Ellipse
         {
             Width            = dropW,
@@ -1598,10 +1599,10 @@ public partial class MainWindow : Window
             IsHitTestVisible = false,
             Effect = new DropShadowEffect
             {
-                Color       = Color.FromRgb(90, 150, 210),
-                ShadowDepth = 1.5,
-                BlurRadius  = 3.5,
-                Opacity     = 0.35,
+                Color       = Color.FromRgb(70, 130, 200),
+                ShadowDepth = 2.0,
+                BlurRadius  = 5.0,
+                Opacity     = 0.50,
             },
         };
 
