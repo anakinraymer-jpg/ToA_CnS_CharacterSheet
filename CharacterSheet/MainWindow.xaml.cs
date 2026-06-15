@@ -54,7 +54,8 @@ public partial class MainWindow : Window
     private string _mapDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
         "Dev", "ToA_Delver_Map");
-    private FileSystemWatcher? _locationWatcher;
+    private System.Windows.Threading.DispatcherTimer? _locationTimer;
+    private DateTime _lastLocationFileTime = DateTime.MinValue;
     private static readonly string LocationFilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "ToA_CnS_CharacterSheet", "player_location.json");
@@ -1127,25 +1128,34 @@ public partial class MainWindow : Window
     private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         _mapHost?.Stop();
-        _locationWatcher?.Dispose();
+        _locationTimer?.Stop();
     }
 
     // ── Druid Wild Bonus ──────────────────────────────────────────────
 
     private void StartLocationWatcher()
     {
-        var dir = Path.GetDirectoryName(LocationFilePath)!;
-        Directory.CreateDirectory(dir);
-        _locationWatcher = new FileSystemWatcher(dir, "player_location.json")
+        Directory.CreateDirectory(Path.GetDirectoryName(LocationFilePath)!);
+        _locationTimer = new System.Windows.Threading.DispatcherTimer
         {
-            NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime,
-            EnableRaisingEvents = true,
+            Interval = TimeSpan.FromMilliseconds(500)
         };
-        _locationWatcher.Changed += (_, _) => Task.Delay(100).ContinueWith(
-            _ => Dispatcher.Invoke(UpdatePlayerLocation), TaskScheduler.Default);
-        _locationWatcher.Created += (_, _) => Task.Delay(100).ContinueWith(
-            _ => Dispatcher.Invoke(UpdatePlayerLocation), TaskScheduler.Default);
-        UpdatePlayerLocation();
+        _locationTimer.Tick += (_, _) => PollPlayerLocation();
+        _locationTimer.Start();
+        PollPlayerLocation();
+    }
+
+    private void PollPlayerLocation()
+    {
+        try
+        {
+            if (!File.Exists(LocationFilePath)) return;
+            var mtime = File.GetLastWriteTime(LocationFilePath);
+            if (mtime <= _lastLocationFileTime) return;
+            _lastLocationFileTime = mtime;
+            UpdatePlayerLocation();
+        }
+        catch { }
     }
 
     private void UpdatePlayerLocation()
