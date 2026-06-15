@@ -1466,28 +1466,26 @@ public partial class MainWindow : Window
     }
 
     // Drizzle state: a rolling water droplet and the wet trail it leaves.
-    // The droplet travels from Progress=0 to Progress=1 along a parametric path.
-    // The trail grows each frame as the droplet moves -- it is not a fixed shape.
+    // The trail and droplet are ONE continuous filled teardrop shape that grows
+    // each frame -- narrow at the tail, widening to a rounded blob at the head.
     private sealed class DrizzleState
     {
-        public required Canvas                         Container;
-        public required System.Windows.Shapes.Path    WetPath;
-        public required System.Windows.Shapes.Path    BodyPath;
-        public required System.Windows.Shapes.Path    HighPath;
-        public required System.Windows.Shapes.Ellipse Droplet;
-        public double OriginY;    // canvas Y of the starting point (container top)
-        public double TotalDist;  // total vertical distance the droplet travels (px)
-        public double LeanX;      // total lateral offset at end for angled paths
+        public required Canvas                      Container;
+        public required System.Windows.Shapes.Path WetPath;    // wide warm halo layer
+        public required System.Windows.Shapes.Path WaterPath;  // main water body fill
+        public required System.Windows.Shapes.Path GlintPath;  // specular highlight fill
+        public double OriginY;    // canvas Y of the starting point
+        public double TotalDist;  // total vertical travel (px)
+        public double LeanX;      // lateral offset at end for angled paths
         public double PeakX;      // peak lateral offset for arc paths
-        public bool   IsArc;      // true = sin-arc path; false = straight or angled
-        public double Progress;   // 0 to 1 as droplet moves from origin to end
+        public bool   IsArc;
+        public double Progress;   // 0 to 1
         public double Speed;      // progress units per second
-        public double DropW;
-        public double DropH;
+        public double MaxHW;      // max half-width at the head (px)
+        public double BotExt;     // downward extension of the rounded bottom (px)
     }
 
-    // Returns the droplet position at parameter p in local (container) coordinates.
-    // p=0 is the origin, p=1 is the end. Y always increases downward.
+    // Returns the droplet position at p in local (container) coordinates.
     private static Point PathPt(DrizzleState d, double p)
     {
         double y = p * d.TotalDist;
@@ -1495,7 +1493,7 @@ public partial class MainWindow : Window
         return new Point(x, y);
     }
 
-    // Spawn one droplet with a growing trail.
+    // Spawn one droplet + growing teardrop trail.
     private void SpawnDrizzle(int density)
     {
         var canvas = WeatherCanvas;
@@ -1508,94 +1506,51 @@ public partial class MainWindow : Window
 
         var rng = _particleRng;
 
-        // Cycle through three path shapes: straight, angled, arc
         int    pathType  = _drizzleWaveToggle++ % 3;
-        double totalDist = 130 + rng.NextDouble() * 130;       // 130-260 px
-        double speed     = 0.25 + rng.NextDouble() * 0.18;     // 0.25-0.43 progress/s
-        double bodyWidth = 6.0 + rng.NextDouble() * 3.0;       // 6-9 px
-        double dropW     = 13 + rng.NextDouble() * 7;          // 13-20 px wide
-        double dropH     = dropW * (1.2 + rng.NextDouble() * 0.35);
+        double totalDist = 130 + rng.NextDouble() * 130;
+        double speed     = 0.25 + rng.NextDouble() * 0.18;
+        double maxHW     = 7 + rng.NextDouble() * 5;           // 7-12 px half-width at head
+        double botExt    = maxHW * (0.65 + rng.NextDouble() * 0.3);
 
         double sign  = rng.NextDouble() < 0.5 ? -1 : 1;
         bool   isArc = pathType == 2;
         double leanX = pathType == 1 ? sign * (22 + rng.NextDouble() * 30) : 0;
         double peakX = pathType == 2 ? sign * (28 + rng.NextDouble() * 28) : 0;
 
-        static LinearGradientBrush MakeGradient(params (double offset, byte a, byte r, byte g, byte b)[] stops)
+        static LinearGradientBrush VGrad(params (double off, byte a, byte r, byte g, byte b)[] stops)
         {
-            var brush = new LinearGradientBrush
+            var b = new LinearGradientBrush
             {
                 StartPoint  = new Point(0.5, 0),
                 EndPoint    = new Point(0.5, 1),
                 MappingMode = BrushMappingMode.RelativeToBoundingBox,
             };
-            foreach (var (offset, a, r, g, b) in stops)
-                brush.GradientStops.Add(new GradientStop(Color.FromArgb(a, r, g, b), offset));
-            return brush;
+            foreach (var (off, a, r, g, bv) in stops)
+                b.GradientStops.Add(new GradientStop(Color.FromArgb(a, r, g, bv), off));
+            return b;
         }
 
+        // Wide warm halo -- wet parchment effect under the water
         var wetPath = new System.Windows.Shapes.Path
         {
-            Stroke             = MakeGradient(
+            Fill             = VGrad(
                 (0.00,  0, 88, 60, 25),
-                (0.18, 45, 88, 60, 25),
-                (0.55, 75, 98, 70, 30),
-                (0.85, 58, 88, 60, 25),
-                (1.00,  0, 88, 60, 25)),
-            StrokeThickness    = bodyWidth + 10,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap   = PenLineCap.Round,
-            StrokeLineJoin     = PenLineJoin.Round,
-            IsHitTestVisible   = false,
+                (0.28, 38, 88, 60, 25),
+                (0.62, 68, 98, 70, 30),
+                (0.88, 52, 88, 60, 25),
+                (1.00, 28, 88, 60, 25)),
+            IsHitTestVisible = false,
         };
 
-        var bodyPath = new System.Windows.Shapes.Path
+        // Main water body -- near-transparent pale blue-gray
+        var waterPath = new System.Windows.Shapes.Path
         {
-            Stroke             = MakeGradient(
+            Fill             = VGrad(
                 (0.00,   0, 192, 215, 232),
-                (0.18,  70, 192, 215, 232),
-                (0.55, 128, 198, 220, 238),
-                (0.85, 150, 205, 228, 244),
-                (1.00,   0, 210, 232, 248)),
-            StrokeThickness    = bodyWidth,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap   = PenLineCap.Round,
-            StrokeLineJoin     = PenLineJoin.Round,
-            IsHitTestVisible   = false,
-        };
-
-        var highPath = new System.Windows.Shapes.Path
-        {
-            Stroke             = MakeGradient(
-                (0.00,   0, 255, 255, 255),
-                (0.18, 145, 248, 252, 255),
-                (0.55, 225, 255, 255, 255),
-                (0.85, 185, 255, 255, 255),
-                (1.00,   0, 240, 250, 255)),
-            StrokeThickness    = 2.0 + rng.NextDouble() * 1.0,
-            StrokeStartLineCap = PenLineCap.Round,
-            StrokeEndLineCap   = PenLineCap.Round,
-            StrokeLineJoin     = PenLineJoin.Round,
-            IsHitTestVisible   = false,
-            RenderTransform    = new TranslateTransform(-1.5, -2.0),
-        };
-
-        var dropBrush = new RadialGradientBrush
-        {
-            Center         = new Point(0.5, 0.62),
-            GradientOrigin = new Point(0.3, 0.28),
-            RadiusX = 0.55, RadiusY = 0.55,
-        };
-        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(255, 255, 255, 255), 0.00));
-        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(230, 225, 242, 255), 0.25));
-        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(195, 185, 218, 248), 0.58));
-        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(210, 140, 190, 235), 0.88));
-        dropBrush.GradientStops.Add(new GradientStop(Color.FromArgb(180, 100, 160, 220), 1.00));
-        var droplet = new System.Windows.Shapes.Ellipse
-        {
-            Width            = dropW,
-            Height           = dropH,
-            Fill             = dropBrush,
+                (0.28,  55, 192, 215, 232),
+                (0.62, 130, 198, 220, 238),
+                (0.88, 175, 205, 228, 244),
+                (1.00, 200, 215, 235, 252)),
             IsHitTestVisible = false,
             Effect = new DropShadowEffect
             {
@@ -1606,11 +1561,22 @@ public partial class MainWindow : Window
             },
         };
 
+        // Specular glint -- bright white strip along the left edge
+        var glintPath = new System.Windows.Shapes.Path
+        {
+            Fill             = VGrad(
+                (0.00,   0, 255, 255, 255),
+                (0.25,  95, 248, 252, 255),
+                (0.60, 215, 255, 255, 255),
+                (0.88, 185, 255, 255, 255),
+                (1.00, 160, 240, 250, 255)),
+            IsHitTestVisible = false,
+        };
+
         var container = new Canvas { IsHitTestVisible = false, Opacity = 0 };
         container.Children.Add(wetPath);
-        container.Children.Add(bodyPath);
-        container.Children.Add(highPath);
-        container.Children.Add(droplet);
+        container.Children.Add(waterPath);
+        container.Children.Add(glintPath);
 
         double startX = rng.NextDouble() * cw;
         double startY = rng.NextDouble() * ch * 0.65;
@@ -1618,16 +1584,12 @@ public partial class MainWindow : Window
         Canvas.SetTop (container, startY);
         canvas.Children.Add(container);
 
-        Canvas.SetLeft(droplet, -dropW / 2);
-        Canvas.SetTop (droplet, -dropH / 2);
-
         _activeDrizzles.Add(new DrizzleState
         {
             Container = container,
             WetPath   = wetPath,
-            BodyPath  = bodyPath,
-            HighPath  = highPath,
-            Droplet   = droplet,
+            WaterPath = waterPath,
+            GlintPath = glintPath,
             OriginY   = startY,
             TotalDist = totalDist,
             LeanX     = leanX,
@@ -1635,12 +1597,12 @@ public partial class MainWindow : Window
             IsArc     = isArc,
             Progress  = 0,
             Speed     = speed,
-            DropW     = dropW,
-            DropH     = dropH,
+            MaxHW     = maxHW,
+            BotExt    = botExt,
         });
     }
 
-    // Advance the droplet and grow the trail behind it each frame.
+    // Advance the droplet and grow the teardrop trail each frame.
     private void UpdateDrizzles()
     {
         const double dt = 1.0 / 30.0;
@@ -1654,7 +1616,7 @@ public partial class MainWindow : Window
 
             var head = PathPt(d, Math.Min(d.Progress, 1.0));
 
-            if (d.Progress >= 1.0 || d.OriginY + head.Y > ch + d.DropH)
+            if (d.Progress >= 1.0 || d.OriginY + head.Y + d.BotExt > ch)
             {
                 canvas.Children.Remove(d.Container);
                 _activeDrizzles.RemoveAt(i);
@@ -1666,28 +1628,54 @@ public partial class MainWindow : Window
                       : 1.0;
             d.Container.Opacity = op;
 
-            // Rebuild trail geometry from origin to the current head position.
-            // Sample range grows each frame so the trail literally extends behind the droplet.
-            const int segs = 10;
-            var geo = new StreamGeometry();
-            using (var ctx = geo.Open())
+            // Build a filled teardrop: right bank (tail->head) + bottom arc + left bank (head->tail).
+            // Half-width tapers from 0 at the tail to MaxHW at the head via a power curve,
+            // so trail and droplet head are one continuous fluid shape.
+            StreamGeometry MakeTeardrop(double hw, double xOff, double ext)
             {
-                ctx.BeginFigure(PathPt(d, 0), isFilled: false, isClosed: false);
-                var pts = new Point[segs * 2];
-                for (int j = 0; j < segs; j++)
+                const int n    = 12;
+                const int arcN =  9;
+                var geo = new StreamGeometry();
+                using (var ctx = geo.Open())
                 {
-                    pts[j * 2]     = PathPt(d, d.Progress * (j + 0.5) / segs);
-                    pts[j * 2 + 1] = PathPt(d, d.Progress * (j + 1.0) / segs);
-                }
-                ctx.PolyQuadraticBezierTo(pts, isStroked: true, isSmoothJoin: false);
-            }
-            geo.Freeze();
-            d.WetPath.Data  = geo;
-            d.BodyPath.Data = geo;
-            d.HighPath.Data = geo;
+                    var tail = PathPt(d, 0);
+                    ctx.BeginFigure(new Point(tail.X + xOff, tail.Y), isFilled: true, isClosed: true);
 
-            Canvas.SetLeft(d.Droplet, head.X - d.DropW / 2);
-            Canvas.SetTop (d.Droplet, head.Y - d.DropH / 2);
+                    var right = new Point[n];
+                    for (int j = 1; j <= n; j++)
+                    {
+                        double p = d.Progress * j / n;
+                        var  c = PathPt(d, p);
+                        right[j - 1] = new Point(c.X + xOff + hw * Math.Pow((double)j / n, 0.35), c.Y);
+                    }
+                    ctx.PolyLineTo(right, isStroked: false, isSmoothJoin: true);
+
+                    var arc = new Point[arcN];
+                    for (int k = 0; k < arcN; k++)
+                    {
+                        double angle = Math.PI * (k + 1) / (arcN + 1);
+                        arc[k] = new Point(head.X + xOff + hw * Math.Cos(angle),
+                                           head.Y + ext  * Math.Sin(angle));
+                    }
+                    ctx.PolyLineTo(arc, isStroked: false, isSmoothJoin: true);
+
+                    var left = new Point[n + 1];
+                    for (int j = n; j >= 0; j--)
+                    {
+                        double p = d.Progress * j / n;
+                        var  c = PathPt(d, p);
+                        left[n - j] = new Point(c.X + xOff - hw * Math.Pow((double)j / n, 0.35), c.Y);
+                    }
+                    ctx.PolyLineTo(left, isStroked: false, isSmoothJoin: true);
+                }
+                geo.Freeze();
+                return geo;
+            }
+
+            double hw = d.MaxHW;
+            d.WetPath.Data   = MakeTeardrop(hw + 5,          0,              d.BotExt + 3);
+            d.WaterPath.Data = MakeTeardrop(hw,               0,              d.BotExt);
+            d.GlintPath.Data = MakeTeardrop(hw * 0.32, -hw * 0.25, d.BotExt * 0.55);
         }
     }
 
