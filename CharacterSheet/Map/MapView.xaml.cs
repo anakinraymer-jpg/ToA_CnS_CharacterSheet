@@ -87,6 +87,23 @@ public partial class MapView : UserControl
         UpdateDayUi();
         SetStatus($"Chult grid loaded  |  {_grid.MaxNumber} hex points " +
                   $"({_grid.Cols}×{_grid.Rows}, size {(int)_grid.Size} px)");
+
+        Loaded += OnLoaded;
+    }
+
+    private void OnLoaded(object s, RoutedEventArgs e)
+    {
+        Loaded -= OnLoaded;   // fire once
+        var prefs = MapPrefs.Load();
+
+        if (!string.IsNullOrEmpty(prefs.LastMapImage) && File.Exists(prefs.LastMapImage))
+        {
+            _canvas.LoadImage(prefs.LastMapImage);
+            SetStatus($"Map image restored: {System.IO.Path.GetFileName(prefs.LastMapImage)}");
+        }
+
+        if (!string.IsNullOrEmpty(prefs.LastMapSave) && File.Exists(prefs.LastMapSave))
+            LoadState(prefs.LastMapSave, PlayerName);
     }
 
     // ── Day panel ──────────────────────────────────────────────────────
@@ -755,6 +772,7 @@ public partial class MapView : UserControl
         if (dlg.ShowDialog() == true)
         {
             _canvas.LoadImage(dlg.FileName);
+            MapPrefs.UpdateImage(dlg.FileName);
             SetStatus($"Map loaded: {dlg.FileName}");
         }
     }
@@ -875,6 +893,7 @@ public partial class MapView : UserControl
         var state = MapSaveState.From(
             _grid, _em, _lm, _tm, _canvas.FogRevealed, _day, _currentWeather);
         File.WriteAllText(path, state.Serialize());
+        MapPrefs.UpdateSave(path);
         SetStatus($"Saved: {path}");
     }
 
@@ -913,6 +932,7 @@ public partial class MapView : UserControl
             _canvas.InvalidateGeoCache();
             _canvas.Refresh();
             NotifyPlayerLocation();
+            MapPrefs.UpdateSave(path);
             SetStatus($"Loaded: {path}");
         }
         catch (Exception ex)
