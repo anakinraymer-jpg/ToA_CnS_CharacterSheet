@@ -1466,35 +1466,18 @@ public partial class MainWindow : Window
     }
 
     // ── Drizzle state: one instance per live drizzle trail ────────────
-    // Three-layer composite renders as real water: wet-paper darkening (WetPath),
-    // near-transparent water body (BodyPath), and specular highlight (HighPath).
     private sealed class DrizzleState
     {
-        public required Canvas Container;   // parent on WeatherCanvas; opacity is set here
-        public required System.Windows.Shapes.Path WetPath;   // wide warm layer — wet parchment darkening
-        public required System.Windows.Shapes.Path BodyPath;  // pale, nearly transparent water body
-        public required System.Windows.Shapes.Path HighPath;  // bright white specular streak (offset left)
-        public double HeadY;     // canvas Y of the leading edge
-        public double TrailLen;  // vertical length of the visible trail (px)
-        public double Speed;     // downward travel speed (px/s)
-        public double WaveAmp;   // max lateral displacement (px); 0 = straight
-        public double WaveLen;   // spatial wavelength of the sine wave (px)
-        public double Phase;     // current wave phase (radians)
-        public double PhaseRate; // radians per second (how fast the wave slithers)
-        public double Age;       // elapsed seconds since spawn
-        public double LifeTime;  // total lifetime seconds
+        public required Canvas Container;
+        public required System.Windows.Shapes.Path WetPath;
+        public required System.Windows.Shapes.Path BodyPath;
+        public required System.Windows.Shapes.Path HighPath;
+        public double HeadY;
+        public double TrailLen;
+        public double Speed;
+        public double Age;
+        public double LifeTime;
         public double PeakOpacity;
-    }
-
-    // ── Build one point on the slithering sine-wave path ──────────────
-    // t=0 → tail (top), t=1 → head (bottom).  Amplitude tapers near tail.
-    private static Point DrizzlePoint(DrizzleState d, double t)
-    {
-        double localY = t * d.TrailLen;
-        double taper  = Math.Pow(t, 0.38);
-        double localX = d.WaveAmp * taper
-                      * Math.Sin(2 * Math.PI * localY / d.WaveLen + d.Phase);
-        return new Point(localX, localY);
     }
 
     // ── Spawn one new drizzle trail ────────────────────────────────────
@@ -1511,14 +1494,21 @@ public partial class MainWindow : Window
         var    rng       = _particleRng;
         bool   wavy      = (_drizzleWaveToggle++ & 1) == 0;
         double trailLen  = 55 + rng.NextDouble() * 65;
-        double bodyWidth = 3.5 + rng.NextDouble() * 1.5;          // 3.5–5 px
+        double bodyWidth = 3.5 + rng.NextDouble() * 1.5;
         double waveAmp   = wavy ? 5 + rng.NextDouble() * 6 : 0;
         double waveLen   = wavy ? trailLen * (0.45 + rng.NextDouble() * 0.40) : 1.0;
+        double phase     = rng.NextDouble() * 2 * Math.PI;
         double speed     = 32 + rng.NextDouble() * 28;
         double lifeTime  = (100 + rng.NextDouble() * 160) / speed;
-        double phaseRate = wavy
-            ? 2 * Math.PI * speed / waveLen * (1.0 + rng.NextDouble() * 0.8)
-            : 0;
+
+        // Shape is fixed at spawn; each trail translates rigidly downward as a whole.
+        Point TrailPt(double t)
+        {
+            double localY = t * trailLen;
+            double taper  = Math.Pow(t, 0.38);
+            double localX = waveAmp * taper * Math.Sin(2 * Math.PI * localY / waveLen + phase);
+            return new Point(localX, localY);
+        }
 
         static LinearGradientBrush MakeGradient(params (double offset, byte a, byte r, byte g, byte b)[] stops)
         {
@@ -1533,7 +1523,7 @@ public partial class MainWindow : Window
             return brush;
         }
 
-        // ── Layer A: wet parchment darkening (wide, warm amber-brown) ─────
+        // ── Layer A: wet parchment darkening ──────────────────────────────
         var wetPath = new System.Windows.Shapes.Path
         {
             Stroke             = MakeGradient(
@@ -1549,7 +1539,7 @@ public partial class MainWindow : Window
             IsHitTestVisible   = false,
         };
 
-        // ── Layer B: water body (pale, near-transparent cool-gray) ────────
+        // ── Layer B: water body ────────────────────────────────────────────
         var bodyPath = new System.Windows.Shapes.Path
         {
             Stroke             = MakeGradient(
@@ -1565,8 +1555,7 @@ public partial class MainWindow : Window
             IsHitTestVisible   = false,
         };
 
-        // ── Layer C: specular highlight (bright white, offset up-left) ────
-        // The offset simulates a top-left light source catching the curved water surface.
+        // ── Layer C: specular highlight (offset up-left, simulates top-left light) ──
         var highPath = new System.Windows.Shapes.Path
         {
             Stroke             = MakeGradient(
@@ -1575,7 +1564,7 @@ public partial class MainWindow : Window
                 (0.55, 205, 255, 255, 255),
                 (0.82, 178, 255, 255, 255),
                 (1.00,  75, 240, 250, 255)),
-            StrokeThickness    = 1.0 + rng.NextDouble() * 0.5,  // 1.0–1.5 px
+            StrokeThickness    = 1.0 + rng.NextDouble() * 0.5,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap   = PenLineCap.Round,
             StrokeLineJoin     = PenLineJoin.Round,
@@ -1583,7 +1572,25 @@ public partial class MainWindow : Window
             RenderTransform    = new TranslateTransform(-1.5, -2.0),
         };
 
-        // ── Container: single element positioned on WeatherCanvas ─────────
+        // Build the path geometry once — shape never changes, only position does.
+        const int segs = 11;
+        var geo = new StreamGeometry();
+        using (var ctx = geo.Open())
+        {
+            ctx.BeginFigure(TrailPt(0), isFilled: false, isClosed: false);
+            var pts = new Point[segs * 2];
+            for (int j = 0; j < segs; j++)
+            {
+                pts[j * 2]     = TrailPt((j + 0.5) / segs);
+                pts[j * 2 + 1] = TrailPt((j + 1.0) / segs);
+            }
+            ctx.PolyQuadraticBezierTo(pts, isStroked: true, isSmoothJoin: false);
+        }
+        geo.Freeze();
+        wetPath.Data  = geo;
+        bodyPath.Data = geo;
+        highPath.Data = geo;
+
         var container = new Canvas { IsHitTestVisible = false, Opacity = 0 };
         container.Children.Add(wetPath);
         container.Children.Add(bodyPath);
@@ -1604,17 +1611,14 @@ public partial class MainWindow : Window
             HeadY       = startY + trailLen,
             TrailLen    = trailLen,
             Speed       = speed,
-            WaveAmp     = waveAmp,
-            WaveLen     = waveLen,
-            Phase       = rng.NextDouble() * 2 * Math.PI,
-            PhaseRate   = phaseRate,
             Age         = 0,
             LifeTime    = lifeTime,
             PeakOpacity = 0.90 + rng.NextDouble() * 0.08,
         });
     }
 
-    // ── Per-frame update: advance every live drizzle and redraw its path ─
+    // ── Per-frame update: advance position and opacity only ────────────
+    // Geometry is computed once at spawn, so only Canvas.Top and opacity need updating.
     private void UpdateDrizzles()
     {
         const double dt = 1.0 / 30.0;
@@ -1626,7 +1630,6 @@ public partial class MainWindow : Window
             var d = _activeDrizzles[i];
             d.Age   += dt;
             d.HeadY += d.Speed * dt;
-            d.Phase += d.PhaseRate * dt;
 
             if (d.Age >= d.LifeTime || d.HeadY > ch + d.TrailLen)
             {
@@ -1635,34 +1638,11 @@ public partial class MainWindow : Window
                 continue;
             }
 
-            // Opacity envelope: quick fade-in → hold → fade-out
             double f  = d.Age / d.LifeTime;
             double op = f < 0.12 ? d.PeakOpacity * (f / 0.12)
                       : f > 0.80 ? d.PeakOpacity * Math.Max(0, (1.0 - f) / 0.20)
                       : d.PeakOpacity;
             d.Container.Opacity = op;
-
-            // Build the shared slithering path geometry then freeze it so it can be
-            // safely assigned to all three child paths without WPF Freezable conflicts.
-            const int segs = 11;
-            var geo = new StreamGeometry();
-            using (var ctx = geo.Open())
-            {
-                ctx.BeginFigure(DrizzlePoint(d, 0), isFilled: false, isClosed: false);
-                var pts = new Point[segs * 2];
-                for (int j = 0; j < segs; j++)
-                {
-                    pts[j * 2]     = DrizzlePoint(d, (j + 0.5) / segs);
-                    pts[j * 2 + 1] = DrizzlePoint(d, (j + 1.0) / segs);
-                }
-                ctx.PolyQuadraticBezierTo(pts, isStroked: true, isSmoothJoin: false);
-            }
-            geo.Freeze();
-
-            d.WetPath.Data  = geo;
-            d.BodyPath.Data = geo;
-            d.HighPath.Data = geo;
-
             Canvas.SetTop(d.Container, d.HeadY - d.TrailLen);
         }
     }
