@@ -1099,8 +1099,11 @@ public partial class MainWindow : Window
         _state.PlayerLocationType = locType;
 
         bool isDruid = _state.CoreAbility.Equals("Druid", StringComparison.OrdinalIgnoreCase);
+        // Bonus active when outdoors (no location type on the current hex).
+        // A hex with a named location that has a LocationType set (e.g. "City", "Ruin")
+        // is considered indoors/civilised and removes the bonus.
         _state.DruidWildBonusActive =
-            isDruid && node >= 0 && !Map.MapTerrain.IndoorTerrains.Contains(terrain);
+            isDruid && node >= 0 && string.IsNullOrEmpty(locType);
     }
 
     /// <summary>
