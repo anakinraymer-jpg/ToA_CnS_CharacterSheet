@@ -114,7 +114,11 @@ public partial class MainWindow : Window
         _sectionHandles = [SecFlawsHandle, SecCoreAbilityHandle, SecSummaryHandle, SecDefenseHandle, SecEquipSkillsHandle, SecSpellsHandle, SecInventoryHandle];
         WireUiEvents();
         LoadState(Persistence.Load());
-        Loaded += (_, _) => FitToWindow();
+        Loaded += (_, _) =>
+        {
+            FitToWindow();
+            Dispatcher.InvokeAsync(EmbedMapView, DispatcherPriority.Background);
+        };
         Closing += OnWindowClosing;
     }
 
@@ -1142,9 +1146,6 @@ public partial class MainWindow : Window
     {
         bool isMapTab = MainTabControl.SelectedItem == TabMap;
         SheetOnlyControls.Visibility = isMapTab ? Visibility.Collapsed : Visibility.Visible;
-
-        if (isMapTab && _mapView == null)
-            EmbedMapView();
     }
 
     private void EmbedMapView()

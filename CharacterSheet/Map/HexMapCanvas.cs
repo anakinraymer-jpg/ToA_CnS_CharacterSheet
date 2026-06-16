@@ -141,7 +141,53 @@ public class HexMapCanvas : FrameworkElement
         _visuals = new VisualCollection(this) { _root };
 
         // Populate layers once the visual is connected to a window (DPI available)
-        Loaded += (_, _) => UpdateAllLayers();
+        Loaded += async (_, _) => await PreWarmAsync();
+    }
+
+    // Pre-computes hex corner arrays on a background thread, then builds frozen
+    // StreamGeometry objects on the UI thread and draws all layers.
+    private async Task PreWarmAsync()
+    {
+        RefreshPpd();
+        var cells = _grid.AllCells;
+        int n = cells.Count;
+
+        // Pure math — no WPF objects, safe on background thread
+        var (cornersArr, centersArr) = await Task.Run(() =>
+        {
+            var corners = new (double X, double Y)[n][];
+            var centers = new (double X, double Y)[n];
+            for (int i = 0; i < n; i++)
+            {
+                corners[i] = _grid.Corners(cells[i].Q, cells[i].R);
+                centers[i] = _grid.HexToPixel(cells[i].Q, cells[i].R);
+            }
+            return (corners, centers);
+        });
+
+        // Build + freeze StreamGeometry on UI thread (fast — no math left)
+        var geos    = new StreamGeometry[n];
+        var nodeIdx = new Dictionary<int, int>(n);
+        for (int i = 0; i < n; i++)
+        {
+            var geo = MakePoly(cornersArr[i]);
+            geo.Freeze();
+            geos[i]               = geo;
+            nodeIdx[cells[i].Number] = i;
+        }
+        _geoCache    = geos;
+        _centerCache = centersArr;
+        _nodeIndex   = nodeIdx;
+
+        UpdateBgLayer();
+        UpdateTerrainLayer();
+        UpdateStaticGridLayer();
+        UpdateGridOverlayLayer();
+        UpdateLocationLayer();
+        UpdateEntityLayer();
+        UpdateFogLayer();
+        UpdateFogHighlightLayer();
+        UpdateHandleLayer();
     }
 
     // ── Public API ───────────────────────────────────────────────────
@@ -154,6 +200,24 @@ public class HexMapCanvas : FrameworkElement
         bi.CacheOption = BitmapCacheOption.OnLoad;
         bi.EndInit();
         bi.Freeze();
+        _bgImage = bi;
+        if (ActualWidth > 0) FitView();
+        else SizeChanged += OnFirstSizeChanged;
+        UpdateBgLayer();
+    }
+
+    public async Task LoadImageAsync(string path)
+    {
+        var bi = await Task.Run(() =>
+        {
+            var img = new BitmapImage();
+            img.BeginInit();
+            img.UriSource   = new Uri(path, UriKind.Absolute);
+            img.CacheOption = BitmapCacheOption.OnLoad;
+            img.EndInit();
+            img.Freeze();
+            return img;
+        });
         _bgImage = bi;
         if (ActualWidth > 0) FitView();
         else SizeChanged += OnFirstSizeChanged;

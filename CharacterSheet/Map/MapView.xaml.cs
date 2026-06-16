@@ -91,14 +91,14 @@ public partial class MapView : UserControl
         Loaded += OnLoaded;
     }
 
-    private void OnLoaded(object s, RoutedEventArgs e)
+    private async void OnLoaded(object s, RoutedEventArgs e)
     {
         Loaded -= OnLoaded;   // fire once
-        var prefs = MapPrefs.Load();
+        var prefs = await Task.Run(() => MapPrefs.Load());
 
         if (!string.IsNullOrEmpty(prefs.LastMapImage) && File.Exists(prefs.LastMapImage))
         {
-            _canvas.LoadImage(prefs.LastMapImage);
+            await _canvas.LoadImageAsync(prefs.LastMapImage);
             SetStatus($"Map image restored: {System.IO.Path.GetFileName(prefs.LastMapImage)}");
         }
 
