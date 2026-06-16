@@ -478,9 +478,10 @@ public partial class MainWindow : Window
                 UpdateAddButtonStates();
                 break;
 
-            // Weather toggle changed: reapply (or clear) penalties
+            // Weather toggle changed: reapply (or clear) penalties and restart/stop particles
             case nameof(CharacterState.WeatherEffectsEnabled):
                 ApplyWeatherPenalties();
+                UpdateWeatherParticles(_currentMapWeather);
                 break;
         }
 
@@ -1281,6 +1282,8 @@ public partial class MainWindow : Window
         _mistTimer?.Stop();          _mistTimer = null;
         _activeMistCount = 0;
         WeatherCanvas.Children.Clear();
+
+        if (!_state.WeatherEffectsEnabled) return;
 
         int mistDensity = MistDensityFor(weather);
         if (mistDensity > 0)
