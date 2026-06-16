@@ -1476,14 +1476,18 @@ public partial class MainWindow : Window
 
 
     // Drizzle: a short teardrop of WATER rolls down, immediately above it grows
-    // a DAMP PAPER strip in its wake.  Drizzle layers use a LOCAL width taper
-    //   halfW(p) = hw * pow((p - pFrom) / (pTo - pFrom), 0.35)
-    // so the tail is always a sharp point regardless of position.
-    // The wet-trail uses a GLOBAL taper:
-    //   halfW(p) = hw * pow(p / totalP, 0.35)
+    // a DAMP PAPER strip in its wake.
     //
-    // Geometries are owned by DrizzleState and rebuilt in-place each frame
-    // (no new allocation, no Path.Data reassignment) to eliminate WPF flicker.
+    // Amber halo (WetPath) and wet trail (WetTrailPath) both use GLOBAL taper:
+    //   halfW(p) = hw * pow(p / totalP, 0.35)
+    // so they share the same width at pTail and form one seamless amber strip.
+    // The water drop (WaterPath) and glint (GlintPath) use LOCAL taper:
+    //   halfW(p) = hw * pow((p - pFrom) / (pTo - pFrom), 0.35)
+    // so the drop's tail is always a sharp point sitting inside the amber strip.
+    //
+    // Geometries are owned by DrizzleState and rebuilt in-place each frame (no
+    // new allocation, no Path.Data reassignment) to eliminate WPF flicker.
+    // Point arrays are pre-allocated on DrizzleState for the same reason.
     //
     // At landing the drizzle RETRACTS into the wet spot (sub-phase A) while the
     // wet trail extends downward to fill the gap; then the wet trail fades from
@@ -1501,6 +1505,10 @@ public partial class MainWindow : Window
         public readonly StreamGeometry WaterGeo = new();
         public readonly StreamGeometry GlintGeo = new();
         public readonly StreamGeometry TrailGeo = new();
+        // Pre-allocated point buffers — reused every frame so no GC pressure.
+        public readonly Point[] RightPts = new Point[12];
+        public readonly Point[] ArcPts   = new Point[9];
+        public readonly Point[] LeftPts  = new Point[12];
         public double OriginY;
         public double TotalDist;
         public double LeanX;
@@ -1593,15 +1601,15 @@ public partial class MainWindow : Window
             IsHitTestVisible = false,
         };
 
-        // Wet trail: filled shape using the global taper from the path origin.
-        // Amber/damp-paper color, darkening toward the bottom (freshly wet).
+        // Wet trail: amber/damp-paper, alpha pre-multiplied by 0.82 so
+        // TrailCanvas.Opacity can stay at 1.0 and skip the off-screen composite.
         var wetTrailPath = new System.Windows.Shapes.Path
         {
             Fill             = VGrad(
-                (0.00, 18, 90, 58, 20),
-                (0.35, 50, 86, 55, 18),
-                (0.70, 74, 82, 54, 16),
-                (1.00, 92, 78, 52, 14)),
+                (0.00, 15, 90, 58, 20),
+                (0.35, 41, 86, 55, 18),
+                (0.70, 61, 82, 54, 16),
+                (1.00, 75, 78, 52, 14)),
             IsHitTestVisible = false,
         };
 
@@ -1716,13 +1724,13 @@ public partial class MainWindow : Window
         {
             var d = _activeDrizzles[i];
 
-            // Rebuild a StreamGeometry in-place each frame (no allocation, no reassignment).
+            // Rebuild a StreamGeometry in-place (no allocation, no Path.Data reassignment).
             // zeroP is where width tapers to 0:
-            //   Drizzle layers:  zeroP = pFrom  → sharp pointed tail at pFrom always.
-            //   Wet trail:       zeroP = 0       → global taper from the path origin.
-            // ext > 0: semi-elliptic arc at bottom (drizzle head).
-            // ext = 0: flat cut; the explicit LineTo is only emitted when ext==0 to
-            // avoid a kink artifact after the arc when ext>0.
+            //   Amber halo + wet trail: zeroP = 0 (global) → seamless amber strip.
+            //   Water drop + glint:     zeroP = pFrom (local) → sharp pointed tail.
+            // ext > 0: semi-elliptic arc at the bottom (drizzle head).
+            // For ext > 0 the explicit LineTo crossover is omitted to avoid a kink
+            // artifact after the arc.
             void RebuildShape(StreamGeometry geo, double pFrom, double pTo,
                               double zeroP, double totalP,
                               double hw, double xOff, double ext)
@@ -1740,48 +1748,45 @@ public partial class MainWindow : Window
                     double w0 = hw * Math.Pow((pFrom - zeroP) / (totalP - zeroP), 0.35);
                     ctx.BeginFigure(new Point(c0.X + xOff + w0, c0.Y), isFilled: true, isClosed: true);
 
-                    // Right bank (top -> bottom)
-                    var right = new Point[n];
+                    // Right bank (top -> bottom) — uses pre-allocated array.
                     for (int j = 0; j < n; j++)
                     {
                         double p = pFrom + (pTo - pFrom) * (j + 1.0) / n;
                         var    c = PathPt(d, p);
                         double w = hw * Math.Pow((p - zeroP) / (totalP - zeroP), 0.35);
-                        right[j] = new Point(c.X + xOff + w, c.Y);
+                        d.RightPts[j] = new Point(c.X + xOff + w, c.Y);
                     }
-                    ctx.PolyLineTo(right, isStroked: false, isSmoothJoin: true);
+                    ctx.PolyLineTo(d.RightPts, isStroked: false, isSmoothJoin: true);
 
                     var    cTo = PathPt(d, pTo);
                     double wTo = hw * Math.Pow((pTo - zeroP) / (totalP - zeroP), 0.35);
 
                     if (ext > 0)
                     {
-                        var arc = new Point[arcN];
                         for (int k = 0; k < arcN; k++)
                         {
                             double angle = Math.PI * (k + 1) / (arcN + 1);
-                            arc[k] = new Point(cTo.X + xOff + wTo * Math.Cos(angle),
-                                               cTo.Y + ext   * Math.Sin(angle));
+                            d.ArcPts[k] = new Point(cTo.X + xOff + wTo * Math.Cos(angle),
+                                                    cTo.Y + ext   * Math.Sin(angle));
                         }
-                        ctx.PolyLineTo(arc, isStroked: false, isSmoothJoin: true);
-                        // Arc's last point lands near (-wTo, cTo.Y); isSmoothJoin on
-                        // the left bank bridges the tiny gap without a kink.
+                        ctx.PolyLineTo(d.ArcPts, isStroked: false, isSmoothJoin: true);
+                        // Arc ends near (-wTo, cTo.Y); isSmoothJoin on the left bank
+                        // bridges the sub-pixel gap without a kink artifact.
                     }
                     else
                     {
                         ctx.LineTo(new Point(cTo.X + xOff - wTo, cTo.Y), isStroked: false, isSmoothJoin: true);
                     }
 
-                    // Left bank (bottom -> top)
-                    var left = new Point[n];
+                    // Left bank (bottom -> top) — uses pre-allocated array.
                     for (int j = 1; j <= n; j++)
                     {
                         double p = pTo - (pTo - pFrom) * j / n;
                         var    c = PathPt(d, p);
                         double w = hw * Math.Pow((p - zeroP) / (totalP - zeroP), 0.35);
-                        left[j - 1] = new Point(c.X + xOff - w, c.Y);
+                        d.LeftPts[j - 1] = new Point(c.X + xOff - w, c.Y);
                     }
-                    ctx.PolyLineTo(left, isStroked: false, isSmoothJoin: true);
+                    ctx.PolyLineTo(d.LeftPts, isStroked: false, isSmoothJoin: true);
                     // isClosed returns to BeginFigure (right side of pFrom) = top cap
                 }
             }
@@ -1798,8 +1803,9 @@ public partial class MainWindow : Window
                     d.RecedeFrac = Math.Min(1.0, d.RecedeFrac + 2.5 * dt);
                     double rTail = d.LandingPTail + (lp - d.LandingPTail) * d.RecedeFrac;
 
-                    // Local taper (zeroP=rTail) keeps the retracting tail pointed.
-                    RebuildShape(d.WetGeo,   rTail, lp, rTail, lp, hw + 5,     0,          d.BotExt + 3);
+                    // Amber halo: global taper — stays seamless with the wet trail.
+                    RebuildShape(d.WetGeo,   rTail, lp, 0,     lp, hw + 5,     0,          d.BotExt + 3);
+                    // Water + glint: local taper — retracting tail stays pointed.
                     RebuildShape(d.WaterGeo, rTail, lp, rTail, lp, hw,         0,          d.BotExt);
                     RebuildShape(d.GlintGeo, rTail, lp, rTail, lp, hw * 0.32, -hw * 0.25, d.BotExt * 0.55);
                     // Wet trail grows to fill the gap left by the retracting drizzle.
@@ -1850,15 +1856,16 @@ public partial class MainWindow : Window
             double pTail = Math.Max(0.0, d.Progress - d.TrailLen);
             double op    = d.Progress < 0.08 ? d.Progress / 0.08 : 1.0;
             d.Container.Opacity   = op;
-            d.TrailCanvas.Opacity = op * 0.82;
+            d.TrailCanvas.Opacity = op;  // dimming baked into WetTrailPath fill alphas
 
             double prog = d.Progress;
             double mhw  = d.MaxHW;
-            // Drizzle layers: local taper (zeroP=pTail) so the back end is always pointed.
-            RebuildShape(d.WetGeo,   pTail, prog, pTail, prog, mhw + 5,     0,           d.BotExt + 3);
+            // Amber halo: global taper (zeroP=0) → same width as wet trail at pTail.
+            RebuildShape(d.WetGeo,   pTail, prog, 0,     prog, mhw + 5,     0,           d.BotExt + 3);
+            // Water + glint: local taper (zeroP=pTail) → sharp pointed tail.
             RebuildShape(d.WaterGeo, pTail, prog, pTail, prog, mhw,         0,           d.BotExt);
             RebuildShape(d.GlintGeo, pTail, prog, pTail, prog, mhw * 0.32, -mhw * 0.25, d.BotExt * 0.55);
-            // Wet trail: global taper (zeroP=0) grows from the origin.
+            // Wet trail: global taper grows from origin — seamless with amber halo above.
             RebuildShape(d.TrailGeo, 0, pTail, 0, prog, mhw + 5, 0, 0);
         }
     }
