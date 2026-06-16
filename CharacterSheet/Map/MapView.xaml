@@ -161,7 +161,7 @@
           </GroupBox>
 
           <!-- ── Locations ─────────────────────────────────────────────── -->
-          <GroupBox Header="Locations" Style="{StaticResource MapGroup}">
+          <GroupBox x:Name="LocationsGroup" Header="Locations" Style="{StaticResource MapGroup}">
             <StackPanel>
               <ListBox x:Name="LocationList" Style="{StaticResource MapList}"
                        MaxHeight="115" SelectionChanged="OnLocationListSelectionChanged"/>

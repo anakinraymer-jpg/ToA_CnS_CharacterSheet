@@ -38,6 +38,10 @@ public partial class MapView : UserControl
     private bool   _advanceDayAfterBonusMove = false; // advance the day once the pending bonus move is used
     private bool   _suppressWeatherEvent;
 
+    // ── DM mode (Ctrl+D → Ctrl+M chord) ──────────────────────────────
+    private bool _dmMode;
+    private bool _awaitingDmChord;
+
     /// <summary>Fires whenever the current weather condition changes (empty string = no weather).</summary>
     public event Action<string>? WeatherChanged;
 
@@ -340,7 +344,8 @@ public partial class MapView : UserControl
         LocationList.Items.Clear();
         foreach (var loc in _lm.All)
         {
-            if (!_canvas.FogRevealed.Contains(loc.Node)) continue;
+            bool revealed = _canvas.FogRevealed.Contains(loc.Node);
+            if (!_dmMode && !revealed) continue;
             string typeTag = string.IsNullOrEmpty(loc.LocationType)
                 ? "" : $"  [{loc.LocationType}]";
             var item = new ListBoxItem
@@ -348,10 +353,19 @@ public partial class MapView : UserControl
                 Content    = $"{loc.Name}{typeTag}  → {loc.Node}",
                 Tag        = loc.Id,
                 Foreground = new SolidColorBrush(ParseColor(loc.Color)),
+                Opacity    = (_dmMode && !revealed) ? 0.5 : 1.0,
             };
             LocationList.Items.Add(item);
         }
         LocationList.SelectionChanged += OnLocationListSelectionChanged;
+    }
+
+    private void ToggleDmMode()
+    {
+        _dmMode = !_dmMode;
+        LocationsGroup.Header = _dmMode ? "Locations  ⚿" : "Locations";
+        RefreshLocationList();
+        SetStatus(_dmMode ? "DM mode on — all locations visible." : "DM mode off.");
     }
 
     private void OnLocationListSelectionChanged(object s, SelectionChangedEventArgs e)
@@ -874,6 +888,26 @@ public partial class MapView : UserControl
 
     private void OnKeyDown(object s, KeyEventArgs e)
     {
+        bool ctrl = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
+
+        // Ctrl+D → Ctrl+M chord toggles DM mode
+        if (ctrl && e.Key == Key.D)
+        {
+            _awaitingDmChord = true;
+            e.Handled = true;
+            return;
+        }
+        if (_awaitingDmChord)
+        {
+            _awaitingDmChord = false;
+            if (ctrl && e.Key == Key.M)
+            {
+                ToggleDmMode();
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (e.Key == Key.W)
         {
             OnWaitClick(s, new RoutedEventArgs());
