@@ -131,8 +131,7 @@ public partial class MainWindow : Window
         BtnZoomOut.Click += (_, _) => ZoomAroundCenter(_zoom - ZoomStep);
         BtnZoomFit.Click    += (_, _) => FitToWindow();
         BtnLegend.Click     += (_, _) => OpenLegend();
-        BtnLayoutEdit.Checked   += (_, _) => SetLayoutEditMode(true);
-        BtnLayoutEdit.Unchecked += (_, _) => SetLayoutEditMode(false);
+        BtnLayoutEdit.Click += (_, _) => SetLayoutEditMode(BtnLayoutEdit.IsChecked == true);
         BtnAddCategory.Click += (_, _) => OnAddCategoryClicked();
         BtnAddSpell.Click    += (_, _) => OnAddSpellClicked();
 

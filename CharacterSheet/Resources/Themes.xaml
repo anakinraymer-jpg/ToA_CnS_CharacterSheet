@@ -466,4 +466,106 @@
     </Setter>
   </Style>
 
+  <!-- ── Hamburger dropdown ──────────────────────────────────────────── -->
+
+  <!-- Top-level trigger button (the "☰" item inside a transparent Menu) -->
+  <Style x:Key="CtrlMenuButton" TargetType="MenuItem">
+    <Setter Property="FontFamily" Value="{StaticResource TitleFont}"/>
+    <Setter Property="FontSize"   Value="14"/>
+    <Setter Property="Foreground" Value="#D4A96A"/>
+    <Setter Property="Cursor"     Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="MenuItem">
+          <Grid>
+            <Border x:Name="bd"
+                    Background="#2A1205" BorderBrush="#6B3A12"
+                    BorderThickness="1" CornerRadius="2">
+              <ContentPresenter Margin="14,8"
+                                ContentSource="Header"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                RecognizesAccessKey="True"
+                                TextElement.Foreground="{TemplateBinding Foreground}"/>
+            </Border>
+            <Popup x:Name="PART_Popup"
+                   AllowsTransparency="True" Focusable="False"
+                   IsOpen="{TemplateBinding IsSubmenuOpen}"
+                   Placement="Bottom" PopupAnimation="Fade">
+              <Border Background="#1C0D03" BorderBrush="#6B3A12"
+                      BorderThickness="1" Padding="0,3" MinWidth="160">
+                <StackPanel IsItemsHost="True"
+                            KeyboardNavigation.DirectionalNavigation="Cycle"/>
+              </Border>
+            </Popup>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="#3E1A08"/>
+              <Setter Property="Foreground"                 Value="#F0C87A"/>
+            </Trigger>
+            <Trigger Property="IsSubmenuOpen" Value="True">
+              <Setter TargetName="bd" Property="Background"  Value="#1A0A03"/>
+              <Setter TargetName="bd" Property="BorderBrush" Value="#A05A20"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Child items inside the hamburger dropdown -->
+  <Style x:Key="CtrlDropItem" TargetType="MenuItem">
+    <Setter Property="FontFamily" Value="{StaticResource TitleFont}"/>
+    <Setter Property="FontSize"   Value="13"/>
+    <Setter Property="Foreground" Value="#D4A96A"/>
+    <Setter Property="Cursor"     Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="MenuItem">
+          <Border x:Name="bd" Background="Transparent" Padding="12,7"
+                  TextElement.Foreground="{TemplateBinding Foreground}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="18"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <TextBlock x:Name="chk" Grid.Column="0" Text="✓" FontSize="11"
+                         VerticalAlignment="Center" Visibility="Collapsed"/>
+              <ContentPresenter Grid.Column="1" ContentSource="Header"
+                                VerticalAlignment="Center" RecognizesAccessKey="True"/>
+              <TextBlock Grid.Column="2" Text="{TemplateBinding InputGestureText}"
+                         Foreground="#7A4820" FontSize="11" VerticalAlignment="Center"
+                         Margin="24,0,0,0"/>
+            </Grid>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+              <Setter TargetName="bd" Property="Background" Value="#3E1A08"/>
+              <Setter Property="Foreground"                 Value="#F0C87A"/>
+            </Trigger>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="chk" Property="Visibility" Value="Visible"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Foreground" Value="#604A28"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Divider line between groups of dropdown items -->
+  <Style x:Key="CtrlMenuSep" TargetType="Separator">
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Separator">
+          <Rectangle Fill="#3A1E08" Height="1" Margin="8,3"/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
 </ResourceDictionary>

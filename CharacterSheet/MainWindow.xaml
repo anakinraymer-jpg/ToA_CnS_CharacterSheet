@@ -130,22 +130,38 @@
     <!-- ══ CONTROL BAR ══════════════════════════════════════════════ -->
     <WrapPanel DockPanel.Dock="Top" HorizontalAlignment="Center"
                Margin="0,12,0,12" Orientation="Horizontal">
-      <Button x:Name="BtnNew"    Content="☠ New Character"
-              Style="{StaticResource CtrlButton}" Margin="4,0"/>
-      <Button x:Name="BtnOpen"   Content="Open"
-              Style="{StaticResource CtrlButton}" Margin="4,0"
-              ToolTip="Open a save file  (Ctrl+O)"/>
-      <Button x:Name="BtnSave"   Content="Save"
-              Style="{StaticResource CtrlButton}" Margin="4,0"
-              ToolTip="Save to current file  (Ctrl+S)"/>
-      <Button x:Name="BtnExport" Content="↓ Export"
-              Style="{StaticResource CtrlButton}" Margin="4,0"
-              ToolTip="Export a copy to a chosen location"/>
-      <Button x:Name="BtnImport" Content="↑ Import"
-              Style="{StaticResource CtrlButton}" Margin="4,0"
-              ToolTip="Import / merge from a file"/>
+
+      <!-- Hamburger dropdown: file operations + layout/legend -->
+      <Menu Background="Transparent" VerticalAlignment="Center" Margin="4,0">
+        <MenuItem Header="☰" Style="{StaticResource CtrlMenuButton}">
+          <MenuItem x:Name="BtnNew"    Header="☠ New Character"
+                    Style="{StaticResource CtrlDropItem}"/>
+          <MenuItem x:Name="BtnOpen"   Header="Open"
+                    InputGestureText="Ctrl+O"
+                    Style="{StaticResource CtrlDropItem}"/>
+          <MenuItem x:Name="BtnSave"   Header="Save"
+                    InputGestureText="Ctrl+S"
+                    Style="{StaticResource CtrlDropItem}"/>
+          <Separator Style="{StaticResource CtrlMenuSep}"/>
+          <MenuItem x:Name="BtnExport" Header="↓ Export"
+                    ToolTip="Export a copy to a chosen location"
+                    Style="{StaticResource CtrlDropItem}"/>
+          <MenuItem x:Name="BtnImport" Header="↑ Import"
+                    ToolTip="Import / merge from a file"
+                    Style="{StaticResource CtrlDropItem}"/>
+          <Separator Style="{StaticResource CtrlMenuSep}"/>
+          <MenuItem x:Name="BtnLayoutEdit" Header="≡ Layout" IsCheckable="True"
+                    ToolTip="Toggle layout edit mode — reorder sheet sections"
+                    Style="{StaticResource CtrlDropItem}"/>
+          <MenuItem x:Name="BtnLegend" Header="? Legend"
+                    ToolTip="Show keyboard shortcuts and control reference"
+                    Style="{StaticResource CtrlDropItem}"/>
+        </MenuItem>
+      </Menu>
+
+      <!-- Zoom controls stay in the bar (hidden on Map tab) -->
       <StackPanel x:Name="SheetOnlyControls" Orientation="Horizontal" VerticalAlignment="Center">
-        <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
+        <Separator Width="1" Height="24" Background="#6B3A12" Margin="8,0"/>
         <Button x:Name="BtnZoomOut" Content="−" Padding="12,8"
                 Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Zoom out  (Ctrl -)"/>
         <TextBlock x:Name="TbZoom" Text="100%"
@@ -155,12 +171,6 @@
                 Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Zoom in  (Ctrl +)"/>
         <Button x:Name="BtnZoomFit" Content="⊡ Fit" Padding="10,8"
                 Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Fit to window  (Ctrl 0)"/>
-        <Separator Width="1" Height="24" Background="#6B3A12" Margin="12,0"/>
-        <ToggleButton x:Name="BtnLayoutEdit" Content="≡ Layout" Padding="10,8"
-                      Style="{StaticResource CtrlToggleButton}" Margin="4,0"
-                      ToolTip="Toggle layout edit mode — reorder sheet sections"/>
-        <Button x:Name="BtnLegend" Content="? Legend" Padding="10,8"
-                Style="{StaticResource CtrlButton}" Margin="4,0" ToolTip="Show keyboard shortcuts and control reference"/>
       </StackPanel>
     </WrapPanel>
 
