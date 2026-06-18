@@ -1,0 +1,53 @@
+<Window x:Class="CharacterSheet.Controls.AddCaSkillDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Add Bonus Skill"
+        Width="300"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        WindowStyle="ToolWindow"
+        WindowStartupLocation="CenterOwner"
+        Background="#1E1005"
+        ShowInTaskbar="False">
+
+  <Window.Resources>
+    <ResourceDictionary Source="/Resources/Themes.xaml"/>
+  </Window.Resources>
+
+  <Border Padding="20,16,20,18">
+    <StackPanel>
+
+      <TextBlock Text="Add Bonus Skill"
+                 FontFamily="Palatino Linotype" FontSize="13" FontWeight="Bold"
+                 Foreground="#D4A96A" Margin="0,0,0,14"/>
+
+      <TextBlock Text="SKILL NAME"
+                 FontFamily="Palatino Linotype" FontSize="9"
+                 Foreground="#D4A96A" Margin="0,0,0,4"/>
+      <TextBox x:Name="TbSkillName" Style="{StaticResource DialogTextBox}" Margin="0,0,0,14"/>
+
+      <TextBlock Text="FLOOR RATING  (3 – 18)"
+                 FontFamily="Palatino Linotype" FontSize="9"
+                 Foreground="#D4A96A" Margin="0,0,0,4"/>
+      <TextBox x:Name="TbRating" Style="{StaticResource DialogTextBox}"
+               Text="9" Margin="0,0,0,4"/>
+      <TextBlock Text="Skill cannot drop below this rating. No AP cost up to this number."
+                 FontFamily="Palatino Linotype" FontSize="9" FontStyle="Italic"
+                 Foreground="#887A5A3A" TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+      <TextBlock x:Name="TbError" Text="" Foreground="#AA3333"
+                 FontFamily="Palatino Linotype" FontSize="10"
+                 Margin="0,0,0,8" Visibility="Collapsed"/>
+
+      <DockPanel>
+        <Button x:Name="BtnCancel" DockPanel.Dock="Right"
+                Content="Cancel" Style="{StaticResource CtrlButton}"
+                Padding="14,6" Margin="8,0,0,0"/>
+        <Button x:Name="BtnAdd"
+                Content="Add Skill" Style="{StaticResource CtrlButton}"
+                Padding="16,6" HorizontalAlignment="Right"/>
+      </DockPanel>
+
+    </StackPanel>
+  </Border>
+</Window>

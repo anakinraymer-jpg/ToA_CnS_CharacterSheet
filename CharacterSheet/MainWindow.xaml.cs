@@ -56,6 +56,16 @@ public partial class MainWindow : Window
     /// <summary>The conditional Scout skill granted to Mountaineer characters on Mountains/Cave terrain, or null.</summary>
     private SkillData? _mountaineerScoutSkill;
 
+    // ── Custom core-ability bonus skills ──────────────────────────────
+    // Abilities in this set have hardcoded skill grants; anything else is "custom".
+    private static readonly HashSet<string> PredefinedCoreAbilities =
+        new(StringComparer.OrdinalIgnoreCase)
+        { "Druid", "Empath", "Mountaineer", "Inventor", "Loremaster" };
+
+    private bool IsCustomCoreAbility =>
+        !string.IsNullOrWhiteSpace(_state.CoreAbility) &&
+        !PredefinedCoreAbilities.Contains(_state.CoreAbility);
+
     // ── Map integration ───────────────────────────────────────────────
     private Map.MapView? _mapView;
     private string _currentMapWeather = "";
@@ -205,6 +215,7 @@ public partial class MainWindow : Window
 
         // Re-populate the core-ability skill list from the saved IsCoreAbilitySkill flags
         RepopulateCoreAbilitySkills();
+        UpdateCustomCaPanel();
 
         UpdateAddButtonStates();
     }
@@ -463,6 +474,7 @@ public partial class MainWindow : Window
             case nameof(CharacterState.CoreAbility):
                 ApplyCoreAbilityDelta(ref _prevCoreAbility, _state.CoreAbility);
                 UpdatePlayerLocation();
+                UpdateCustomCaPanel();
                 break;
 
             // Flaws: ±5 both Total and Available
@@ -601,6 +613,61 @@ public partial class MainWindow : Window
         // Re-apply mirror in case Inventor is the loaded ability
         if (_state.CoreAbility.Equals("Inventor", StringComparison.OrdinalIgnoreCase))
             UpdateCreateDeviceMirror();
+    }
+
+    // ── Custom core-ability bonus skill UI ────────────────────────────
+
+    private void UpdateCustomCaPanel()
+    {
+        bool show = IsCustomCoreAbility;
+        CustomCaPanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (!show) return;
+
+        CustomCaSkillList.Children.Clear();
+        foreach (var sk in _coreAbilitySkills)
+            CustomCaSkillList.Children.Add(BuildCustomCaRow(sk));
+    }
+
+    private UIElement BuildCustomCaRow(SkillData sk)
+    {
+        var dp        = new DockPanel { Margin = new Thickness(0, 0, 0, 3) };
+        var removeBtn = new Button
+        {
+            Content = "×",
+            Style   = (Style)FindResource("RemoveButton"),
+            ToolTip = $"Remove '{sk.SkillName}' bonus",
+        };
+        removeBtn.Click += (_, _) => RemoveCustomCaSkill(sk);
+
+        var label = new TextBlock
+        {
+            Text              = $"{sk.SkillName}  — floor {sk.MinRating}",
+            FontFamily        = new FontFamily("Palatino Linotype"),
+            FontSize          = 11,
+            Foreground        = (Brush)FindResource("BrownLtBrush"),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        DockPanel.SetDock(removeBtn, Dock.Right);
+        dp.Children.Add(removeBtn);
+        dp.Children.Add(label);
+        return dp;
+    }
+
+    private void RemoveCustomCaSkill(SkillData sk)
+    {
+        sk.PropertyChanged -= OnItemChanged;
+        _coreAbilitySkills.Remove(sk);
+        _state.Skills.Remove(sk);   // OnSkillsCollectionChanged handles AP refund
+        UpdateCustomCaPanel();
+    }
+
+    private void OnBtnAddCaSkill(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Controls.AddCaSkillDialog(this);
+        if (dlg.ShowDialog() != true) return;
+        AddCoreAbilitySkill(dlg.SkillName, initialRating: dlg.FloorRating, minRating: dlg.FloorRating);
+        UpdateCustomCaPanel();
     }
 
     /// <summary>
