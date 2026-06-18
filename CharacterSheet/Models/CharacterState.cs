@@ -230,6 +230,7 @@ public class CharacterState : INotifyPropertyChanged
     private string _playerTerrain         = "";
     private string _playerLocationName    = "";
     private string _playerLocationType    = "";
+    private string _playerCurseLevel      = "";
 
     public string Name        { get => _name;        set { _name        = value; OnPropertyChanged(); } }
     public string Lineage     { get => _lineage;     set { _lineage     = value; OnPropertyChanged(); } }
@@ -316,6 +317,13 @@ public class CharacterState : INotifyPropertyChanged
         set { _playerLocationType = value; OnPropertyChanged(); OnPropertyChanged(nameof(PlayerLocationSummary)); }
     }
 
+    /// <summary>Curse level on the player's current hex ("Lesser Curse", "Greater Curse", or empty).</summary>
+    public string PlayerCurseLevel
+    {
+        get => _playerCurseLevel;
+        set { _playerCurseLevel = value; OnPropertyChanged(); OnPropertyChanged(nameof(PlayerLocationSummary)); }
+    }
+
     /// <summary>True when the player's map position is known (map is connected).</summary>
     public bool PlayerLocationVisible => _playerNode >= 0;
 
@@ -330,7 +338,7 @@ public class CharacterState : INotifyPropertyChanged
                     ? _playerLocationName
                     : $"{_playerLocationName}  [{_playerLocationType}]");
             return "⬡  " + string.Join("  ·  ",
-                new[] { locPart, _playerTerrain, $"Hex {_playerNode}" }
+                new[] { locPart, _playerCurseLevel, _playerTerrain, $"Hex {_playerNode}" }
                 .Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }

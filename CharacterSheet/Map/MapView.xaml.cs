@@ -391,11 +391,11 @@ public partial class MapView : UserControl
     {
         var dlg = new MapAddLocationDialog(_grid.MaxNumber, 1, Window.GetWindow(this));
         if (dlg.ShowDialog() != true) return;
-        var (name, node, color, desc, locType) = dlg.Values;
+        var (name, node, color, desc, locType, curseLevel) = dlg.Values;
         _lm.Add(new MapLocation
         {
             Name = name, Node = node, Color = color,
-            Description = desc, LocationType = locType,
+            Description = desc, LocationType = locType, CurseLevel = curseLevel,
         });
         RefreshLocationList();
         _canvas.Refresh();
@@ -410,18 +410,19 @@ public partial class MapView : UserControl
         if (loc is null) return;
         var dlg = new MapAddLocationDialog(_grid.MaxNumber, loc.Node, Window.GetWindow(this))
         {
-            InitialName = loc.Name,
-            InitialDesc = loc.Description,
+            InitialName  = loc.Name,
+            InitialDesc  = loc.Description,
             InitialColor = loc.Color,
             InitialType  = loc.LocationType,
+            InitialCurse = loc.CurseLevel,
             Title        = "Edit Location",
         };
         if (dlg.ShowDialog() != true) return;
-        var (name, node, color, desc, locType) = dlg.Values;
+        var (name, node, color, desc, locType, curseLevel) = dlg.Values;
         _lm.Update(loc.Id, l =>
         {
             l.Name = name; l.Node = node; l.Color = color;
-            l.Description = desc; l.LocationType = locType;
+            l.Description = desc; l.LocationType = locType; l.CurseLevel = curseLevel;
         });
         RefreshLocationList();
         _canvas.Refresh();
@@ -1020,10 +1021,10 @@ public partial class MapView : UserControl
     /// Fires whenever the player entity moves, is added, or the terrain/location
     /// under the player changes.  The character sheet subscribes to this instead
     /// of polling a file.
-    /// Signature: (node, terrain, locationName, locationType)
+    /// Signature: (node, terrain, locationName, locationType, curseLevel)
     /// node = -1 when no player entity exists.
     /// </summary>
-    public event Action<int, string, string, string>? PlayerLocationChanged;
+    public event Action<int, string, string, string, string>? PlayerLocationChanged;
 
     /// <summary>
     /// Computes the player's current node/terrain/location and fires
@@ -1035,28 +1036,28 @@ public partial class MapView : UserControl
         var player = _em.All.FirstOrDefault(e => e.IsPlayer);
         if (player is null)
         {
-            PlayerLocationChanged?.Invoke(-1, "", "", "");
+            PlayerLocationChanged?.Invoke(-1, "", "", "", "");
             return;
         }
         string terrain = _tm.Get(player.Node) ?? "";
         var    loc     = _lm.All.FirstOrDefault(l => l.Node == player.Node);
         PlayerLocationChanged?.Invoke(
-            player.Node, terrain, loc?.Name ?? "", loc?.LocationType ?? "");
+            player.Node, terrain, loc?.Name ?? "", loc?.LocationType ?? "", loc?.CurseLevel ?? "");
     }
 
     /// <summary>
     /// Snapshot of the player's current location data without firing the event.
     /// Returns node=-1 when no player entity is on the map.
     /// </summary>
-    public (int Node, string Terrain, string LocationName, string LocationType) PlayerLocation
+    public (int Node, string Terrain, string LocationName, string LocationType, string CurseLevel) PlayerLocation
     {
         get
         {
             var player = _em.All.FirstOrDefault(e => e.IsPlayer);
-            if (player is null) return (-1, "", "", "");
+            if (player is null) return (-1, "", "", "", "");
             string terrain = _tm.Get(player.Node) ?? "";
             var    loc     = _lm.All.FirstOrDefault(l => l.Node == player.Node);
-            return (player.Node, terrain, loc?.Name ?? "", loc?.LocationType ?? "");
+            return (player.Node, terrain, loc?.Name ?? "", loc?.LocationType ?? "", loc?.CurseLevel ?? "");
         }
     }
 

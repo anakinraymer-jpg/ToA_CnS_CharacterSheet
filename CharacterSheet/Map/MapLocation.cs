@@ -9,6 +9,12 @@ public static class MapLocationTypes
         ["Structure", "Outdoor Structure", "Cave"];
 }
 
+/// <summary>Valid curse levels that can be applied to any hex location.</summary>
+public static class MapCurseLevels
+{
+    public static readonly IReadOnlyList<string> All = ["Lesser Curse", "Greater Curse"];
+}
+
 /// <summary>
 /// A named location pinned to a hex node. Ported from Location dataclass in locations.py.
 /// </summary>
@@ -20,6 +26,7 @@ public class MapLocation
     public string Color        { get; set; } = "#f39c12";
     public string Description  { get; set; } = "";
     public string LocationType { get; set; } = "";
+    public string CurseLevel   { get; set; } = "";  // "", "Lesser Curse", or "Greater Curse"
 }
 
 /// <summary>

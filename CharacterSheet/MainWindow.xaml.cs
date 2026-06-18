@@ -1175,12 +1175,13 @@ public partial class MainWindow : Window
     /// Receives in-process player location data directly from MapView —
     /// replaces the old file-poll approach.
     /// </summary>
-    private void OnPlayerLocationChanged(int node, string terrain, string locName, string locType)
+    private void OnPlayerLocationChanged(int node, string terrain, string locName, string locType, string curseLevel)
     {
         _state.PlayerNode         = node;
         _state.PlayerTerrain      = terrain;
         _state.PlayerLocationName = locName;
         _state.PlayerLocationType = locType;
+        _state.PlayerCurseLevel   = curseLevel;
 
         bool isDruid = _state.CoreAbility.Equals("Druid", StringComparison.OrdinalIgnoreCase);
         // Bonus active when outdoors (no location type on the current hex).
@@ -1204,8 +1205,8 @@ public partial class MainWindow : Window
             UpdateMountaineerScoutBonus(""); // no map → terrain unknown → remove bonus
             return;
         }
-        var (node, terrain, locName, locType) = _mapView.PlayerLocation;
-        OnPlayerLocationChanged(node, terrain, locName, locType);
+        var (node, terrain, locName, locType, curseLevel) = _mapView.PlayerLocation;
+        OnPlayerLocationChanged(node, terrain, locName, locType, curseLevel);
     }
 
     // ── Mountaineer Scout Bonus ───────────────────────────────────────

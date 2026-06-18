@@ -740,6 +740,7 @@ public class MapAddLocationDialog : MapDialog
     private readonly TextBox        _name;
     private readonly IntegerBox     _node;
     private readonly ComboBox       _type;
+    private readonly ComboBox       _curse;
     private readonly TextBox        _desc;
     private readonly ColorPickerBox _color;
 
@@ -755,10 +756,20 @@ public class MapAddLocationDialog : MapDialog
         }
         get => (_type.SelectedItem as string) ?? "";
     }
+    public string InitialCurse
+    {
+        init
+        {
+            int idx = _curse.Items.IndexOf(value);
+            _curse.SelectedIndex = idx >= 0 ? idx : 0;
+        }
+        get => (_curse.SelectedItem as string) ?? "";
+    }
 
-    public (string Name, int Node, string Color, string Description, string LocationType) Values
+    public (string Name, int Node, string Color, string Description, string LocationType, string CurseLevel) Values
         => (_name.Text.Trim(), _node.IntValue, _color.HexColor,
-            _desc.Text.Trim(), (_type.SelectedItem as string) ?? "");
+            _desc.Text.Trim(), (_type.SelectedItem as string) ?? "",
+            (_curse.SelectedItem as string) ?? "");
 
     public MapAddLocationDialog(int maxNode, int defaultNode, Window? owner)
         : base("Add Location", owner, 340, 400)
@@ -772,6 +783,10 @@ public class MapAddLocationDialog : MapDialog
         sp.Children.Add(Label("Type:"));
         _type = Combo(MapLocationTypes.All.Prepend(""));
         sp.Children.Add(_type);
+
+        sp.Children.Add(Label("Curse:"));
+        _curse = Combo(MapCurseLevels.All.Prepend(""));
+        sp.Children.Add(_curse);
 
         sp.Children.Add(Label("Hex node:"));
         _node = IntInput(defaultNode, 1, maxNode);
