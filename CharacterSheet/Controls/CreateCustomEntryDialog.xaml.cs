@@ -17,10 +17,7 @@ public partial class CreateCustomEntryDialog : Window
 
         BtnAdd.Click         += (_, _) => TryConfirm();
         BtnCancel.Click      += (_, _) => { DialogResult = false; };
-        BtnAddGrant.Click    += (_, _) => TryAddGrant();
-        BtnRemoveGrant.Click += (_, _) => RemoveSelectedGrant();
-        LbGrants.SelectionChanged += (_, _) =>
-            BtnRemoveGrant.IsEnabled = LbGrants.SelectedItem != null;
+        BtnAddGrant.Click += (_, _) => TryAddGrant();
 
         TbGrantFloor.KeyDown += (_, ke) => { if (ke.Key == Key.Enter) { TryAddGrant(); ke.Handled = true; } };
 
@@ -50,10 +47,6 @@ public partial class CreateCustomEntryDialog : Window
                 break;
             case Key.Escape:
                 DialogResult = false;
-                e.Handled = true;
-                break;
-            case Key.Delete when LbGrants.SelectedItem != null && LbGrants.IsKeyboardFocusWithin:
-                RemoveSelectedGrant();
                 e.Handled = true;
                 break;
         }
@@ -94,23 +87,49 @@ public partial class CreateCustomEntryDialog : Window
         GrantNamePicker.Focus();
     }
 
-    private void RemoveSelectedGrant()
+    private void RemoveGrant(int index)
     {
-        if (LbGrants.SelectedItem is not string selected) return;
-        var idx = _grants.FindIndex(g => FormatGrant(g) == selected);
-        if (idx >= 0)
-        {
-            _grants.RemoveAt(idx);
-            RefreshGrantsList();
-        }
+        if (index < 0 || index >= _grants.Count) return;
+        _grants.RemoveAt(index);
+        RefreshGrantsList();
     }
 
     private void RefreshGrantsList()
     {
-        LbGrants.Items.Clear();
-        foreach (var g in _grants)
-            LbGrants.Items.Add(FormatGrant(g));
-        BtnRemoveGrant.IsEnabled = false;
+        GrantsContainer.Children.Clear();
+        for (int i = 0; i < _grants.Count; i++)
+        {
+            int captured = i;
+            var row = new System.Windows.Controls.DockPanel { Margin = new System.Windows.Thickness(0, 0, 0, 3) };
+
+            var removeBtn = new System.Windows.Controls.Button
+            {
+                Content  = "×",
+                Width    = 18,
+                Height   = 18,
+                FontSize = 11,
+                Padding  = new System.Windows.Thickness(0),
+                Margin   = new System.Windows.Thickness(4, 0, 0, 0),
+                Style    = (System.Windows.Style)FindResource("RemoveButton"),
+                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            };
+            removeBtn.Click += (_, _) => RemoveGrant(captured);
+            System.Windows.Controls.DockPanel.SetDock(removeBtn, System.Windows.Controls.Dock.Right);
+
+            var label = new System.Windows.Controls.TextBlock
+            {
+                Text       = FormatGrant(_grants[captured]),
+                FontFamily = new System.Windows.Media.FontFamily("Palatino Linotype"),
+                FontSize   = 11,
+                Foreground = new System.Windows.Media.SolidColorBrush(
+                    System.Windows.Media.Color.FromRgb(0xD4, 0xA9, 0x6A)),
+                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            };
+
+            row.Children.Add(removeBtn);
+            row.Children.Add(label);
+            GrantsContainer.Children.Add(row);
+        }
     }
 
     private static string FormatGrant((string Name, int FloorRating) g) =>

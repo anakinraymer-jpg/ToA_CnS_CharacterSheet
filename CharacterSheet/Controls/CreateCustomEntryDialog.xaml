@@ -12,7 +12,13 @@
         ShowInTaskbar="False">
 
   <Window.Resources>
-    <ResourceDictionary Source="/Resources/Themes.xaml"/>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/Resources/Themes.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+      <!-- Make SkillPickerBox text match other dialog inputs -->
+      <Style x:Key="RowNameTextBox" TargetType="TextBox" BasedOn="{StaticResource DialogTextBox}"/>
+    </ResourceDictionary>
   </Window.Resources>
 
   <Border Padding="20,16,20,18">
@@ -44,45 +50,8 @@
                    FontFamily="Palatino Linotype" FontSize="9" FontStyle="Italic"
                    Foreground="#887A5A" TextWrapping="Wrap" Margin="0,0,0,8"/>
 
-        <!-- Grant list (selectable for removal) -->
-        <ListBox x:Name="LbGrants"
-                 Background="#0A0604"
-                 BorderBrush="#5A2E0E" BorderThickness="1"
-                 MinHeight="32" MaxHeight="120"
-                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                 Margin="0,0,0,4">
-          <ListBox.ItemContainerStyle>
-            <Style TargetType="ListBoxItem">
-              <Setter Property="Foreground"  Value="#D4A96A"/>
-              <Setter Property="FontFamily"  Value="Palatino Linotype"/>
-              <Setter Property="FontSize"    Value="11"/>
-              <Setter Property="Padding"     Value="6,3"/>
-              <Setter Property="Template">
-                <Setter.Value>
-                  <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}">
-                      <ContentPresenter/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                      <Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="Bd" Property="Background" Value="#3A2010"/>
-                      </Trigger>
-                      <Trigger Property="IsSelected" Value="True">
-                        <Setter TargetName="Bd" Property="Background" Value="#4A2E10"/>
-                      </Trigger>
-                    </ControlTemplate.Triggers>
-                  </ControlTemplate>
-                </Setter.Value>
-              </Setter>
-            </Style>
-          </ListBox.ItemContainerStyle>
-        </ListBox>
-        <Button x:Name="BtnRemoveGrant"
-                Content="Remove Selected"
-                Style="{StaticResource CtrlButton}"
-                IsEnabled="False"
-                Padding="10,4" HorizontalAlignment="Left"
-                Margin="0,0,0,10"/>
+        <!-- Dynamically populated grant rows (each has an x button) -->
+        <StackPanel x:Name="GrantsContainer" Margin="0,0,0,8"/>
 
         <!-- Inline add row -->
         <TextBlock Text="ADD A SKILL GRANT"
