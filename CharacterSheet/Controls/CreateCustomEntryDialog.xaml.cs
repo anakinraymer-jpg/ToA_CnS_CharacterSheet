@@ -22,7 +22,6 @@ public partial class CreateCustomEntryDialog : Window
         LbGrants.SelectionChanged += (_, _) =>
             BtnRemoveGrant.IsEnabled = LbGrants.SelectedItem != null;
 
-        TbGrantName.KeyDown  += (_, ke) => { if (ke.Key == Key.Enter) { TryAddGrant(); ke.Handled = true; } };
         TbGrantFloor.KeyDown += (_, ke) => { if (ke.Key == Key.Enter) { TryAddGrant(); ke.Handled = true; } };
 
         Loaded += (_, _) => TbName.Focus();
@@ -42,7 +41,11 @@ public partial class CreateCustomEntryDialog : Window
         switch (e.Key)
         {
             case Key.Enter when !e.IsRepeat:
-                TryConfirm();
+                if (SkillGrantsSection.Visibility == Visibility.Visible &&
+                    (GrantNamePicker.IsKeyboardFocusWithin || TbGrantFloor.IsFocused))
+                    TryAddGrant();
+                else
+                    TryConfirm();
                 e.Handled = true;
                 break;
             case Key.Escape:
@@ -68,15 +71,15 @@ public partial class CreateCustomEntryDialog : Window
 
     private void TryAddGrant()
     {
-        string name = TbGrantName.Text.Trim();
+        string name = GrantNamePicker.SelectedSkill?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(name))
         {
-            ShowGrantError("Please enter a skill name.");
+            ShowGrantError("Please select a skill.");
             return;
         }
         if (!int.TryParse(TbGrantFloor.Text.Trim(), out int rating) || rating < 3 || rating > 18)
         {
-            ShowGrantError("Floor rating must be 3 – 18.");
+            ShowGrantError("Floor rating must be 3 - 18.");
             return;
         }
         if (_grants.Any(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
@@ -87,8 +90,8 @@ public partial class CreateCustomEntryDialog : Window
         TbGrantError.Visibility = Visibility.Collapsed;
         _grants.Add((name, rating));
         RefreshGrantsList();
-        TbGrantName.Clear();
-        TbGrantName.Focus();
+        GrantNamePicker.SelectedSkill = "";
+        GrantNamePicker.Focus();
     }
 
     private void RemoveSelectedGrant()

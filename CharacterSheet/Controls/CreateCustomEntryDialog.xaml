@@ -1,6 +1,7 @@
 <Window x:Class="CharacterSheet.Controls.CreateCustomEntryDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:CharacterSheet.Controls"
         Title="Create Custom Entry"
         Width="340"
         SizeToContent="Height"
@@ -93,9 +94,7 @@
             <ColumnDefinition Width="52"/>
             <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <TextBox x:Name="TbGrantName" Grid.Column="0"
-                   Style="{StaticResource DialogTextBox}"
-                   ToolTip="Skill name"/>
+          <ctrl:SkillPickerBox x:Name="GrantNamePicker" Grid.Column="0"/>
           <TextBox x:Name="TbGrantFloor" Grid.Column="1"
                    Style="{StaticResource DialogTextBox}"
                    Text="9" Margin="4,0"
