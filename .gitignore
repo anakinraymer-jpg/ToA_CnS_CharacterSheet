@@ -8,6 +8,7 @@ publish/
 *.user
 *.suo
 .idea/
+*_wpftmp.csproj
 
 # OS
 Thumbs.db
