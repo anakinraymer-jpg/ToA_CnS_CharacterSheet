@@ -350,7 +350,7 @@
               </Border>
               <Rectangle Height="1" Fill="{StaticResource BrownLtBrush}" Opacity="0.35" Margin="0,0,0,10"/>
               <TextBlock Text="CORE ABILITY" Style="{StaticResource SectionHeader}"/>
-              <ctrl:SkillPickerBox
+              <ctrl:SkillPickerBox x:Name="CaSkillPicker"
                        SelectedSkill="{Binding CoreAbility, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                        EntryKey="CoreAbility"/>
               <!-- Druid Wild Bonus banner -->
@@ -370,24 +370,6 @@
                            FontFamily="Palatino Linotype" FontSize="12"
                            Foreground="#5EBF5E"
                            HorizontalAlignment="Center"/>
-              </Border>
-              <!-- Custom core-ability bonus skills (hidden for predefined abilities) -->
-              <Border x:Name="CustomCaPanel" Visibility="Collapsed"
-                      Margin="0,10,0,0" Padding="10,8" CornerRadius="4"
-                      Background="#0A0604" BorderBrush="#5A2E0E" BorderThickness="1">
-                <StackPanel>
-                  <DockPanel Margin="0,0,0,7">
-                    <Button x:Name="BtnAddCaSkill" DockPanel.Dock="Right"
-                            Content="+" Style="{StaticResource AddButton}"
-                            ToolTip="Grant a bonus skill for this Core Ability"
-                            Click="OnBtnAddCaSkill"/>
-                    <TextBlock Text="BONUS SKILLS"
-                               FontFamily="Palatino Linotype" FontSize="9" FontWeight="Bold"
-                               Foreground="{StaticResource BrownBrush}"
-                               VerticalAlignment="Center"/>
-                  </DockPanel>
-                  <StackPanel x:Name="CustomCaSkillList"/>
-                </StackPanel>
               </Border>
             </StackPanel>
 

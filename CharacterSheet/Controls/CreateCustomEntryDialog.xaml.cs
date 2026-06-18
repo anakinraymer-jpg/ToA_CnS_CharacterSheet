@@ -3,20 +3,27 @@ using System.Windows.Input;
 
 namespace CharacterSheet.Controls;
 
-/// <summary>
-/// Minimal dialog: just a Name and Description field.
-/// Used by <see cref="SkillPickerBox"/> when the user clicks
-/// "＋ Add custom…" inside the dropdown popup.
-/// </summary>
 public partial class CreateCustomEntryDialog : Window
 {
-    public CreateCustomEntryDialog(string title)
+    private readonly List<(string Name, int FloorRating)> _grants = new();
+
+    public CreateCustomEntryDialog(string title, bool showSkillGrants = false)
     {
         InitializeComponent();
         TbTitle.Text = title;
 
-        BtnAdd.Click    += (_, _) => TryConfirm();
-        BtnCancel.Click += (_, _) => { DialogResult = false; };
+        if (showSkillGrants)
+            SkillGrantsSection.Visibility = Visibility.Visible;
+
+        BtnAdd.Click         += (_, _) => TryConfirm();
+        BtnCancel.Click      += (_, _) => { DialogResult = false; };
+        BtnAddGrant.Click    += (_, _) => TryAddGrant();
+        BtnRemoveGrant.Click += (_, _) => RemoveSelectedGrant();
+        LbGrants.SelectionChanged += (_, _) =>
+            BtnRemoveGrant.IsEnabled = LbGrants.SelectedItem != null;
+
+        TbGrantName.KeyDown  += (_, ke) => { if (ke.Key == Key.Enter) { TryAddGrant(); ke.Handled = true; } };
+        TbGrantFloor.KeyDown += (_, ke) => { if (ke.Key == Key.Enter) { TryAddGrant(); ke.Handled = true; } };
 
         Loaded += (_, _) => TbName.Focus();
     }
@@ -25,6 +32,7 @@ public partial class CreateCustomEntryDialog : Window
 
     public string EntryName        => TbName.Text?.Trim()        ?? "";
     public string EntryDescription => TbDescription.Text?.Trim() ?? "";
+    public IReadOnlyList<(string Name, int FloorRating)> SkillGrants => _grants;
 
     // ── Keyboard shortcuts ────────────────────────────────────────────────
 
@@ -41,6 +49,10 @@ public partial class CreateCustomEntryDialog : Window
                 DialogResult = false;
                 e.Handled = true;
                 break;
+            case Key.Delete when LbGrants.SelectedItem != null && LbGrants.IsKeyboardFocusWithin:
+                RemoveSelectedGrant();
+                e.Handled = true;
+                break;
         }
     }
 
@@ -50,5 +62,60 @@ public partial class CreateCustomEntryDialog : Window
     {
         if (string.IsNullOrWhiteSpace(EntryName)) return;
         DialogResult = true;
+    }
+
+    // ── Grant management ──────────────────────────────────────────────────
+
+    private void TryAddGrant()
+    {
+        string name = TbGrantName.Text.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            ShowGrantError("Please enter a skill name.");
+            return;
+        }
+        if (!int.TryParse(TbGrantFloor.Text.Trim(), out int rating) || rating < 3 || rating > 18)
+        {
+            ShowGrantError("Floor rating must be 3 – 18.");
+            return;
+        }
+        if (_grants.Any(g => g.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+        {
+            ShowGrantError("That skill is already in the list.");
+            return;
+        }
+        TbGrantError.Visibility = Visibility.Collapsed;
+        _grants.Add((name, rating));
+        RefreshGrantsList();
+        TbGrantName.Clear();
+        TbGrantName.Focus();
+    }
+
+    private void RemoveSelectedGrant()
+    {
+        if (LbGrants.SelectedItem is not string selected) return;
+        var idx = _grants.FindIndex(g => FormatGrant(g) == selected);
+        if (idx >= 0)
+        {
+            _grants.RemoveAt(idx);
+            RefreshGrantsList();
+        }
+    }
+
+    private void RefreshGrantsList()
+    {
+        LbGrants.Items.Clear();
+        foreach (var g in _grants)
+            LbGrants.Items.Add(FormatGrant(g));
+        BtnRemoveGrant.IsEnabled = false;
+    }
+
+    private static string FormatGrant((string Name, int FloorRating) g) =>
+        $"{g.Name} — floor {g.FloorRating}";
+
+    private void ShowGrantError(string msg)
+    {
+        TbGrantError.Text = msg;
+        TbGrantError.Visibility = Visibility.Visible;
     }
 }

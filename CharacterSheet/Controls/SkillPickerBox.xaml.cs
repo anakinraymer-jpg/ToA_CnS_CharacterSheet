@@ -487,6 +487,12 @@ public partial class SkillPickerBox : UserControl
 
     // ── Create custom entry ───────────────────────────────────────────────
 
+    /// <summary>
+    /// Fired after a custom Core Ability is created and committed, carrying
+    /// the bonus skill grants the user specified in the creation dialog.
+    /// </summary>
+    public event Action<IReadOnlyList<(string Name, int FloorRating)>>? CoreAbilityGrantsCreated;
+
     private void OnCreateBtnClicked(object sender, RoutedEventArgs e)
     {
         ClosePopup();
@@ -498,7 +504,7 @@ public partial class SkillPickerBox : UserControl
             _             => "Create Custom Entry",
         };
 
-        var dlg = new CreateCustomEntryDialog(title) { Owner = Window.GetWindow(this) };
+        var dlg = new CreateCustomEntryDialog(title, EntryKey == "CoreAbility") { Owner = Window.GetWindow(this) };
         if (dlg.ShowDialog() != true) return;
 
         switch (EntryKey)
@@ -507,8 +513,12 @@ public partial class SkillPickerBox : UserControl
             case "Flaw":        CustomEntryStore.AddFlaw(dlg.EntryName,        dlg.EntryDescription); break;
         }
 
-        // Select and commit the newly created entry
+        // Commit first so ApplyCoreAbilityDelta runs and clears previous CA skills
         CommitSkill(dlg.EntryName);
+
+        // Then apply grants — added after the delta is processed
+        if (EntryKey == "CoreAbility" && dlg.SkillGrants.Count > 0)
+            CoreAbilityGrantsCreated?.Invoke(dlg.SkillGrants);
     }
 
     // ── Window-level click-outside handler ───────────────────────────────

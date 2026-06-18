@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Create Custom Entry"
-        Width="320"
+        Width="340"
         SizeToContent="Height"
         ResizeMode="NoResize"
         WindowStyle="ToolWindow"
@@ -33,6 +33,81 @@
                  FontFamily="Palatino Linotype" FontSize="9"
                  Foreground="#D4A96A" Margin="0,0,0,4"/>
       <TextBox x:Name="TbDescription" Style="{StaticResource DialogTextBox}"/>
+
+      <!-- Bonus skills section (shown only when creating a Core Ability) -->
+      <StackPanel x:Name="SkillGrantsSection" Visibility="Collapsed" Margin="0,14,0,0">
+        <TextBlock Text="BONUS SKILLS"
+                   FontFamily="Palatino Linotype" FontSize="9" FontWeight="Bold"
+                   Foreground="#D4A96A" Margin="0,0,0,4"/>
+        <TextBlock Text="Skills granted at a floor rating. Cannot drop below floor; adding at floor costs 0 AP."
+                   FontFamily="Palatino Linotype" FontSize="9" FontStyle="Italic"
+                   Foreground="#887A5A" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+        <!-- Grant list (selectable for removal) -->
+        <ListBox x:Name="LbGrants"
+                 Background="#0A0604"
+                 BorderBrush="#5A2E0E" BorderThickness="1"
+                 MinHeight="32" MaxHeight="120"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                 Margin="0,0,0,4">
+          <ListBox.ItemContainerStyle>
+            <Style TargetType="ListBoxItem">
+              <Setter Property="Foreground"  Value="#D4A96A"/>
+              <Setter Property="FontFamily"  Value="Palatino Linotype"/>
+              <Setter Property="FontSize"    Value="11"/>
+              <Setter Property="Padding"     Value="6,3"/>
+              <Setter Property="Template">
+                <Setter.Value>
+                  <ControlTemplate TargetType="ListBoxItem">
+                    <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                      <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                      <Trigger Property="IsMouseOver" Value="True">
+                        <Setter TargetName="Bd" Property="Background" Value="#3A2010"/>
+                      </Trigger>
+                      <Trigger Property="IsSelected" Value="True">
+                        <Setter TargetName="Bd" Property="Background" Value="#4A2E10"/>
+                      </Trigger>
+                    </ControlTemplate.Triggers>
+                  </ControlTemplate>
+                </Setter.Value>
+              </Setter>
+            </Style>
+          </ListBox.ItemContainerStyle>
+        </ListBox>
+        <Button x:Name="BtnRemoveGrant"
+                Content="Remove Selected"
+                Style="{StaticResource CtrlButton}"
+                IsEnabled="False"
+                Padding="10,4" HorizontalAlignment="Left"
+                Margin="0,0,0,10"/>
+
+        <!-- Inline add row -->
+        <TextBlock Text="ADD A SKILL GRANT"
+                   FontFamily="Palatino Linotype" FontSize="9"
+                   Foreground="#D4A96A" Margin="0,0,0,4"/>
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="52"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <TextBox x:Name="TbGrantName" Grid.Column="0"
+                   Style="{StaticResource DialogTextBox}"
+                   ToolTip="Skill name"/>
+          <TextBox x:Name="TbGrantFloor" Grid.Column="1"
+                   Style="{StaticResource DialogTextBox}"
+                   Text="9" Margin="4,0"
+                   ToolTip="Floor rating (3-18)"/>
+          <Button x:Name="BtnAddGrant" Grid.Column="2"
+                  Content="+" Style="{StaticResource AddButton}"
+                  ToolTip="Add this skill grant"/>
+        </Grid>
+        <TextBlock x:Name="TbGrantError" Text=""
+                   Foreground="#AA3333" FontFamily="Palatino Linotype" FontSize="10"
+                   Margin="0,4,0,0" Visibility="Collapsed"/>
+      </StackPanel>
 
       <!-- Buttons -->
       <DockPanel Margin="0,18,0,0">
