@@ -53,6 +53,7 @@ public class HexMapCanvas : FrameworkElement
 
     // ── Internal flags ───────────────────────────────────────────────
     private bool            _teleport;
+    private int             _customMoveRange;   // 0 = off; >0 = BFS steps
     private bool            _originMode;
     private int             _highlightLoc = -1;
     private HashSet<string> _movedIds     = [];
@@ -284,6 +285,12 @@ public class HexMapCanvas : FrameworkElement
         if (_selected != null) SetSelected(_selected);
     }
 
+    public void SetCustomMoveRange(int range)
+    {
+        _customMoveRange = range;
+        if (_selected != null) SetSelected(_selected);
+    }
+
     public void SetSelected(MapEntity? entity)
     {
         _selected = entity;
@@ -291,7 +298,12 @@ public class HexMapCanvas : FrameworkElement
 
         if (entity != null && !_movedIds.Contains(entity.Id))
         {
-            if (_teleport)
+            if (_customMoveRange > 0)
+            {
+                foreach (var n in _grid.ReachableNodes(entity.Node, _customMoveRange))
+                    _validTargets.Add(n);
+            }
+            else if (_teleport)
             {
                 foreach (var c in _grid.AllCells)
                     if (c.Number != entity.Node) _validTargets.Add(c.Number);

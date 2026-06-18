@@ -42,6 +42,9 @@ public partial class MapView : UserControl
     private bool _dmMode;
     private bool _awaitingDmChord;
 
+    // ── Custom move range ─────────────────────────────────────────────
+    private int _customMoveRange;
+
     /// <summary>Fires whenever the current weather condition changes (empty string = no weather).</summary>
     public event Action<string>? WeatherChanged;
 
@@ -881,7 +884,41 @@ public partial class MapView : UserControl
     private void OnTeleportChanged(object s, RoutedEventArgs e)
     {
         if (_canvas is null) return;
+        if (TeleportCheck.IsChecked == true)
+        {
+            // Mutual exclusion: turn off custom move
+            _customMoveRange = 0;
+            CustomMoveCheck.IsChecked = false;
+            CustomMoveCheck.Content   = "Custom Move";
+            _canvas.SetCustomMoveRange(0);
+        }
         _canvas.SetTeleport(TeleportCheck.IsChecked == true);
+    }
+
+    private void OnCustomMoveChecked(object s, RoutedEventArgs e)
+    {
+        if (_canvas is null) return;
+        var dlg = new MapInputDialog("Custom Move", "Hexes per day:", "2", Window.GetWindow(this));
+        if (dlg.ShowDialog() == true && int.TryParse(dlg.Value, out int n) && n >= 1)
+        {
+            _customMoveRange          = Math.Clamp(n, 1, 99);
+            CustomMoveCheck.Content   = $"Custom Move ({_customMoveRange})";
+            TeleportCheck.IsChecked   = false;
+            _canvas.SetTeleport(false);
+            _canvas.SetCustomMoveRange(_customMoveRange);
+        }
+        else
+        {
+            CustomMoveCheck.IsChecked = false;   // user cancelled — don't activate
+        }
+    }
+
+    private void OnCustomMoveUnchecked(object s, RoutedEventArgs e)
+    {
+        if (_canvas is null) return;
+        _customMoveRange        = 0;
+        CustomMoveCheck.Content = "Custom Move";
+        _canvas.SetCustomMoveRange(0);
     }
 
     // ── Keyboard shortcuts ─────────────────────────────────────────────

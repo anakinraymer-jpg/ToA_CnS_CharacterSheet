@@ -303,6 +303,28 @@ public class HexGrid
                     .Select(c => _cells[c].Number)];
     }
 
+    /// <summary>
+    /// BFS flood-fill: all nodes reachable from <paramref name="startNode"/> in at most
+    /// <paramref name="steps"/> steps (the start node itself is excluded).
+    /// </summary>
+    public HashSet<int> ReachableNodes(int startNode, int steps)
+    {
+        if (!_numToCoord.TryGetValue(startNode, out var startCoord)) return [];
+        var visited  = new HashSet<int> { startNode };
+        var frontier = new List<(int Q, int R)> { startCoord };
+        for (int s = 0; s < steps && frontier.Count > 0; s++)
+        {
+            var next = new List<(int Q, int R)>();
+            foreach (var coord in frontier)
+                foreach (var nb in Neighbors(coord.Q, coord.R))
+                    if (visited.Add(_cells[nb].Number))
+                        next.Add(nb);
+            frontier = next;
+        }
+        visited.Remove(startNode);
+        return visited;
+    }
+
     public IReadOnlyList<HexCell> AllCells =>
         [.. _cells.Values.OrderBy(c => c.Number)];
 

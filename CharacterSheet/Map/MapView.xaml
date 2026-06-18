@@ -192,12 +192,18 @@
                      MaxHeight="90"/>
           </GroupBox>
 
-          <!-- ── Teleport Mode ──────────────────────────────────────────── -->
-          <CheckBox x:Name="TeleportCheck" Content="Teleport Mode"
-                    Foreground="{StaticResource MapText}" FontSize="11"
-                    Margin="0,0,0,6" Checked="OnTeleportChanged"
-                    Unchecked="OnTeleportChanged"/>
 
+          <!-- ── Move Modes ──────────────────────────────────────────────── -->
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+            <CheckBox x:Name="TeleportCheck" Content="Teleport Mode"
+                      Foreground="{StaticResource MapText}" FontSize="11"
+                      Margin="0,0,14,0" Checked="OnTeleportChanged"
+                      Unchecked="OnTeleportChanged"/>
+            <CheckBox x:Name="CustomMoveCheck" Content="Custom Move"
+                      Foreground="{StaticResource MapText}" FontSize="11"
+                      Checked="OnCustomMoveChecked"
+                      Unchecked="OnCustomMoveUnchecked"/>
+          </StackPanel>
           <!-- ── Grid Overlay ───────────────────────────────────────────── -->
           <GroupBox Header="Grid Overlay" Style="{StaticResource MapGroup}">
             <StackPanel>
