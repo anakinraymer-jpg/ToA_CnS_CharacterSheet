@@ -1,3 +1,6 @@
+# Code signing certificate (keep local — never commit)
+*.pfx
+
 # Build output
 CharacterSheet/bin/
 CharacterSheet/obj/
