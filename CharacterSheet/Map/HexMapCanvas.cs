@@ -70,6 +70,30 @@ public class HexMapCanvas : FrameworkElement
     private static readonly Typeface EntityBoldTf = new(
         new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
 
+    // ── Static frozen resources ──────────────────────────────────────
+    private static readonly Brush FogFillBrush      = Freeze(new SolidColorBrush(Color.FromArgb(245, 0, 0, 0)));
+    private static readonly Pen   WhiteLocPen        = FrozenPen(Colors.White, 1.2);
+    private static readonly Brush TerrainAbbrBrush   = Freeze(new SolidColorBrush(Color.FromArgb(130, 255, 255, 255)));
+
+    // ── Opacity-dependent draw resource cache ────────────────────────
+    private int    _cachedOpacity = -1;
+    private Pen?   _fogPen;
+    private Brush? _fogTxtBrush;
+    private Pen?   _gridNormPen;
+    private Brush? _gridTxtBrush;
+    private Pen?   _ovTgtPen, _ovSelPen, _ovLocPen;
+    private Brush? _ovTgtBrush, _ovSelBrush, _ovLocBrush, _ovTxtBrush;
+    private Pen?   _hlTgtPen;
+    private Brush? _hlTgtBrush;
+
+    // ── Per-type terrain draw caches ─────────────────────────────────
+    private readonly Dictionary<string, SolidColorBrush> _terrainBrushCache = [];
+    private readonly Dictionary<string, FormattedText>   _terrainTextCache  = [];
+    private double _terrainAbbrSz = -1;
+
+    // ── Per-color location brush cache ───────────────────────────────
+    private readonly Dictionary<string, SolidColorBrush> _locBrushCache = [];
+
     // ── Visual layer tree ────────────────────────────────────────────
     // _root carries the view transform via _rootTransform.  Setting .Matrix
     // is a pure compositor operation — zero draw calls on pan/zoom.
@@ -266,6 +290,19 @@ public class HexMapCanvas : FrameworkElement
         UpdateFogHighlightLayer();
     }
 
+    // Like RevealHex but skips the fog-highlight redraw; use when SetSelected
+    // will be called immediately after (it redraws fog highlights anyway).
+    public void RevealHexQuiet(int node)
+    {
+        FogRevealed.Add(node);
+        UpdateFogLayer();
+        UpdateLocationLayer();
+    }
+
+    // Like MarkMoved but skips the entity-layer redraw; use when SetSelected
+    // will be called immediately after (it redraws entities anyway).
+    public void MarkMovedNoRedraw(string id) => _movedIds.Add(id);
+
     public void CenterOnNode(int node)
     {
         int idx = IndexOfNode(node);
@@ -282,7 +319,8 @@ public class HexMapCanvas : FrameworkElement
 
     public void SetGridOpacity(int v)
     {
-        GridOpacity = Math.Clamp(v, 0, 255);
+        GridOpacity    = Math.Clamp(v, 0, 255);
+        _cachedOpacity = -1;   // force EnsureDrawResources to rebuild
         UpdateStaticGridLayer();
         UpdateGridOverlayLayer();
         UpdateFogLayer();
@@ -453,6 +491,67 @@ public class HexMapCanvas : FrameworkElement
     private int IndexOfNode(int node)
         => _nodeIndex != null && _nodeIndex.TryGetValue(node, out int idx) ? idx : -1;
 
+    // Rebuilds opacity-dependent brushes/pens only when GridOpacity changes.
+    private void EnsureDrawResources()
+    {
+        if (_cachedOpacity == GridOpacity) return;
+        _cachedOpacity = GridOpacity;
+        int  op   = GridOpacity;
+        byte opB  = B(op), opP = B(op + 60), txtA = B((int)(op * 1.2));
+        byte opD3 = B(op / 3), opD4 = B(op / 4);
+
+        _fogPen       = FrozenPen(Color.FromArgb(opP,  255, 255, 255), 1);
+        _fogTxtBrush  = Freeze(new SolidColorBrush(Color.FromArgb(txtA, 255, 255, 255)));
+        _gridNormPen  = FrozenPen(Color.FromArgb(opB,   80,  80,  80), 1);
+        _gridTxtBrush = Freeze(new SolidColorBrush(Color.FromArgb(txtA, 210, 210, 210)));
+        _ovTgtPen     = FrozenPen(Color.FromArgb(opP,   80, 200,  80), 2);
+        _ovSelPen     = FrozenPen(Color.FromArgb(opP,  255, 200,   0), 3);
+        _ovLocPen     = FrozenPen(Color.FromArgb(opP,  180, 100, 255), 2);
+        _ovTgtBrush   = Freeze(new SolidColorBrush(Color.FromArgb(opD3,  80, 200,  80)));
+        _ovSelBrush   = Freeze(new SolidColorBrush(Color.FromArgb(opD3, 255, 200,   0)));
+        _ovLocBrush   = Freeze(new SolidColorBrush(Color.FromArgb(opD4, 180, 100, 255)));
+        _ovTxtBrush   = Freeze(new SolidColorBrush(Color.FromArgb(txtA, 210, 210, 210)));
+        _hlTgtPen     = FrozenPen(Color.FromArgb(opP,   80, 200,  80), 2);
+        _hlTgtBrush   = Freeze(new SolidColorBrush(Color.FromArgb(opD3,  80, 200,  80)));
+    }
+
+    private SolidColorBrush GetTerrainBrush(string t)
+    {
+        if (!_terrainBrushCache.TryGetValue(t, out var b))
+        {
+            var col = ParseColor(MapTerrain.GetColor(t));
+            col.A = MapTerrain.GetAlpha(t);
+            b = Freeze(new SolidColorBrush(col));
+            _terrainBrushCache[t] = b;
+        }
+        return b;
+    }
+
+    private FormattedText GetTerrainText(string t, double sz)
+    {
+        if (Math.Abs(_terrainAbbrSz - sz) > 0.01) { _terrainTextCache.Clear(); _terrainAbbrSz = sz; }
+        if (!_terrainTextCache.TryGetValue(t, out var ft))
+        {
+            ft = MakeText(MapTerrain.GetAbbr(t), sz, TerrainAbbrBrush);
+            _terrainTextCache[t] = ft;
+        }
+        return ft;
+    }
+
+    private SolidColorBrush GetLocBrush(string colorHex)
+    {
+        if (!_locBrushCache.TryGetValue(colorHex, out var b))
+        {
+            b = Freeze(new SolidColorBrush(ParseColor(colorHex)));
+            _locBrushCache[colorHex] = b;
+        }
+        return b;
+    }
+
+    private static T Freeze<T>(T f) where T : Freezable { f.Freeze(); return f; }
+    private static Pen FrozenPen(Color c, double t)
+        => Freeze(new Pen(Freeze(new SolidColorBrush(c)), t));
+
     // ── Draw methods ─────────────────────────────────────────────────
 
     private void DrawTerrain(DrawingContext dc)
@@ -460,20 +559,13 @@ public class HexMapCanvas : FrameworkElement
         EnsureGeoCache();
         double abbrSz = Math.Max(5, _grid.Size * 0.16);
         var    cells  = _grid.AllCells;
-
         for (int i = 0; i < cells.Count; i++)
         {
-            var cell = cells[i];
-            var t    = _tm.Get(cell.Number);
+            var t = _tm.Get(cells[i].Number);
             if (t is null) continue;
-
-            var fill = ParseColor(MapTerrain.GetColor(t));
-            fill.A   = MapTerrain.GetAlpha(t);
-            dc.DrawGeometry(new SolidColorBrush(fill), null, _geoCache![i]);
-
+            dc.DrawGeometry(GetTerrainBrush(t), null, _geoCache![i]);
             var (cx, cy) = _centerCache![i];
-            var ft = MakeText(MapTerrain.GetAbbr(t), abbrSz,
-                              new SolidColorBrush(Color.FromArgb(130, 255, 255, 255)));
+            var ft = GetTerrainText(t, abbrSz);
             dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - _grid.Size * 0.48));
         }
     }
@@ -482,23 +574,16 @@ public class HexMapCanvas : FrameworkElement
     // Rebuilt only when the grid layout or opacity changes.
     private void DrawStaticGrid(DrawingContext dc)
     {
-        int  op   = GridOpacity;
-        byte opB  = B(op);
-        byte txtA = B((int)(op * 1.2));
-
-        var   pNorm = Pen(Color.FromArgb(opB, 80, 80, 80), 1);
-        Brush bTxt  = new SolidColorBrush(Color.FromArgb(txtA, 210, 210, 210));
-        double fSz  = Math.Max(6, _grid.Size * 0.28);
-
+        EnsureDrawResources();
+        double fSz = Math.Max(6, _grid.Size * 0.28);
         EnsureGeoCache();
         EnsureNumTextCache(fSz);
         var cells = _grid.AllCells;
-
         for (int i = 0; i < cells.Count; i++)
         {
-            dc.DrawGeometry(null, pNorm, _geoCache![i]);
+            dc.DrawGeometry(null, _gridNormPen, _geoCache![i]);
             var ft = _numTextCache![i];
-            ft.SetForegroundBrush(bTxt);
+            ft.SetForegroundBrush(_gridTxtBrush!);
             var (cx, cy) = _centerCache![i];
             dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - ft.Height / 2));
         }
@@ -508,69 +593,46 @@ public class HexMapCanvas : FrameworkElement
     // Drawn on top of the static grid.  In normal play processes ~6 cells.
     private void DrawGridOverlay(DrawingContext dc)
     {
-        int  op   = GridOpacity;
-        byte opP  = B(op + 60);
-        byte opD3 = B(op / 3), opD4 = B(op / 4);
-        byte txtA = B((int)(op * 1.2));
-
-        var   pTgt  = Pen(Color.FromArgb(opP,  80, 200,  80), 2);
-        var   pSel  = Pen(Color.FromArgb(opP, 255, 200,   0), 3);
-        var   pLoc  = Pen(Color.FromArgb(opP, 180, 100, 255), 2);
-        Brush bTgt  = new SolidColorBrush(Color.FromArgb(opD3,  80, 200,  80));
-        Brush bSel  = new SolidColorBrush(Color.FromArgb(opD3, 255, 200,   0));
-        Brush bLoc  = new SolidColorBrush(Color.FromArgb(opD4, 180, 100, 255));
-        Brush bTxt  = new SolidColorBrush(Color.FromArgb(txtA, 210, 210, 210));
-        double fSz  = Math.Max(6, _grid.Size * 0.28);
-
+        EnsureDrawResources();
+        double fSz = Math.Max(6, _grid.Size * 0.28);
         EnsureGeoCache();
         EnsureNumTextCache(fSz);
 
-        // Draw: fill + brighter border + number on top (number must be last so fill doesn't cover it)
-        void Draw(int node, Brush fill, System.Windows.Media.Pen pen)
+        void Draw(int node, Brush fill, Pen pen)
         {
             int i = IndexOfNode(node);
             if (i < 0) return;
             dc.DrawGeometry(fill, pen, _geoCache![i]);
             var ft = _numTextCache![i];
-            ft.SetForegroundBrush(bTxt);
+            ft.SetForegroundBrush(_ovTxtBrush!);
             var (cx, cy) = _centerCache![i];
             dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - ft.Height / 2));
         }
 
-        // Priority order: targets (lowest), location, selected (highest — drawn last)
         foreach (var node in _validTargets)
-            Draw(node, bTgt, pTgt);
+            Draw(node, _ovTgtBrush!, _ovTgtPen!);
 
         if (_highlightLoc >= 0)
-            Draw(_highlightLoc, bLoc, pLoc);
+            Draw(_highlightLoc, _ovLocBrush!, _ovLocPen!);
 
         if (_selected != null)
-            Draw(_selected.Node, bSel, pSel);
+            Draw(_selected.Node, _ovSelBrush!, _ovSelPen!);
     }
 
     private void DrawLocations(DrawingContext dc)
     {
-        double nameSz   = Math.Max(5, _grid.Size * 0.14);
-        var    whitePen = Pen(Colors.White, 1.2);
-
+        double nameSz = Math.Max(5, _grid.Size * 0.14);
         foreach (var loc in _lm.All)
         {
             var pos = _grid.PixelOf(loc.Node);
             if (pos is null) continue;
             var (cx, cy) = pos.Value;
             double h     = Math.Max(6.0, _grid.Size * 0.18);
-
             (double X, double Y)[] diamond =
-            [
-                (cx,     cy - h),
-                (cx + h, cy),
-                (cx,     cy + h),
-                (cx - h, cy),
-            ];
-            var col = ParseColor(loc.Color);
-            dc.DrawGeometry(new SolidColorBrush(col), whitePen, MakePoly(diamond));
-
-            var ft = MakeText(loc.Name, nameSz, new SolidColorBrush(col));
+                [(cx, cy - h), (cx + h, cy), (cx, cy + h), (cx - h, cy)];
+            var fill = GetLocBrush(loc.Color);
+            dc.DrawGeometry(fill, WhiteLocPen, MakePoly(diamond));
+            var ft = MakeText(loc.Name, nameSz, fill);
             dc.DrawText(ft, new Point(cx - ft.Width / 2, cy + h + 2));
         }
     }
@@ -629,26 +691,16 @@ public class HexMapCanvas : FrameworkElement
     private void DrawFog(DrawingContext dc)
     {
         if (!FogEnabled) return;
-
         EnsureGeoCache();
-        int  op   = GridOpacity;
-        byte opP  = B(op + 60);
-        byte txtA = B((int)(op * 1.2));
-        double fSz = Math.Max(6, _grid.Size * 0.28);
-
-        Brush fogFill  = new SolidColorBrush(Color.FromArgb(245, 0, 0, 0));
-        var   pWhite   = Pen(Color.FromArgb(opP, 255, 255, 255), 1);
-        Brush txtBrush = new SolidColorBrush(Color.FromArgb(txtA, 255, 255, 255));
-
-        EnsureNumTextCache(fSz);
+        EnsureDrawResources();
+        EnsureNumTextCache(Math.Max(6, _grid.Size * 0.28));
         var cells = _grid.AllCells;
-
         for (int i = 0; i < cells.Count; i++)
         {
             if (FogRevealed.Contains(cells[i].Number)) continue;
-            dc.DrawGeometry(fogFill, pWhite, _geoCache![i]);   // fill+border combined
+            dc.DrawGeometry(FogFillBrush, _fogPen, _geoCache![i]);
             var ft = _numTextCache![i];
-            ft.SetForegroundBrush(txtBrush);
+            ft.SetForegroundBrush(_fogTxtBrush!);
             var (cx, cy) = _centerCache![i];
             dc.DrawText(ft, new Point(cx - ft.Width / 2, cy - ft.Height / 2));
         }
@@ -659,21 +711,14 @@ public class HexMapCanvas : FrameworkElement
     private void DrawFogHighlights(DrawingContext dc)
     {
         if (!FogEnabled || _validTargets.Count == 0) return;
-
         EnsureGeoCache();
-        int  op   = GridOpacity;
-        byte opP  = B(op + 60);
-        byte opD3 = B(op / 3);
-
-        Brush tgtFill = new SolidColorBrush(Color.FromArgb(opD3, 80, 200, 80));
-        var   pTgt    = Pen(Color.FromArgb(opP, 80, 200, 80), 2);
-
+        EnsureDrawResources();
         foreach (var node in _validTargets)
         {
             if (FogRevealed.Contains(node)) continue;
             int i = IndexOfNode(node);
             if (i < 0) continue;
-            dc.DrawGeometry(tgtFill, pTgt, _geoCache![i]);
+            dc.DrawGeometry(_hlTgtBrush, _hlTgtPen, _geoCache![i]);
         }
     }
 

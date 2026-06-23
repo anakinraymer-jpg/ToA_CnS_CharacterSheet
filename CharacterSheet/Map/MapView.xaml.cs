@@ -497,7 +497,7 @@ public partial class MapView : UserControl
 
         _em.Move(entity.Id, targetNode);
         if (entity.IsPlayer) NotifyPlayerLocation();
-        _canvas.RevealHex(targetNode);
+        _canvas.RevealHexQuiet(targetNode);   // skips fog-highlight; SetSelected redraws it
         RefreshLocationList();
         CheckMergeOpportunity(targetNode, entity);
 
@@ -512,7 +512,7 @@ public partial class MapView : UserControl
         if (isBonus)
         {
             _bonusMoveEntityId = "";
-            _canvas.MarkMoved(entity.Id);
+            _canvas.MarkMovedNoRedraw(entity.Id);   // entity layer redrawn by SetSelected below
             _canvas.SetSelected(entity);
             if (_advanceDayAfterBonusMove)
             {
@@ -537,14 +537,13 @@ public partial class MapView : UserControl
             else
             {
                 _bonusMoveEntityId = "";
-                _canvas.MarkMoved(entity.Id);
+                _canvas.MarkMovedNoRedraw(entity.Id);   // entity layer redrawn by SetSelected below
                 _canvas.SetSelected(entity);
                 SetStatus($"'{entity.Name}' moved → node {targetNode}.  [{ProgressStr()}]");
                 CheckDayEnd();
             }
         }
 
-        RefreshEntityList();
         UpdateDayUi();
     }
 
