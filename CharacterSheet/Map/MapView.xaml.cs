@@ -73,11 +73,12 @@ public partial class MapView : UserControl
         CanvasHost.Children.Add(_canvas);
 
         // Wire canvas events
-        _canvas.EntitySelected      += OnEntitySelected;
-        _canvas.MoveRequested       += OnMoveRequested;
-        _canvas.OriginClicked       += OnOriginClicked;
-        _canvas.RightClickedEntity  += OnRightClickEntity;
-        _canvas.RightClickedHex     += OnCanvasRightClickHex;
+        _canvas.EntitySelected          += OnEntitySelected;
+        _canvas.MoveRequested           += OnMoveRequested;
+        _canvas.OriginClicked           += OnOriginClicked;
+        _canvas.RightClickedEntity      += OnRightClickEntity;
+        _canvas.RightClickedHex         += OnCanvasRightClickHex;
+        _canvas.HexRevealedInRevealMode += OnHexRevealedInRevealMode;
 
         // Populate weather combo
         WeatherCombo.Items.Add("— None —");
@@ -361,6 +362,7 @@ public partial class MapView : UserControl
             LocationList.Items.Add(item);
         }
         LocationList.SelectionChanged += OnLocationListSelectionChanged;
+        RefreshSearchBox();
     }
 
     private void ToggleDmMode()
@@ -921,6 +923,89 @@ public partial class MapView : UserControl
         CustomMoveCheck.Content = "Custom Move";
         _canvas.SetCustomMoveRange(0);
     }
+
+    // ── Reveal Mode ────────────────────────────────────────────────────
+
+    private void OnRevealModeChecked(object s, RoutedEventArgs e)
+    {
+        if (_canvas is null) return;
+        _canvas.RevealMode        = true;
+        TeleportCheck.IsChecked   = false;
+        CustomMoveCheck.IsChecked = false;
+    }
+
+    private void OnRevealModeUnchecked(object s, RoutedEventArgs e)
+    {
+        if (_canvas is not null) _canvas.RevealMode = false;
+    }
+
+    private void OnHexRevealedInRevealMode(int node)
+    {
+        RefreshLocationList();
+        NotifyPlayerLocation();
+        SetStatus($"Hex {node} revealed.");
+    }
+
+    // ── Search / Navigate ──────────────────────────────────────────────
+
+    private void RefreshSearchBox()
+    {
+        SearchCombo.SelectionChanged -= OnSearchSelectionChanged;
+        var prev = SearchCombo.Text;
+        SearchCombo.Items.Clear();
+        foreach (var loc in _lm.All)
+        {
+            if (!_canvas.FogRevealed.Contains(loc.Node)) continue;
+            SearchCombo.Items.Add(new ComboBoxItem
+            {
+                Content = $"{loc.Name}  — Hex {loc.Node}",
+                Tag     = loc.Node,
+            });
+        }
+        SearchCombo.Text = prev;
+        SearchCombo.SelectionChanged += OnSearchSelectionChanged;
+    }
+
+    private void NavigateTo(int node)
+    {
+        _canvas.CenterOnNode(node);
+        SetStatus($"Centered on Hex {node}.");
+        SearchCombo.SelectionChanged -= OnSearchSelectionChanged;
+        SearchCombo.Text             = "";
+        SearchCombo.SelectedIndex    = -1;
+        SearchCombo.SelectionChanged += OnSearchSelectionChanged;
+    }
+
+    private void TrySearchNavigate()
+    {
+        string text = SearchCombo.Text.Trim();
+        if (string.IsNullOrEmpty(text)) return;
+        if (int.TryParse(text, out int node))
+        {
+            NavigateTo(node);
+            return;
+        }
+        var loc = _lm.All.FirstOrDefault(l =>
+            _canvas.FogRevealed.Contains(l.Node) &&
+            l.Name.Contains(text, StringComparison.OrdinalIgnoreCase));
+        if (loc != null)
+            NavigateTo(loc.Node);
+        else
+            SetStatus($"No revealed hex or location found for '{text}'.");
+    }
+
+    private void OnSearchKeyDown(object s, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { TrySearchNavigate(); e.Handled = true; }
+    }
+
+    private void OnSearchSelectionChanged(object s, SelectionChangedEventArgs e)
+    {
+        if (SearchCombo.SelectedItem is ComboBoxItem item && item.Tag is int node)
+            NavigateTo(node);
+    }
+
+    private void OnSearchGoClick(object s, RoutedEventArgs e) => TrySearchNavigate();
 
     // ── Keyboard shortcuts ─────────────────────────────────────────────
 

@@ -30,6 +30,8 @@ public class HexMapCanvas : FrameworkElement
     public event Action<MapEntity>?      RightClickedEntity;
     /// <summary>Fires when the user right-clicks an empty hex (no entity present).</summary>
     public event Action<int>?            RightClickedHex;
+    /// <summary>Fires when the user left-clicks a hex while RevealMode is on.</summary>
+    public event Action<int>?            HexRevealedInRevealMode;
 
     // ── Data sources ─────────────────────────────────────────────────
     private readonly HexGrid            _grid;
@@ -49,6 +51,7 @@ public class HexMapCanvas : FrameworkElement
     // ── Public flags ─────────────────────────────────────────────────
     public bool         FogEnabled  { get; set; }
     public HashSet<int> FogRevealed { get; } = [];
+    public bool         RevealMode  { get; set; }
     public int          GridOpacity { get; set; } = 180;
 
     // ── Internal flags ───────────────────────────────────────────────
@@ -261,6 +264,20 @@ public class HexMapCanvas : FrameworkElement
         FogEnabled = v;
         UpdateFogLayer();
         UpdateFogHighlightLayer();
+    }
+
+    public void CenterOnNode(int node)
+    {
+        int idx = IndexOfNode(node);
+        if (idx < 0 || _centerCache == null) return;
+        var (wx, wy) = _centerCache[idx];
+        var screenPt = _viewMatrix.Transform(new System.Windows.Point(wx, wy));
+        double dx = ActualWidth  / 2 - screenPt.X;
+        double dy = ActualHeight / 2 - screenPt.Y;
+        var m = _viewMatrix;
+        m.Translate(dx, dy);
+        _viewMatrix = m;
+        ApplyViewTransform();
     }
 
     public void SetGridOpacity(int v)
@@ -751,6 +768,14 @@ public class HexMapCanvas : FrameworkElement
             var cell = _grid.Cell(coord.Value.Q, coord.Value.R);
             if (cell is null) return;
             int clicked = cell.Number;
+
+            if (RevealMode)
+            {
+                RevealHex(clicked);
+                HexRevealedInRevealMode?.Invoke(clicked);
+                e.Handled = true;
+                return;
+            }
 
             if (_selected != null)
             {

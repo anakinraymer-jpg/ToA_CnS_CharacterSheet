@@ -102,6 +102,27 @@
                     HorizontalScrollBarVisibility="Disabled">
         <StackPanel Margin="8" Background="Transparent">
 
+          <!-- __ Search ______________________________________________________________ -->
+          <GroupBox Header="Search" Style="{StaticResource MapGroup}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <ComboBox x:Name="SearchCombo" Grid.Column="0"
+                        IsEditable="True" IsTextSearchEnabled="False"
+                        Background="{StaticResource MapListBg}"
+                        Foreground="{StaticResource MapText}"
+                        BorderBrush="{StaticResource MapBtnBdr}"
+                        FontSize="11" Margin="0,0,4,0"
+                        ToolTip="Type a hex number or pick a revealed location, then press Enter or Go"
+                        KeyDown="OnSearchKeyDown"
+                        SelectionChanged="OnSearchSelectionChanged"/>
+              <Button Content="Go" Grid.Column="1" Style="{StaticResource MapBtn}"
+                      Click="OnSearchGoClick"/>
+            </Grid>
+          </GroupBox>
+
           <!-- ── Day ──────────────────────────────────────────────────── -->
           <GroupBox Header="Day" Style="{StaticResource MapGroup}">
             <StackPanel>
@@ -249,15 +270,21 @@
             </UniformGrid>
           </GroupBox>
 
-          <!-- ── Fog controls ───────────────────────────────────────────── -->
+          <!-- __ Fog controls _________________________________________________________ -->
           <GroupBox Header="Fog of War" Style="{StaticResource MapGroup}">
-            <StackPanel Orientation="Horizontal">
-              <CheckBox x:Name="FogEnabledCheck" Content="Fog of War"
-                        Foreground="{StaticResource MapText}" FontSize="11"
-                        IsChecked="True" Checked="OnFogChanged" Unchecked="OnFogChanged"/>
-              <Button Content="Reset Fog" Style="{StaticResource MapBtn}"
-                      Click="OnResetFogClick"
-                      ToolTip="Clear revealed hexes; keep entity positions visible"/>
+            <StackPanel>
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                <CheckBox x:Name="FogEnabledCheck" Content="Fog of War"
+                          Foreground="{StaticResource MapText}" FontSize="11"
+                          IsChecked="True" Checked="OnFogChanged" Unchecked="OnFogChanged"/>
+                <Button Content="Reset Fog" Style="{StaticResource MapBtn}"
+                        Margin="8,0,0,0" Click="OnResetFogClick"
+                        ToolTip="Clear revealed hexes; keep entity positions visible"/>
+              </StackPanel>
+              <CheckBox x:Name="RevealModeCheck" Content="Reveal Mode"
+                        Foreground="{StaticResource MapAccent}" FontSize="11"
+                        ToolTip="Click hexes to reveal them (remove fog of war)"
+                        Checked="OnRevealModeChecked" Unchecked="OnRevealModeUnchecked"/>
             </StackPanel>
           </GroupBox>
 
