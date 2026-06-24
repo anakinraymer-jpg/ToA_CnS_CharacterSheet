@@ -30,8 +30,8 @@ public class HexMapCanvas : FrameworkElement
     public event Action<MapEntity>?      RightClickedEntity;
     /// <summary>Fires when the user right-clicks an empty hex (no entity present).</summary>
     public event Action<int>?            RightClickedHex;
-    /// <summary>Fires when the user left-clicks a hex while RevealMode is on.</summary>
-    public event Action<int>?            HexRevealedInRevealMode;
+    /// <summary>Fires when a hex is revealed or un-revealed in RevealMode (node=-1 signals drag-end batch).</summary>
+    public event Action<int, bool>?      HexToggledInRevealMode;
 
     // ── Data sources ─────────────────────────────────────────────────
     private readonly HexGrid            _grid;
@@ -118,6 +118,12 @@ public class HexMapCanvas : FrameworkElement
     private int                   _dragCorner = -1;
     private Point?                _dragStart;
     private (double X, double Y)? _dragOrigin;
+
+    // ── Reveal-mode drag state ───────────────────────────────────────
+    private bool _revealDragging;
+    private bool _revealDragReveal;     // true = revealing stroke, false = un-revealing
+    private int  _revealDragLastNode = -1;
+    private bool _revealDragMoved;      // true once the drag moved to a second hex
 
     // ── Corner warp visuals ──────────────────────────────────────────
     private static readonly Color[] CornerColors =
@@ -816,8 +822,17 @@ public class HexMapCanvas : FrameworkElement
 
             if (RevealMode)
             {
-                RevealHex(clicked);
-                HexRevealedInRevealMode?.Invoke(clicked);
+                bool wasRevealed    = FogRevealed.Contains(clicked);
+                _revealDragReveal   = !wasRevealed;
+                _revealDragging     = true;
+                _revealDragLastNode = clicked;
+                _revealDragMoved    = false;
+                CaptureMouse();
+
+                if (wasRevealed) { FogRevealed.Remove(clicked); UpdateFogLayer(); UpdateLocationLayer(); }
+                else             { RevealHex(clicked); }
+
+                HexToggledInRevealMode?.Invoke(clicked, _revealDragReveal);
                 e.Handled = true;
                 return;
             }
@@ -874,6 +889,33 @@ public class HexMapCanvas : FrameworkElement
             return;
         }
 
+        if (_revealDragging && e.LeftButton == MouseButtonState.Pressed)
+        {
+            var sc    = ToScene(screen);
+            var coord = _grid.PixelToNearest(sc.X, sc.Y);
+            if (coord is not null)
+            {
+                var cell = _grid.Cell(coord.Value.Q, coord.Value.R);
+                if (cell is not null && cell.Number != _revealDragLastNode)
+                {
+                    int node = cell.Number;
+                    _revealDragLastNode = node;
+                    _revealDragMoved    = true;
+                    bool shouldAct = _revealDragReveal
+                        ? !FogRevealed.Contains(node)
+                        :  FogRevealed.Contains(node);
+                    if (shouldAct)
+                    {
+                        if (_revealDragReveal) FogRevealed.Add(node);
+                        else                   FogRevealed.Remove(node);
+                        UpdateFogLayer();   // immediate visual feedback only; full refresh on MouseUp
+                    }
+                }
+            }
+            e.Handled = true;
+            return;
+        }
+
         if (_panStart.HasValue && e.MiddleButton == MouseButtonState.Pressed)
         {
             var delta   = screen - _panStart.Value;
@@ -889,6 +931,22 @@ public class HexMapCanvas : FrameworkElement
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         base.OnMouseUp(e);
+
+        if (e.ChangedButton == MouseButton.Left && _revealDragging)
+        {
+            _revealDragging = false;
+            ReleaseMouseCapture();
+            if (_revealDragMoved)
+            {
+                // Flush the full update deferred during drag
+                UpdateFogHighlightLayer();
+                UpdateLocationLayer();
+                HexToggledInRevealMode?.Invoke(-1, _revealDragReveal);   // -1 = batch end
+            }
+            _revealDragLastNode = -1;
+            e.Handled = true;
+            return;
+        }
 
         if (e.ChangedButton == MouseButton.Left && _dragCorner >= 0)
         {

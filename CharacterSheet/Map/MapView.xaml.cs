@@ -78,7 +78,7 @@ public partial class MapView : UserControl
         _canvas.OriginClicked           += OnOriginClicked;
         _canvas.RightClickedEntity      += OnRightClickEntity;
         _canvas.RightClickedHex         += OnCanvasRightClickHex;
-        _canvas.HexRevealedInRevealMode += OnHexRevealedInRevealMode;
+        _canvas.HexToggledInRevealMode += OnHexToggledInRevealMode;
 
         // Populate weather combo
         WeatherCombo.Items.Add("— None —");
@@ -938,11 +938,14 @@ public partial class MapView : UserControl
         if (_canvas is not null) _canvas.RevealMode = false;
     }
 
-    private void OnHexRevealedInRevealMode(int node)
+    private void OnHexToggledInRevealMode(int node, bool revealed)
     {
         RefreshLocationList();
         NotifyPlayerLocation();
-        SetStatus($"Hex {node} revealed.");
+        if (node >= 0)
+            SetStatus(revealed ? $"Hex {node} revealed." : $"Fog restored to Hex {node}.");
+        else
+            SetStatus(revealed ? "Area revealed." : "Fog restored to area.");
     }
 
     // ── Search / Navigate ──────────────────────────────────────────────
