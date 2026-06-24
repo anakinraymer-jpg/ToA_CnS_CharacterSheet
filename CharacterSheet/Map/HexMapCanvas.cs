@@ -31,13 +31,16 @@ public class HexMapCanvas : FrameworkElement
     /// <summary>Fires when the user right-clicks an empty hex (no entity present).</summary>
     public event Action<int>?            RightClickedHex;
     /// <summary>Fires when a hex is revealed or un-revealed in RevealMode (node=-1 signals drag-end batch).</summary>
-    public event Action<int, bool>?      HexToggledInRevealMode;
+    public event Action<int, bool>?         HexToggledInRevealMode;
+    /// <summary>Fires when a curse is painted or erased in curse-paint mode (node=-1 signals drag-end batch).</summary>
+    public event Action<int, bool, string>? HexCurseToggled;
 
     // ── Data sources ─────────────────────────────────────────────────
     private readonly HexGrid            _grid;
     private readonly MapEntityManager   _em;
     private readonly MapLocationManager _lm;
     private readonly MapTerrainMap      _tm;
+    private readonly MapCurseMap        _cm;
 
     // ── View state ───────────────────────────────────────────────────
     private Matrix       _viewMatrix = Matrix.Identity;
@@ -49,10 +52,11 @@ public class HexMapCanvas : FrameworkElement
     private HashSet<int> _validTargets = [];
 
     // ── Public flags ─────────────────────────────────────────────────
-    public bool         FogEnabled  { get; set; }
-    public HashSet<int> FogRevealed { get; } = [];
-    public bool         RevealMode  { get; set; }
-    public int          GridOpacity { get; set; } = 180;
+    public bool         FogEnabled     { get; set; }
+    public HashSet<int> FogRevealed    { get; } = [];
+    public bool         RevealMode     { get; set; }
+    public string       CursePaintLevel { get; set; } = "";   // "" = off; "Lesser Curse" / "Greater Curse"
+    public int          GridOpacity    { get; set; } = 180;
 
     // ── Internal flags ───────────────────────────────────────────────
     private bool            _teleport;
@@ -74,6 +78,13 @@ public class HexMapCanvas : FrameworkElement
     private static readonly Brush FogFillBrush      = Freeze(new SolidColorBrush(Color.FromArgb(245, 0, 0, 0)));
     private static readonly Pen   WhiteLocPen        = FrozenPen(Colors.White, 1.2);
     private static readonly Brush TerrainAbbrBrush   = Freeze(new SolidColorBrush(Color.FromArgb(130, 255, 255, 255)));
+    private static readonly Brush LesserCurseBrush   = Freeze(new SolidColorBrush(Color.FromRgb(80, 200, 120)));
+    private static readonly Brush GreaterCurseBrush  = Freeze(new SolidColorBrush(Color.FromRgb(0, 110, 0)));
+    private static readonly Brush SkullShadowBrush   = Freeze(new SolidColorBrush(Color.FromArgb(200, 0, 0, 0)));
+
+    // ── Skull FormattedText caches (curse layer) ─────────────────────
+    private FormattedText? _skullLesser, _skullGreater, _skullShadow;
+    private double         _skullCachedSize = -1;
 
     // ── Opacity-dependent draw resource cache ────────────────────────
     private int    _cachedOpacity = -1;
@@ -106,6 +117,7 @@ public class HexMapCanvas : FrameworkElement
     private readonly DrawingVisual    _gridOverlayLayer;   // fills + borders, highlighted cells only
     private readonly DrawingVisual    _locationLayer;
     private readonly DrawingVisual    _entityLayer;
+    private readonly DrawingVisual    _curseLayer;         // skull icons for cursed hexes (below fog)
     private readonly DrawingVisual    _fogLayer;           // fog fill+border, all unrevealed cells
     private readonly DrawingVisual    _fogHighlightLayer;  // green tint, valid-target cells in fog
     private readonly DrawingVisual    _handleLayer;
@@ -124,6 +136,12 @@ public class HexMapCanvas : FrameworkElement
     private bool _revealDragReveal;     // true = revealing stroke, false = un-revealing
     private int  _revealDragLastNode = -1;
     private bool _revealDragMoved;      // true once the drag moved to a second hex
+
+    // ── Curse-mode drag state ────────────────────────────────────────
+    private bool _curseDragging;
+    private bool _curseDragAdd;         // true = painting curses, false = erasing
+    private int  _curseDragLastNode = -1;
+    private bool _curseDragMoved;
 
     // ── Corner warp visuals ──────────────────────────────────────────
     private static readonly Color[] CornerColors =
@@ -144,9 +162,9 @@ public class HexMapCanvas : FrameworkElement
 
     public HexMapCanvas(
         HexGrid grid, MapEntityManager em,
-        MapLocationManager lm, MapTerrainMap tm)
+        MapLocationManager lm, MapTerrainMap tm, MapCurseMap cm)
     {
-        _grid = grid; _em = em; _lm = lm; _tm = tm;
+        _grid = grid; _em = em; _lm = lm; _tm = tm; _cm = cm;
         Focusable    = true;
         ClipToBounds = true;
 
@@ -156,6 +174,7 @@ public class HexMapCanvas : FrameworkElement
         _gridOverlayLayer  = new DrawingVisual();
         _locationLayer     = new DrawingVisual();
         _entityLayer       = new DrawingVisual();
+        _curseLayer        = new DrawingVisual();
         _fogLayer          = new DrawingVisual();
         _fogHighlightLayer = new DrawingVisual();
         _handleLayer       = new DrawingVisual();
@@ -168,6 +187,7 @@ public class HexMapCanvas : FrameworkElement
         _root.Children.Add(_gridOverlayLayer);
         _root.Children.Add(_locationLayer);
         _root.Children.Add(_entityLayer);
+        _root.Children.Add(_curseLayer);
         _root.Children.Add(_fogLayer);
         _root.Children.Add(_fogHighlightLayer);
         _root.Children.Add(_handleLayer);
@@ -219,6 +239,7 @@ public class HexMapCanvas : FrameworkElement
         UpdateGridOverlayLayer();
         UpdateLocationLayer();
         UpdateEntityLayer();
+        UpdateCurseLayer();
         UpdateFogLayer();
         UpdateFogHighlightLayer();
         UpdateHandleLayer();
@@ -405,11 +426,12 @@ public class HexMapCanvas : FrameworkElement
     /// <summary>Clears geometry and text caches. Call when grid layout changes.</summary>
     public void InvalidateGeoCache()
     {
-        _geoCache     = null;
-        _centerCache  = null;
-        _numTextCache = null;
-        _numTextSize  = -1;
-        _nodeIndex    = null;
+        _geoCache        = null;
+        _centerCache     = null;
+        _numTextCache    = null;
+        _numTextSize     = -1;
+        _nodeIndex       = null;
+        _skullCachedSize = -1;   // skull size depends on grid size
     }
 
     // ── Layer management ─────────────────────────────────────────────
@@ -426,6 +448,7 @@ public class HexMapCanvas : FrameworkElement
         UpdateGridOverlayLayer();
         UpdateLocationLayer();
         UpdateEntityLayer();
+        UpdateCurseLayer();
         UpdateFogLayer();
         UpdateFogHighlightLayer();
         UpdateHandleLayer();
@@ -449,6 +472,7 @@ public class HexMapCanvas : FrameworkElement
     private void UpdateGridOverlayLayer()  { using var dc = _gridOverlayLayer.RenderOpen();  DrawGridOverlay(dc); }
     private void UpdateLocationLayer()     { using var dc = _locationLayer.RenderOpen();     DrawLocations(dc); }
     private void UpdateEntityLayer()       { using var dc = _entityLayer.RenderOpen();       DrawEntities(dc); }
+    private void UpdateCurseLayer()        { using var dc = _curseLayer.RenderOpen();        DrawCurses(dc); }
     private void UpdateFogLayer()          { using var dc = _fogLayer.RenderOpen();          DrawFog(dc); }
     private void UpdateFogHighlightLayer() { using var dc = _fogHighlightLayer.RenderOpen(); DrawFogHighlights(dc); }
     private void UpdateHandleLayer()       { using var dc = _handleLayer.RenderOpen();       DrawCornerHandles(dc); }
@@ -692,6 +716,54 @@ public class HexMapCanvas : FrameworkElement
         }
     }
 
+    // ── Curse layer ──────────────────────────────────────────────────────
+
+    private void DrawCurses(DrawingContext dc)
+    {
+        if (_centerCache is null || _cm.Count == 0) return;
+        double sz = _grid.Size * 0.42;
+        foreach (var (node, level) in _cm.All)
+        {
+            int idx = IndexOfNode(node);
+            if (idx < 0) continue;
+            var (wx, wy) = _centerCache[idx];
+            bool greater = level == MapCurseMap.GreaterCurse;
+            var  skull   = GetSkull(greater, sz);
+            var  shadow  = GetSkullShadow(sz);
+            // slight drop shadow for readability on any terrain
+            dc.DrawText(shadow, new Point(wx - shadow.Width / 2 + 1, wy - shadow.Height / 2 + 1));
+            dc.DrawText(skull,  new Point(wx - skull.Width  / 2,     wy - skull.Height  / 2));
+        }
+    }
+
+    private void EnsureSkullCache(double sz)
+    {
+        if (_skullCachedSize == sz) return;
+        _skullCachedSize = sz;
+        _skullLesser  = null;
+        _skullGreater = null;
+        _skullShadow  = null;
+    }
+
+    private FormattedText GetSkull(bool greater, double sz)
+    {
+        EnsureSkullCache(sz);
+        if (greater) return _skullGreater ??= MakeSkull(GreaterCurseBrush, sz);
+        return _skullLesser ??= MakeSkull(LesserCurseBrush, sz);
+    }
+
+    private FormattedText GetSkullShadow(double sz)
+    {
+        EnsureSkullCache(sz);
+        return _skullShadow ??= MakeSkull(SkullShadowBrush, sz);
+    }
+
+    private FormattedText MakeSkull(Brush brush, double sz) =>
+        new("☠", CultureInfo.CurrentCulture,
+            FlowDirection.LeftToRight,
+            new Typeface("Segoe UI Symbol"),
+            sz, brush, _ppd);
+
     // Static fog: all unrevealed cells with combined fill+border in a single DrawGeometry call.
     // Rebuilt only when FogRevealed changes, fog is toggled, or opacity changes.
     private void DrawFog(DrawingContext dc)
@@ -820,6 +892,25 @@ public class HexMapCanvas : FrameworkElement
             if (cell is null) return;
             int clicked = cell.Number;
 
+            if (!string.IsNullOrEmpty(CursePaintLevel))
+            {
+                string? existing   = _cm.Get(clicked);
+                bool    isRemoval  = existing == CursePaintLevel;
+                _curseDragAdd       = !isRemoval;
+                _curseDragging      = true;
+                _curseDragLastNode  = clicked;
+                _curseDragMoved     = false;
+                CaptureMouse();
+
+                if (isRemoval) _cm.Clear(clicked);
+                else           _cm.Set(clicked, CursePaintLevel);
+                UpdateCurseLayer();
+
+                HexCurseToggled?.Invoke(clicked, !isRemoval, CursePaintLevel);
+                e.Handled = true;
+                return;
+            }
+
             if (RevealMode)
             {
                 bool wasRevealed    = FogRevealed.Contains(clicked);
@@ -889,6 +980,34 @@ public class HexMapCanvas : FrameworkElement
             return;
         }
 
+        if (_curseDragging && e.LeftButton == MouseButtonState.Pressed)
+        {
+            var sc2    = ToScene(screen);
+            var coord2 = _grid.PixelToNearest(sc2.X, sc2.Y);
+            if (coord2 is not null)
+            {
+                var cell2 = _grid.Cell(coord2.Value.Q, coord2.Value.R);
+                if (cell2 is not null && cell2.Number != _curseDragLastNode)
+                {
+                    int node = cell2.Number;
+                    _curseDragLastNode = node;
+                    _curseDragMoved    = true;
+                    string? existing = _cm.Get(node);
+                    bool shouldAct = _curseDragAdd
+                        ? existing != CursePaintLevel
+                        : existing == CursePaintLevel;
+                    if (shouldAct)
+                    {
+                        if (_curseDragAdd) _cm.Set(node, CursePaintLevel);
+                        else               _cm.Clear(node);
+                        UpdateCurseLayer();
+                    }
+                }
+            }
+            e.Handled = true;
+            return;
+        }
+
         if (_revealDragging && e.LeftButton == MouseButtonState.Pressed)
         {
             var sc    = ToScene(screen);
@@ -931,6 +1050,17 @@ public class HexMapCanvas : FrameworkElement
     protected override void OnMouseUp(MouseButtonEventArgs e)
     {
         base.OnMouseUp(e);
+
+        if (e.ChangedButton == MouseButton.Left && _curseDragging)
+        {
+            _curseDragging = false;
+            ReleaseMouseCapture();
+            if (_curseDragMoved)
+                HexCurseToggled?.Invoke(-1, _curseDragAdd, CursePaintLevel);
+            _curseDragLastNode = -1;
+            e.Handled = true;
+            return;
+        }
 
         if (e.ChangedButton == MouseButton.Left && _revealDragging)
         {

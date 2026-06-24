@@ -30,6 +30,7 @@ public partial class MapView : UserControl
     private readonly MapEntityManager   _em;
     private readonly MapLocationManager _lm;
     private readonly MapTerrainMap      _tm;
+    private readonly MapCurseMap        _cm;
     private readonly HexMapCanvas       _canvas;
 
     private int    _day                      = 1;
@@ -67,8 +68,9 @@ public partial class MapView : UserControl
         _em  = new MapEntityManager();
         _lm  = new MapLocationManager();
         _tm  = new MapTerrainMap();
+        _cm  = new MapCurseMap();
 
-        _canvas = new HexMapCanvas(_grid, _em, _lm, _tm);
+        _canvas = new HexMapCanvas(_grid, _em, _lm, _tm, _cm);
         _canvas.FogEnabled = true;
         CanvasHost.Children.Add(_canvas);
 
@@ -79,6 +81,7 @@ public partial class MapView : UserControl
         _canvas.RightClickedEntity      += OnRightClickEntity;
         _canvas.RightClickedHex         += OnCanvasRightClickHex;
         _canvas.HexToggledInRevealMode += OnHexToggledInRevealMode;
+        _canvas.HexCurseToggled        += OnHexCurseToggled;
 
         // Populate weather combo
         WeatherCombo.Items.Add("— None —");
@@ -368,9 +371,19 @@ public partial class MapView : UserControl
     private void ToggleDmMode()
     {
         _dmMode = !_dmMode;
-        LocationsGroup.Header = _dmMode ? "Locations  ⚿" : "Locations";
+        LocationsGroup.Header       = _dmMode ? "Locations  ⚿" : "Locations";
+        DmToolsPanel.Visibility     = _dmMode ? Visibility.Visible : Visibility.Collapsed;
+
+        if (!_dmMode)
+        {
+            // Deactivate curse modes when DM mode is turned off
+            LesserCurseCheck.IsChecked  = false;
+            GreaterCurseCheck.IsChecked = false;
+            _canvas.CursePaintLevel     = "";
+        }
+
         RefreshLocationList();
-        SetStatus(_dmMode ? "DM mode on — all locations visible." : "DM mode off.");
+        SetStatus(_dmMode ? "DM mode on — all locations and DM tools visible." : "DM mode off.");
     }
 
     private void OnLocationListSelectionChanged(object s, SelectionChangedEventArgs e)
@@ -948,6 +961,42 @@ public partial class MapView : UserControl
             SetStatus(revealed ? "Area revealed." : "Fog restored to area.");
     }
 
+    // ── Curse Paint Mode ───────────────────────────────────────────────
+
+    private void OnLesserCurseChecked(object s, RoutedEventArgs e)
+    {
+        if (_canvas is null) return;
+        GreaterCurseCheck.IsChecked = false;
+        _canvas.CursePaintLevel     = MapCurseMap.LesserCurse;
+    }
+
+    private void OnLesserCurseUnchecked(object s, RoutedEventArgs e)
+    {
+        if (_canvas is null || GreaterCurseCheck.IsChecked == true) return;
+        _canvas.CursePaintLevel = "";
+    }
+
+    private void OnGreaterCurseChecked(object s, RoutedEventArgs e)
+    {
+        if (_canvas is null) return;
+        LesserCurseCheck.IsChecked = false;
+        _canvas.CursePaintLevel    = MapCurseMap.GreaterCurse;
+    }
+
+    private void OnGreaterCurseUnchecked(object s, RoutedEventArgs e)
+    {
+        if (_canvas is null || LesserCurseCheck.IsChecked == true) return;
+        _canvas.CursePaintLevel = "";
+    }
+
+    private void OnHexCurseToggled(int node, bool added, string level)
+    {
+        if (node >= 0)
+            SetStatus(added ? $"Hex {node} marked: {level}." : $"Curse removed from Hex {node}.");
+        else
+            SetStatus(added ? $"Area marked: {level}." : "Curses removed from area.");
+    }
+
     // ── Search / Navigate ──────────────────────────────────────────────
 
     private void RefreshSearchBox()
@@ -1050,7 +1099,7 @@ public partial class MapView : UserControl
     public void SaveState(string path)
     {
         var state = MapSaveState.From(
-            _grid, _em, _lm, _tm, _canvas.FogRevealed, _day, _currentWeather);
+            _grid, _em, _lm, _tm, _cm, _canvas.FogRevealed, _day, _currentWeather);
         File.WriteAllText(path, state.Serialize());
         MapPrefs.UpdateSave(path);
         SetStatus($"Saved: {path}");
@@ -1064,7 +1113,7 @@ public partial class MapView : UserControl
             var state = MapSaveState.Deserialize(json)
                 ?? throw new InvalidDataException("Invalid save file");
 
-            var (fog, day, weather) = state.Apply(_grid, _em, _lm, _tm, playerName);
+            var (fog, day, weather) = state.Apply(_grid, _em, _lm, _tm, _cm, playerName);
             _day            = day;
             _currentWeather = weather;
             _canvas.FogRevealed.Clear();

@@ -28,6 +28,10 @@ public class MapSaveState
     [JsonPropertyName("fog_revealed")]
     public List<int> FogRevealed { get; set; } = [];
 
+    /// <summary>Maps node numbers (as string keys) to curse levels.</summary>
+    [JsonPropertyName("curses")]
+    public Dictionary<string, string> Curses { get; set; } = [];
+
     [JsonPropertyName("weather")]
     public string Weather { get; set; } = "";
 
@@ -88,15 +92,12 @@ public class MapSaveState
 
     // ── Conversion helpers ─────────────────────────────────────────────
 
-    /// <summary>
-    /// Builds a save state from the live managers and canvas state.
-    /// <paramref name="fogRevealed"/> is the set of revealed hex node numbers.
-    /// </summary>
     public static MapSaveState From(
         HexGrid grid,
         MapEntityManager em,
         MapLocationManager lm,
         MapTerrainMap tm,
+        MapCurseMap cm,
         IEnumerable<int> fogRevealed,
         int day,
         string weather)
@@ -145,21 +146,18 @@ public class MapSaveState
                 Description  = l.Description,
                 LocationType = l.LocationType,
             })],
-            Terrain    = tm.ToDict(),
+            Terrain     = tm.ToDict(),
+            Curses      = cm.ToDict(),
             FogRevealed = [.. fogRevealed.OrderBy(n => n)],
         };
     }
 
-    /// <summary>
-    /// Restores live managers and grid from this save state.
-    /// Returns the set of revealed fog nodes.
-    /// <paramref name="playerName"/> re-evaluates the player flag against the character sheet name.
-    /// </summary>
     public (HashSet<int> FogRevealed, int Day, string Weather) Apply(
         HexGrid grid,
         MapEntityManager em,
         MapLocationManager lm,
         MapTerrainMap tm,
+        MapCurseMap cm,
         string playerName = "")
     {
         // Grid
@@ -215,6 +213,9 @@ public class MapSaveState
 
         // Terrain
         tm.FromDict(Terrain);
+
+        // Curses
+        cm.FromDict(Curses);
 
         // Fog
         var fog = FogRevealed.ToHashSet();

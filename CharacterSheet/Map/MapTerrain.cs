@@ -118,3 +118,31 @@ public class MapTerrainMap
                 _data[node] = v;
     }
 }
+
+/// <summary>Maps hex node numbers to curse levels ("Lesser Curse" or "Greater Curse").</summary>
+public class MapCurseMap
+{
+    public const string LesserCurse  = "Lesser Curse";
+    public const string GreaterCurse = "Greater Curse";
+
+    private readonly Dictionary<int, string> _data = [];
+
+    public void Set(int node, string level)  => _data[node] = level;
+    public void Clear(int node)               => _data.Remove(node);
+    public void ClearAll()                    => _data.Clear();
+    public string? Get(int node)              => _data.TryGetValue(node, out var v) ? v : null;
+    public int Count                          => _data.Count;
+    public IEnumerable<KeyValuePair<int, string>> All => _data;
+
+    public Dictionary<string, string> ToDict() =>
+        _data.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value);
+
+    public void FromDict(Dictionary<string, string>? dict)
+    {
+        _data.Clear();
+        if (dict is null) return;
+        foreach (var (k, v) in dict)
+            if (int.TryParse(k, out var node))
+                _data[node] = v;
+    }
+}

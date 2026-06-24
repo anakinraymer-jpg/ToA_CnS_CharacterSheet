@@ -235,19 +235,41 @@
             </StackPanel>
           </GroupBox>
 
-          <!-- ── Terrain Paint Shortcut ─────────────────────────────────── -->
-          <GroupBox Header="Terrain Paint" Style="{StaticResource MapGroup}">
-            <StackPanel>
-              <TextBlock Text="Right-click an empty hex to paint terrain."
-                         Foreground="{StaticResource MapTextDim}"
-                         FontSize="10" TextWrapping="Wrap"/>
-              <ComboBox x:Name="TerrainPaintCombo"
-                        Background="{StaticResource MapListBg}"
-                        Foreground="{StaticResource MapText}"
-                        BorderBrush="{StaticResource MapBtnBdr}"
-                        FontSize="11" ToolTip="Terrain type to apply on right-click"/>
-            </StackPanel>
-          </GroupBox>
+          <!-- __ DM-only tools (Ctrl+D → Ctrl+M) _________________________ -->
+          <StackPanel x:Name="DmToolsPanel" Visibility="Collapsed">
+
+            <!-- Terrain Paint -->
+            <GroupBox Header="Terrain Paint" Style="{StaticResource MapGroup}">
+              <StackPanel>
+                <TextBlock Text="Right-click an empty hex to paint terrain."
+                           Foreground="{StaticResource MapTextDim}"
+                           FontSize="10" TextWrapping="Wrap"/>
+                <ComboBox x:Name="TerrainPaintCombo"
+                          Background="{StaticResource MapListBg}"
+                          Foreground="{StaticResource MapText}"
+                          BorderBrush="{StaticResource MapBtnBdr}"
+                          FontSize="11" ToolTip="Terrain type to apply on right-click"/>
+              </StackPanel>
+            </GroupBox>
+
+            <!-- Curse Paint -->
+            <GroupBox Header="Curse" Style="{StaticResource MapGroup}">
+              <StackPanel>
+                <TextBlock Text="Left-click or drag hexes to mark/unmark curses."
+                           Foreground="{StaticResource MapTextDim}"
+                           FontSize="10" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                <CheckBox x:Name="LesserCurseCheck" Content="Lesser Curse"
+                          Foreground="#50C878" FontSize="11" Margin="0,0,0,2"
+                          ToolTip="Click/drag hexes to mark Lesser Curse (green skull)"
+                          Checked="OnLesserCurseChecked" Unchecked="OnLesserCurseUnchecked"/>
+                <CheckBox x:Name="GreaterCurseCheck" Content="Greater Curse"
+                          Foreground="#1E7A1E" FontSize="11"
+                          ToolTip="Click/drag hexes to mark Greater Curse (dark green skull)"
+                          Checked="OnGreaterCurseChecked" Unchecked="OnGreaterCurseUnchecked"/>
+              </StackPanel>
+            </GroupBox>
+
+          </StackPanel>
 
           <!-- ── Toolbar actions ────────────────────────────────────────── -->
           <GroupBox Header="Map Tools" Style="{StaticResource MapGroup}">
