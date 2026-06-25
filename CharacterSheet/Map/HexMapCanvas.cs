@@ -183,11 +183,11 @@ public class HexMapCanvas : FrameworkElement
         _root.Transform = _rootTransform;
         _root.Children.Add(_bgLayer);
         _root.Children.Add(_terrainLayer);
+        _root.Children.Add(_curseLayer);      // skulls sit below hex numbers
         _root.Children.Add(_staticGridLayer);
         _root.Children.Add(_gridOverlayLayer);
         _root.Children.Add(_locationLayer);
         _root.Children.Add(_entityLayer);
-        _root.Children.Add(_curseLayer);
         _root.Children.Add(_fogLayer);
         _root.Children.Add(_fogHighlightLayer);
         _root.Children.Add(_handleLayer);
@@ -721,7 +721,7 @@ public class HexMapCanvas : FrameworkElement
     private void DrawCurses(DrawingContext dc)
     {
         if (_centerCache is null || _cm.Count == 0) return;
-        double sz = _grid.Size * 0.42;
+        double sz = _grid.Size * 0.72;
         foreach (var (node, level) in _cm.All)
         {
             int idx = IndexOfNode(node);
